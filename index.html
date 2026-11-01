@@ -92,16 +92,20 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
 
 /* parts list */
 .parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 26px; align-items: start; }
-.parts table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.parts caption { text-align: left; font: 700 13px var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1.5px solid var(--ink); }
-.parts td { border-bottom: 1px solid var(--rule); padding: 4px 4px; vertical-align: middle; }
-.parts td.ref { font-family: var(--font-mono); font-weight: 500; width: 76px; }
-.parts td.note { color: var(--ink-2); font-size: 11.5px; }
-.parts td.v { width: 104px; }
-.parts input { width: 100%; font: 12.5px var(--font-mono); background: transparent; color: var(--ink); border: 1px solid transparent; border-bottom-color: var(--rule); padding: 3px 4px; }
-.parts input:hover { border-color: var(--rule); }
-.parts input.changed { color: var(--accent); }
-.parts input.bad { border-color: var(--accent); }
+.parts .grp { min-width: 0; }
+.parts h3 { margin: 0; font: 700 13px var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1.5px solid var(--ink); }
+.part { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 7px 2px 8px; border-bottom: 1px solid var(--rule); }
+.part.mod { box-shadow: inset 3px 0 0 var(--accent); padding-left: 10px; }
+.part .ref { font: 500 12.5px var(--font-mono); }
+.part .val { font: 500 12.5px var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; cursor: pointer; white-space: nowrap; }
+.part .val.changed { color: var(--accent); }
+.part input[type=range] { width: 100%; margin: 0; accent-color: var(--trace); min-width: 0; }
+.part .note { grid-column: 1 / -1; color: var(--ink-2); font-size: 11.5px; line-height: 1.4; }
+.part .modnote { grid-column: 1 / -1; font-size: 11.5px; line-height: 1.4; color: var(--ink); }
+.part .modnote b { color: var(--accent); font: 500 10px var(--font-mono); letter-spacing: .06em; margin-right: 6px; }
+.part.fixed .val { cursor: default; color: var(--ink-2); }
+.parts.only-mod .part:not(.mod), .parts.only-mod .grp:not(:has(.mod)) { display: none; }
+.badge.mod { color: var(--accent); }
 .badge { display: inline-block; font: 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; margin-left: 6px; }
 .badge.est { color: var(--est); }
 .badge.td3 { color: var(--trace); }
@@ -176,10 +180,12 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
   <section>
     <h2>Parts list</h2>
     <div class="legend">
-      <span>Edit any value to re-derive the circuit while it plays. Accepts 22k, 0.033u, 18n, 1M.</span>
+      <span>Drag any slider to re-derive the circuit while it plays. Resistors and caps sweep from a tenth to ten times stock. Click a value to reset that part.</span>
+      <span><span class="badge mod">mod</span> a part people commonly mod on 303s and TD-3s</span>
       <span><span class="badge">schematic</span> printed on the sheet</span>
       <span><span class="badge td3">TD-3</span> read from the TD-3 clone sheet</span>
       <span><span class="badge est">estimate</span> on neither sheet; chosen to match documented behaviour</span>
+      <label class="field"><input type="checkbox" id="onlymod"> <span>Show only commonly modded parts</span></label>
       <button type="button" id="restore">Restore all parts</button>
     </div>
     <div class="parts" id="parts"></div>
@@ -194,6 +200,7 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
       <p><strong>VCF.</strong> Four coupled capacitor voltages, one per ladder stage, with a tanh law for each transistor pair. The bottom cap is 18n against 33n above it. Feedback through VR4 is high-passed by C15, so resonance thins out at low cutoff settings. Full feedback (k = 17) is the point of self-oscillation.</p>
       <p><strong>Envelopes.</strong> The filter envelope charges C62 and decays through R138 + VR6, which gives the 200 ms to 2.5 s range printed on the sheet. On accented notes the 4066 shorts VR6, so decay drops to minimum, and the envelope also charges the accent sweep cap through R117. Consecutive accents build up on that cap.</p>
       <p><strong>VCA and resonance compensation.</strong> The filter feeds the OTA through C49/R88, and the resonance pot wiper is mixed in through C76/R100. That second path restores much of the bass the ladder loses as feedback rises (its passband gain is 1/(1+k)). The VCA envelope is C67 charged through R49 and decaying through R52.</p>
+      <p><strong>Mods.</strong> Parts marked mod are the ones people usually change on 303s and TD-3s. Most map to Devil Fish controls (Robin Whittle's well-known rebuild): Normal and Accent decay, VEG decay, Soft attack, Slide time, Sweep speed, and resonance raised to self-oscillation.</p>
       <p><strong>Sources.</strong> Values the 1982 sheet does not show clearly were read from the TD-3 clone schematic where its circuit matches. The few marked estimate appear on neither sheet.</p>
     </div>
   </section>
@@ -237,21 +244,21 @@ const VT = 0.02585; // thermal voltage at ~300 K
 //                       behaviour the sheet documents (ramp levels, decay times)
 const COMPONENTS = {
   // --- Pitch CV: IC9 4174 + R74..R90 matched R-2R ladder, 0.1% selected
-  VREF:   { v: 5.333,   unit: 'V', block: 'CV',    source: 'schematic', note: 'IC9/IC10 supply; 5.333/64 = 1/12 V per step' },
+  VREF:   { v: 5.333,   unit: 'V', block: 'CV',    source: 'schematic', note: 'IC9/IC10 supply; 5.333/64 = 1/12 V per step', range: [4, 6.5, 'lin'] },
   R_DAC:  { v: 100e3,   unit: 'Ω', block: 'CV',    source: 'schematic', note: 'R74-R90 series arms' },
   R2_DAC: { v: 200e3,   unit: 'Ω', block: 'CV',    source: 'schematic', note: 'R78 etc. 200K legs' },
 
   // --- Slide: IC12 4066 switch around RC lag
-  R93:    { v: 100e3,   unit: 'Ω', block: 'Slide', source: 'schematic', note: 'slide resistor' },
-  C35:    { v: 0.22e-6, unit: 'F', block: 'Slide', source: 'schematic', note: 'slide cap (.22)' },
+  R93:    { v: 100e3,   unit: 'Ω', block: 'Slide', source: 'schematic', note: 'slide resistor', mod: 'Slide time. The Devil Fish puts a pot here; bigger values give a lazier glide.' },
+  C35:    { v: 0.22e-6, unit: 'F', block: 'Slide', source: 'schematic', note: 'slide cap (.22)', mod: 'Slide time cap. Swapping it is the simple slide-time mod; 1µ gives a long, smeary glide.' },
 
   // --- VCO
   C33:    { v: 0.01e-6, unit: 'F', block: 'VCO',   source: 'schematic', note: 'integrator timing cap' },
-  V_LO:   { v: 5.5,     unit: 'V', block: 'VCO',   source: 'schematic', note: 'ramp bottom (scope trace)' },
-  V_HI:   { v: 12.0,    unit: 'V', block: 'VCO',   source: 'schematic', note: 'ramp top / reset threshold (scope trace)' },
-  F_TUNE: { v: 110,     unit: 'Hz',block: 'VCO',   source: 'schematic', note: 'TM4: 110 Hz at CV 2.75 V (A key)' },
-  CV_TUNE:{ v: 2.75,    unit: 'V', block: 'VCO',   source: 'schematic', note: 'CV out at A key' },
-  VR2:    { v: 50e3,    unit: 'Ω', block: 'VCO',   source: 'schematic', note: 'TUNING 50K(B), ±1 oct assumed' },
+  V_LO:   { v: 5.5,     unit: 'V', block: 'VCO',   source: 'schematic', note: 'ramp bottom (scope trace)', range: [3, 8, 'lin'] },
+  V_HI:   { v: 12.0,    unit: 'V', block: 'VCO',   source: 'schematic', note: 'ramp top / reset threshold (scope trace)', range: [9, 15, 'lin'] },
+  F_TUNE: { v: 110,     unit: 'Hz',block: 'VCO',   source: 'schematic', note: 'TM4: 110 Hz at CV 2.75 V (A key)', range: [55, 220, 'log'] },
+  CV_TUNE:{ v: 2.75,    unit: 'V', block: 'VCO',   source: 'schematic', note: 'CV out at A key', range: [1, 4, 'lin'] },
+  VR2:    { v: 50e3,    unit: 'Ω', block: 'VCO',   source: 'schematic', note: 'TUNING 50K(B), ±1 oct assumed', fixed: true },
 
   // --- Square shaper (Q8 2SA733)
   C10:    { v: 0.01e-6, unit: 'F', block: 'Square',source: 'schematic', note: 'coupling from saw' },
@@ -262,42 +269,42 @@ const COMPONENTS = {
   R_SQE:  { v: 1e3,     unit: 'Ω', block: 'Square',source: 'estimate',  note: 'Q8 emitter degeneration' },
 
   // --- VCF ladder
-  C18:    { v: 0.018e-6,unit: 'F', block: 'VCF',   source: 'schematic', note: 'bottom stage cap (.018)' },
+  C18:    { v: 0.018e-6,unit: 'F', block: 'VCF',   source: 'schematic', note: 'bottom stage cap (.018)', mod: 'Bottom ladder cap. Changing it toward 33n alters how the resonance sits; a popular experiment, not a standard mod.' },
   C19:    { v: 0.033e-6,unit: 'F', block: 'VCF',   source: 'schematic', note: 'stage 2 cap (.033)' },
   C24:    { v: 0.033e-6,unit: 'F', block: 'VCF',   source: 'schematic', note: 'stage 3 cap (.033)' },
   C26:    { v: 0.033e-6,unit: 'F', block: 'VCF',   source: 'schematic', note: 'top stage cap (.033)' },
-  R_IN:   { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'td3',       note: 'waveform to Q12 base (TD-3 R27)' },
+  R_IN:   { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'td3',       note: 'waveform to Q12 base (TD-3 R27)', mod: 'Filter input level. Lowering it drives the ladder harder for grit, like the Devil Fish overdrive.' },
   R98:    { v: 2.2e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'Q12 base to ground (input divider)' },
   C15:    { v: 1e-6,    unit: 'F', block: 'VCF',   source: 'schematic', note: 'resonance feedback coupling (1/50)' },
-  VR4:    { v: 50e3,    unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'RESONANCE 50K(B)' },
-  A_Q21:  { v: 16.5,    unit: '×', block: 'VCF',   source: 'estimate',  note: 'Q21/Q19 loop gain at VR4 max (k_crit = 17)' },
+  VR4:    { v: 50e3,    unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'RESONANCE 50K(B)', fixed: true },
+  A_Q21:  { v: 16.5,    unit: '×', block: 'VCF',   source: 'estimate',  note: 'Q21/Q19 loop gain at VR4 max (k_crit = 17)', range: [0, 26, 'lin'], mod: 'Resonance range. The Devil Fish and many TD-3 mods raise feedback so the filter self-oscillates (k above 17 here).' },
   // expo converter Q10/Q11 summing node
   R73:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'cutoff pot to Q10 base' },
-  R72:    { v: 220e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'env mod to Q10 base' },
+  R72:    { v: 220e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'env mod to Q10 base', mod: 'Env mod depth. Lowering it is the usual more-envelope mod for bigger sweeps.' },
   R63:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'accent to Q10 base' },
   R71:    { v: 2.2e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'Q10 base to ground' },
-  V_CUT:  { v: 3.3,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span (R47 10K end stop)' },
+  V_CUT:  { v: 3.3,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span (R47 10K end stop)', range: [0.5, 6, 'lin'], mod: 'Cutoff knob range. Cutoff range mods (common on TD-3s) let the knob go lower and higher.' },
   I_REF:  { v: 3.1e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'TM3 FREQ trim: ladder current at 0 V' },
 
   // --- VCF envelope (Q38/Q40/Q39 2SK30)
-  C62:    { v: 1e-6,    unit: 'F', block: 'Env',   source: 'schematic', note: 'envelope cap (1/35)' },
-  R138:   { v: 68e3,    unit: 'Ω', block: 'Env',   source: 'schematic', note: 'decay min resistor' },
-  VR6:    { v: 1e6,     unit: 'Ω', block: 'Env',   source: 'schematic', note: 'ENV.DECAY 1M(A): 200 ms .. 2.5 s' },
+  C62:    { v: 1e-6,    unit: 'F', block: 'Env',   source: 'schematic', note: 'envelope cap (1/35)', mod: 'Envelope cap. Scales every decay time together; a smaller cap gives snappier envelopes.' },
+  R138:   { v: 68e3,    unit: 'Ω', block: 'Env',   source: 'schematic', note: 'decay min resistor', mod: 'Sets the shortest decay and the accent decay. The Devil Fish adds separate Normal and Accent decay pots, reaching much shorter decays.' },
+  VR6:    { v: 1e6,     unit: 'Ω', block: 'Env',   source: 'schematic', note: 'ENV.DECAY 1M(A): 200 ms .. 2.5 s', mod: 'Decay pot. Raising it (or adding a series pot) gives longer decays; it is the Normal decay control on a Devil Fish.' },
   R152:   { v: 100,     unit: 'Ω', block: 'Env',   source: 'td3',       note: 'attack charge path (TD-3 R125 = 100)' },
   V_ENV:  { v: 5.0,     unit: 'V', block: 'Env',   source: 'estimate',  note: 'envelope peak' },
-  VR5:    { v: 50e3,    unit: 'Ω', block: 'Env',   source: 'schematic', note: 'ENV.MOD 50K(A)' },
+  VR5:    { v: 50e3,    unit: 'Ω', block: 'Env',   source: 'schematic', note: 'ENV.MOD 50K(A)', fixed: true },
 
   // --- Accent
-  VR7:    { v: 50e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'ACCENT 50K(B)' },
-  R117:   { v: 22e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'charge resistor into sweep cap' },
-  C_ACC:  { v: 1e-6,    unit: 'F', block: 'Accent',source: 'schematic', note: 'accent sweep cap C13 (1/50); TD-3 C62 1µ' },
-  R_ACC:  { v: 47e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'sweep resistor R46 47K; TD-3 R39 47K' },
+  VR7:    { v: 50e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'ACCENT 50K(B)', fixed: true },
+  R117:   { v: 22e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'charge resistor into sweep cap', mod: 'Accent charge resistor. Lower values give a harder, faster accent sweep.' },
+  C_ACC:  { v: 1e-6,    unit: 'F', block: 'Accent',source: 'schematic', note: 'accent sweep cap C13 (1/50); TD-3 C62 1µ', mod: 'Accent sweep cap. The Devil Fish Sweep Speed control changes how fast this charges and bleeds, so stacked accents wah more or less.' },
+  R_ACC:  { v: 47e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'sweep resistor R46 47K; TD-3 R39 47K', mod: 'Accent sweep bleed. Part of the Sweep Speed mod: higher values let consecutive accents build further.' },
   V_D:    { v: 0.55,    unit: 'V', block: 'Accent',source: 'estimate',  note: 'D27/D28 forward drop' },
 
   // --- VCA (IC15 BA662A OTA)
-  C67:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'td3',       note: 'VCA env cap (TD-3 C67 1/35)' },
-  R49:    { v: 100,     unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'VCA env attack (TD-3 R49)' },
-  R52:    { v: 1.5e6,   unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'VCA env decay (TD-3 R52 1.5M)' },
+  C67:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'td3',       note: 'VCA env cap (TD-3 C67 1/35)', mod: 'VCA envelope cap; scales VCA decay and attack together.' },
+  R49:    { v: 100,     unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'VCA env attack (TD-3 R49)', mod: 'VCA attack. Related to the Devil Fish Soft Attack control, which slows the attack of non-accented notes.' },
+  R52:    { v: 1.5e6,   unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'VCA env decay (TD-3 R52 1.5M)', mod: 'VCA (VEG) decay. The Devil Fish VEG Decay control: shorter for gated plucks, longer for drones.' },
   R_VREL: { v: 4.7e3,   unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'gate-off discharge through T28' },
   V_VCA:  { v: 5.0,     unit: 'V', block: 'VCA',   source: 'estimate',  note: 'VCA env peak' },
   R105:   { v: 22e3,    unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'env to OTA bias pin (Iabc) (TD-3 R105)' },
@@ -810,25 +817,60 @@ document.getElementById('reset').onclick = () => { state.pattern = EXAMPLE.map(s
 
 // ---------- parts list ----------
 const partsEl = document.getElementById('parts');
+function partRange(k) {
+  const d = COMPONENTS[k];
+  if (d.range) return d.range;
+  return ['Ω', 'F', 'A'].includes(d.unit) ? [d.v / 10, d.v * 10, 'log'] : [d.v * 0.5, d.v * 1.5, 'lin'];
+}
+const SL = 1000;
+function toSlider(k, v) {
+  const [lo, hi, m] = partRange(k);
+  const t = m === 'log' ? Math.log(v / lo) / Math.log(hi / lo) : (v - lo) / (hi - lo);
+  return Math.round(Math.min(1, Math.max(0, t)) * SL);
+}
+function fromSlider(k, x) {
+  const [lo, hi, m] = partRange(k), t = x / SL;
+  const v = m === 'log' ? lo * Math.pow(hi / lo, t) : lo + (hi - lo) * t;
+  return +v.toPrecision(3);
+}
+function srcBadge(d) {
+  return d.source === 'estimate' ? '<span class="badge est">est.</span>' : d.source === 'td3' ? '<span class="badge td3">TD-3</span>' : '';
+}
 function renderParts() {
   const groups = {};
   for (const k in COMPONENTS) (groups[COMPONENTS[k].block] ||= []).push(k);
-  partsEl.innerHTML = Object.entries(groups).map(([g, keys]) => `<table><caption>${g}</caption><tbody>` + keys.map(k => {
-    const d = COMPONENTS[k];
-    return `<tr><td class="ref">${k}</td><td class="v"><input id="part-${k}" data-k="${k}" value="${fmt(state.parts[k], d.unit)}" aria-label="${k} value" spellcheck="false"></td>
-      <td class="note">${d.note}${d.source === 'estimate' ? '<span class="badge est">est.</span>' : d.source === 'td3' ? '<span class="badge td3">TD-3</span>' : ''}</td></tr>`;
-  }).join('') + '</tbody></table>').join('');
+  partsEl.innerHTML = Object.entries(groups).map(([g, keys]) => `<div class="grp"><h3>${g}</h3>` + keys.map(k => {
+    const d = COMPONENTS[k], v = state.parts[k];
+    const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
+    const ctl = d.fixed
+      ? '<span class="note" style="grid-column:auto">sets taper only</span>'
+      : `<input type="range" id="part-${k}" data-k="${k}" min="0" max="${SL}" step="1" value="${toSlider(k, v)}" aria-label="${k}">`;
+    return `<div class="part${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}">
+      <span class="ref">${k}</span>${ctl}
+      <span class="val${changed}" id="val-${k}" data-k="${k}" title="Click to reset to ${fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
+      <span class="note">${d.note}${srcBadge(d)}</span>
+      ${d.mod ? `<span class="modnote"><b>MOD</b>${d.mod}</span>` : ''}
+    </div>`;
+  }).join('') + '</div>').join('');
 }
-partsEl.addEventListener('change', (e) => {
-  const inp = e.target, k = inp.dataset.k; if (!k) return;
-  const val = parse(inp.value);
-  if (!(val > 0) || !isFinite(val)) { inp.classList.add('bad'); return; }
-  inp.classList.remove('bad');
-  state.parts[k] = val; inp.value = fmt(val, COMPONENTS[k].unit);
-  inp.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-9);
+function applyPart(k, val) {
+  state.parts[k] = val;
+  const lab = document.getElementById('val-' + k);
+  if (lab) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
   for (const id in knobEls) drawKnob(id); readouts();
+}
+partsEl.addEventListener('input', (e) => {
+  const k = e.target.dataset.k; if (!k || e.target.type !== 'range') return;
+  applyPart(k, fromSlider(k, +e.target.value));
 });
+partsEl.addEventListener('click', (e) => {
+  const lab = e.target.closest('.val'); if (!lab) return;
+  const k = lab.dataset.k; if (COMPONENTS[k].fixed) return;
+  applyPart(k, COMPONENTS[k].v);
+  const sl = document.getElementById('part-' + k); if (sl) sl.value = toSlider(k, COMPONENTS[k].v);
+});
+document.getElementById('onlymod').addEventListener('change', (e) => partsEl.classList.toggle('only-mod', e.target.checked));
 document.getElementById('restore').onclick = () => {
   for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
   renderParts(); for (const id in knobEls) drawKnob(id); readouts();
