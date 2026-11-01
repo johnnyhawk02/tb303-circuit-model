@@ -95,6 +95,7 @@ const COMPONENTS = {
   // --- VCA (IC15 BA662A OTA)
   C67:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'td3',       note: 'VCA env cap (TD-3 C67 1/35)', mod: 'VCA envelope cap; scales VCA decay and attack together.' },
   R49:    { v: 100,     unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'VCA env attack (TD-3 R49)', mod: 'VCA attack. Related to the Devil Fish Soft Attack control, which slows the attack of non-accented notes.' },
+  R_SOFT: { v: 3.3e3,   unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'soft attack on non-accented notes (about 3 ms with C67)', mod: 'Soft attack. The Devil Fish Soft Attack control varies this; stock 303 normal notes fade in over a few ms, accented notes bypass it and snap in. Lower it for more click, raise it for a slower swell.' },
   R52:    { v: 1.5e6,   unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'VCA env decay (TD-3 R52 1.5M)', mod: 'VCA (VEG) decay. The Devil Fish VEG Decay control: shorter for gated plucks, longer for drones.' },
   R_VREL: { v: 4.7e3,   unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'gate-off discharge through T28' },
   V_VCA:  { v: 5.0,     unit: 'V', block: 'VCA',   source: 'estimate',  note: 'VCA env peak' },
@@ -153,7 +154,7 @@ class TB303Voice {
     this.v = new Float64Array(4); // ladder cap voltages
     this.fbLp = 0;
     this.envVcf = 0; this.envAttack = 0;
-    this.envVca = 0;
+    this.envVca = 0; this.vcaAttack = 0;
     this.vAcc = 0;
     this.hp14 = 0; this.hp14In = 0; this.hp38 = 0; this.hp38In = 0;
     this.hp49 = 0; this.hp49In = 0; this.hp76 = 0; this.hp76In = 0;
@@ -194,7 +195,8 @@ class TB303Voice {
     this.envDecA = Math.exp(-1 / (rDecay * c.C62 * this.fs));
     this.envDecAccA = Math.exp(-1 / (c.R138 * c.C62 * this.fs)); // IC12 shorts VR6 on accent
     this.envAtkA = Math.exp(-1 / (c.R152 * c.C62 * this.fs));
-    this.vcaAtkA = Math.exp(-1 / (c.R49 * c.C67 * this.fs));
+    this.vcaAtkA = Math.exp(-1 / (c.R49 * c.C67 * this.fs));                // accented: fast
+    this.vcaSoftA = Math.exp(-1 / ((c.R49 + c.R_SOFT) * c.C67 * this.fs)); // normal: soft attack
     this.vcaDecA = Math.exp(-1 / (c.R52 * c.C67 * this.fs));
     this.vcaRelA = Math.exp(-1 / (c.R_VREL * c.C67 * this.fs));
     // accent sweep
@@ -220,6 +222,7 @@ class TB303Voice {
       if (!this.slide) this.cv = this.cvTarget;
       this.accentNote = !!accent;
       this.envAttack = 1; // trigger VCF env (gate edge into Q38)
+      this.vcaAttack = 1;
     }
     this.gate = true;
   }
@@ -336,8 +339,10 @@ class TB303Voice {
     }
     // VCA env: C67 charges via R49 while gated, decays via R52, released on gate off
     if (this.gate) {
-      if (this.envAttack > 0) this.envVca = 1 + this.vcaAtkA * (this.envVca - 1);
-      else this.envVca *= this.vcaDecA;
+      if (this.vcaAttack > 0) {
+        this.envVca = 1 + (this.accentNote ? this.vcaAtkA : this.vcaSoftA) * (this.envVca - 1);
+        if (this.envVca > 0.99) this.vcaAttack = 0;
+      } else this.envVca *= this.vcaDecA;
     } else this.envVca *= this.vcaRelA;
     // accent sweep: VCF env * VR7 through D27/R117 into C_ACC, bled by R_ACC
     const vAccIn = this.accentNote ? this.envVcf * this.accFrac : 0;
