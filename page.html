@@ -1,0 +1,550 @@
+<title>303 Circuit Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an engineering drawing sheet. Title block, front panel, scope, step grid, then the parts list. */
+:root {
+  --paper: #e8ece9;
+  --sheet: #f4f6f3;
+  --ink: #18272b;
+  --ink-2: #4a5a5e;
+  --rule: #b9c4c2;
+  --trace: #0b7a83;
+  --accent: #c2410c;
+  --est: #8a6d1d;
+  --knob: #1f2f33;
+  --knob-ring: #cfd6d4;
+  --font-display: "Archivo Narrow", "Arial Narrow", sans-serif-condensed, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0f1719; --sheet: #152124; --ink: #dce6e4; --ink-2: #93a5a6; --rule: #2c3d40;
+  --trace: #4fd1c5; --accent: #fb923c; --est: #d4b25a; --knob: #d9e3e1; --knob-ring: #34474a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0f1719; --sheet: #152124; --ink: #dce6e4; --ink-2: #93a5a6; --rule: #2c3d40;
+  --trace: #4fd1c5; --accent: #fb923c; --est: #d4b25a; --knob: #d9e3e1; --knob-ring: #34474a; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px; }
+.sheet { max-width: 1120px; margin: 0 auto; background: var(--sheet); border: 1.5px solid var(--ink); display: grid; }
+.sheet > section { border-top: 1px solid var(--rule); padding: 20px 22px; min-width: 0; }
+.mono { font-family: var(--font-mono); }
+h1, h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: .01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.05; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-2); font-weight: 500; }
+.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+
+/* title block */
+.title { display: grid; grid-template-columns: 1fr auto; gap: 16px 24px; align-items: end; border-top: 0 !important; }
+.title p { margin: 6px 0 0; color: var(--ink-2); max-width: 62ch; }
+.tblock { display: grid; grid-template-columns: auto auto; border: 1px solid var(--ink); font-family: var(--font-mono); font-size: 11px; }
+.tblock div { padding: 4px 10px; border-bottom: 1px solid var(--rule); }
+.tblock div:nth-child(odd) { color: var(--ink-2); border-right: 1px solid var(--rule); }
+.tblock div:nth-last-child(-n+2) { border-bottom: 0; }
+
+/* transport */
+.transport { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
+button { font: 500 13px var(--font-body); color: var(--ink); background: transparent; border: 1px solid var(--ink); padding: 7px 14px; cursor: pointer; border-radius: 2px; }
+button:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px solid var(--trace); outline-offset: 2px; }
+button.primary { background: var(--ink); color: var(--sheet); min-width: 92px; }
+button.primary:hover { background: color-mix(in srgb, var(--ink) 85%, var(--trace)); }
+.field { display: flex; align-items: center; gap: 8px; }
+input[type=number] { width: 64px; font: 14px var(--font-mono); background: transparent; color: var(--ink); border: 1px solid var(--rule); padding: 5px 6px; border-radius: 2px; }
+.seg { display: inline-flex; border: 1px solid var(--ink); border-radius: 2px; }
+.seg button { border: 0; border-radius: 0; padding: 7px 12px; }
+.seg button[aria-pressed=true] { background: var(--ink); color: var(--sheet); }
+.status { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+
+/* panel */
+.panel { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 18px 10px; }
+.kn { display: grid; justify-items: center; gap: 4px; text-align: center; min-width: 0; }
+.kn .name { font: 700 13px var(--font-display); letter-spacing: .06em; text-transform: uppercase; }
+.kn .ref { font: 11px var(--font-mono); color: var(--ink-2); }
+.kn .val { font: 500 12px var(--font-mono); color: var(--trace); font-variant-numeric: tabular-nums; min-height: 1.5em; }
+.knob { width: 64px; height: 64px; touch-action: none; cursor: ns-resize; border-radius: 50%; }
+.knob svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* scope + readouts */
+.scope { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
+canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rule); background: var(--paper); }
+.readouts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-content: start; font-family: var(--font-mono); font-size: 12px; }
+.readouts dt { color: var(--ink-2); }
+.readouts dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* sequencer */
+.seqwrap { overflow-x: auto; }
+.seq { display: grid; grid-template-columns: 64px repeat(16, minmax(46px, 1fr)); gap: 0; min-width: 820px; font-family: var(--font-mono); font-size: 12px; }
+.seq > div { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 5px 4px; display: flex; justify-content: center; align-items: center; min-height: 34px; }
+.seq > .rowh { justify-content: flex-start; color: var(--ink-2); font-size: 11px; letter-spacing: .08em; }
+.seq .stepn { color: var(--ink-2); }
+.seq .stepn.on { color: var(--sheet); background: var(--accent); }
+.seq select { font: 12px var(--font-mono); background: transparent; color: var(--ink); border: 0; width: 100%; text-align: center; padding: 2px 0; }
+.seq select option { background: var(--sheet); color: var(--ink); }
+.tog { width: 26px; height: 22px; padding: 0; border: 1px solid var(--rule); font: 500 11px var(--font-mono); color: var(--ink-2); }
+.tog[aria-pressed=true] { background: var(--trace); border-color: var(--trace); color: var(--sheet); }
+.tog.acc[aria-pressed=true] { background: var(--accent); border-color: var(--accent); }
+.seqbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; align-items: center; }
+.hint { color: var(--ink-2); font-size: 12px; }
+
+/* parts list */
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 26px; align-items: start; }
+.parts table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.parts caption { text-align: left; font: 700 13px var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1.5px solid var(--ink); }
+.parts td { border-bottom: 1px solid var(--rule); padding: 4px 4px; vertical-align: middle; }
+.parts td.ref { font-family: var(--font-mono); font-weight: 500; width: 76px; }
+.parts td.note { color: var(--ink-2); font-size: 11.5px; }
+.parts td.v { width: 104px; }
+.parts input { width: 100%; font: 12.5px var(--font-mono); background: transparent; color: var(--ink); border: 1px solid transparent; border-bottom-color: var(--rule); padding: 3px 4px; }
+.parts input:hover { border-color: var(--rule); }
+.parts input.changed { color: var(--accent); }
+.parts input.bad { border-color: var(--accent); }
+.badge { display: inline-block; font: 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; margin-left: 6px; }
+.badge.est { color: var(--est); }
+.badge.td3 { color: var(--trace); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 16px; color: var(--ink-2); font-size: 12px; align-items: center; }
+.notes { columns: 2 320px; column-gap: 32px; color: var(--ink-2); font-size: 13px; }
+.notes p { margin: 0 0 10px; break-inside: avoid; }
+.notes strong { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 760px) {
+  .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .scope, .title { grid-template-columns: 1fr; }
+  .sheet > section { padding: 16px 14px; }
+}
+@media (max-width: 420px) { .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="sheet">
+  <section class="title">
+    <div>
+      <div class="label">Main board · voice section</div>
+      <h1>303 Circuit Model</h1>
+      <p>A bass voice simulated from the 1982 main board schematic. Each block runs from its part values: the R-2R pitch DAC, the C33 ramp core, the Q8 square shaper, the transistor ladder filter with its 18n bottom cap, the C62 envelope and the OTA VCA.</p>
+    </div>
+    <div class="tblock" aria-label="Drawing reference">
+      <div>Source</div><div>Main board, Feb 19 1982</div>
+      <div>Model rate</div><div id="rate">2× oversampled</div>
+      <div>VCF solver</div><div>Implicit trapezoidal</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="transport">
+      <button class="primary" id="play" type="button">Play</button>
+      <label class="field"><span class="label">Tempo</span><input id="bpm" type="number" min="60" max="200" value="128"><span class="label">BPM</span></label>
+      <div class="field"><span class="label">Waveform · S1</span>
+        <div class="seg" role="group" aria-label="Waveform">
+          <button type="button" id="w-saw" aria-pressed="true">Saw</button>
+          <button type="button" id="w-square" aria-pressed="false">Square</button>
+        </div>
+      </div>
+      <span class="status" id="status">Stopped</span>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="margin-bottom:14px">Front panel</h2>
+    <div class="panel" id="panel"></div>
+  </section>
+
+  <section class="scope">
+    <div>
+      <h2 style="margin-bottom:10px">Output · TP6 equivalent</h2>
+      <canvas id="scope" width="1200" height="340" aria-label="Oscilloscope view of the output"></canvas>
+    </div>
+    <div>
+      <h2 style="margin-bottom:10px">Derived from parts</h2>
+      <dl class="readouts" id="readouts"></dl>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="margin-bottom:10px">Pattern</h2>
+    <div class="seqwrap"><div class="seq" id="seq"></div></div>
+    <div class="seqbar">
+      <button type="button" id="rand">New random pattern</button>
+      <button type="button" id="reset">Restore example pattern</button>
+      <span class="hint">A = accent, S = slide into the next step, G = gate (off is a rest). Notes are DAC codes: A = 33 → 2.75 V → 110 Hz.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Parts list</h2>
+    <div class="legend">
+      <span>Edit any value to re-derive the circuit while it plays. Accepts 22k, 0.033u, 18n, 1M.</span>
+      <span><span class="badge">schematic</span> printed on the sheet</span>
+      <span><span class="badge td3">TD-3</span> read from the TD-3 clone sheet</span>
+      <span><span class="badge est">estimate</span> on neither sheet; chosen to match documented behaviour</span>
+      <button type="button" id="restore">Restore all parts</button>
+    </div>
+    <div class="parts" id="parts"></div>
+  </section>
+
+  <section>
+    <h2 style="margin-bottom:10px">How the model works</h2>
+    <div class="notes">
+      <p><strong>Pitch.</strong> The 6-bit latch drives a 100k/200k ladder from 5.333 V, so each code step is exactly 1/12 V. The ladder is solved by Thevenin reduction, so a mismatched resistor detunes the notes it feeds, as on the board.</p>
+      <p><strong>VCO.</strong> An exponential current charges C33 from 5.5 V to 12 V, then Q27/Q28 reset it. The reset is placed with sub-sample accuracy and smoothed with a polyBLEP so high notes stay clean.</p>
+      <p><strong>Square.</strong> The ramp is coupled through C10 into the base of Q8. Because that coupling is a high-pass, the duty cycle narrows on low notes, which is part of the original's character.</p>
+      <p><strong>VCF.</strong> Four coupled capacitor voltages, one per ladder stage, with a tanh law for each transistor pair. The bottom cap is 18n against 33n above it. Feedback through VR4 is high-passed by C15, so resonance thins out at low cutoff settings. Full feedback (k = 17) is the point of self-oscillation.</p>
+      <p><strong>Envelopes.</strong> The filter envelope charges C62 and decays through R138 + VR6, which gives the 200 ms to 2.5 s range printed on the sheet. On accented notes the 4066 shorts VR6, so decay drops to minimum, and the envelope also charges the accent sweep cap through R117. Consecutive accents build up on that cap.</p>
+      <p><strong>VCA and resonance compensation.</strong> The filter feeds the OTA through C49/R88, and the resonance pot wiper is mixed in through C76/R100. That second path restores much of the bass the ladder loses as feedback rises (its passband gain is 1/(1+k)). The VCA envelope is C67 charged through R49 and decaying through R52.</p>
+      <p><strong>Sources.</strong> Values the 1982 sheet does not show clearly were read from the TD-3 clone schematic where its circuit matches. The few marked estimate appear on neither sheet.</p>
+    </div>
+  </section>
+</div>
+
+<script id="model">
+/*__MODEL__*/
+</script>
+<script id="worklet-src" type="text/plain">
+class TB303Processor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.v = new TB303Voice(sampleRate);
+    this.playing = false; this.bpm = 128; this.pattern = [];
+    this.step = -1; this.ctr = 0; this.gateOffAt = -1;
+    this.port.onmessage = (e) => this.onMsg(e.data);
+  }
+  onMsg(m) {
+    const v = this.v;
+    if (m.type === 'knob') v.setKnob(m.name, m.value);
+    else if (m.type === 'component') v.setComponent(m.name, m.value);
+    else if (m.type === 'wave') v.waveform = m.value;
+    else if (m.type === 'pattern') this.pattern = m.value;
+    else if (m.type === 'bpm') this.bpm = m.value;
+    else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
+  }
+  startStep() {
+    const P = this.pattern, n = P.length; if (!n) return;
+    this.step = (this.step + 1) % n;
+    const s = P[this.step], prev = P[(this.step - 1 + n) % n];
+    const len = Math.round(sampleRate * 60 / this.bpm / 4);
+    if (s.gate) {
+      this.v.noteOn(s.code, s.accent, prev.gate && prev.slide);
+      this.gateOffAt = s.slide ? -1 : Math.round(len * 0.5);
+    } else { this.v.noteOff(); this.gateOffAt = -1; }
+    this.port.postMessage({ type: 'step', step: this.step });
+    return len;
+  }
+  process(inputs, outputs) {
+    const out = outputs[0][0]; if (!out) return true;
+    let i = 0;
+    while (i < out.length) {
+      if (this.playing && this.ctr <= 0) { this.stepLen = this.startStep() || 1; this.ctr = this.stepLen; }
+      let run = out.length - i;
+      if (this.playing) {
+        run = Math.min(run, this.ctr);
+        const elapsed = this.stepLen - this.ctr;
+        if (this.gateOffAt > elapsed) run = Math.min(run, this.gateOffAt - elapsed);
+        else if (this.gateOffAt === elapsed) { this.v.noteOff(); this.gateOffAt = -1; }
+      }
+      this.v.process(out, i, i + run);
+      i += run; if (this.playing) this.ctr -= run;
+    }
+    for (let c = 1; c < outputs[0].length; c++) outputs[0][c].set(out);
+    return true;
+  }
+}
+registerProcessor('tb303', TB303Processor);
+</script>
+<script>
+(() => {
+const KNOBS = [
+  { id: 'tuning',    name: 'Tuning',    ref: 'VR2 50K(B)', def: 0.5 },
+  { id: 'cutoff',    name: 'Cutoff',    ref: 'VR3',        def: 0.3 },
+  { id: 'resonance', name: 'Reso',      ref: 'VR4 50K(B)', def: 0.82 },
+  { id: 'envmod',    name: 'Env mod',   ref: 'VR5 50K(A)', def: 0.62 },
+  { id: 'decay',     name: 'Decay',     ref: 'VR6 1M(A)',  def: 0.3 },
+  { id: 'accent',    name: 'Accent',    ref: 'VR7 50K(B)', def: 0.75 },
+  { id: 'volume',    name: 'Volume',    ref: 'VR8 50K(A)', def: 0.85 },
+];
+const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const codeName = (c) => NOTE[c % 12] + (Math.floor(c / 12));
+// original example line, A minor-ish, codes around A = 33
+const EXAMPLE = [
+  [21,1,0,1],[21,0,0,1],[33,0,1,1],[31,0,0,1],[21,1,0,1],[0,0,0,0],[24,0,1,1],[26,0,0,1],
+  [21,0,0,1],[33,1,0,1],[28,0,1,1],[24,0,0,1],[21,1,1,1],[19,0,0,1],[0,0,0,0],[36,1,0,1],
+].map(([code, accent, slide, gate]) => ({ code: code || 21, accent: !!accent, slide: !!slide, gate: !!gate }));
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('tb303.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('tb303.' + k, JSON.stringify(v)); } catch {} },
+};
+const state = {
+  knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
+  wave: 'saw', bpm: 128,
+  pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
+  parts: {},
+};
+for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
+const preview = new TB303Voice(44100); // main-thread copy for derived readouts
+
+let ctx = null, node = null, analyser = null, fallback = null;
+const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+
+// ---------- engineering notation ----------
+const PFX = [[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
+function fmt(v, unit) {
+  if (unit === '×' || unit === 'Hz') return +v.toPrecision(4) + ' ' + unit;
+  if (unit === 'V') return +v.toPrecision(4) + ' V';
+  for (const [m, p] of PFX) if (Math.abs(v) >= m * 0.9999) return +(v / m).toPrecision(3) + ' ' + p + unit;
+  return v.toExponential(2) + ' ' + unit;
+}
+function parse(str) {
+  const s = str.trim().replace(',', '.').replace(/[ΩFVAHz×\s]/g, '').replace('u', 'µ');
+  const m = s.match(/^([0-9]*\.?[0-9]+(?:e-?\d+)?)\s*([MkmµnpR]?)$/i) || s.match(/^([0-9]*\.?[0-9]+)$/);
+  if (!m) return NaN;
+  const mult = { M: 1e6, k: 1e3, K: 1e3, m: 1e-3, 'µ': 1e-6, n: 1e-9, p: 1e-12, R: 1, r: 1, '': 1 }[m[2] || ''];
+  return parseFloat(m[1]) * (mult ?? 1);
+}
+
+// ---------- knobs ----------
+const panel = document.getElementById('panel');
+function knobSVG() {
+  return `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M14.1 49.9 A25 25 0 1 1 49.9 49.9" fill="none" stroke="var(--knob-ring)" stroke-width="3" stroke-linecap="round"/>
+    <path class="arc" d="" fill="none" stroke="var(--trace)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="32" cy="32" r="18" fill="var(--knob)"/>
+    <line class="ptr" x1="32" y1="32" x2="32" y2="17" stroke="var(--sheet)" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+}
+function arcPath(p) {
+  const a0 = -135, a = a0 + 270 * p, r = 25, cx = 32, cy = 32;
+  const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
+  const [x0, y0] = pt(a0), [x1, y1] = pt(a);
+  return p < 0.002 ? '' : `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${270 * p > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+function knobText(id, p) {
+  const c = state.parts;
+  switch (id) {
+    case 'tuning': return ((p - 0.5) * 2 >= 0 ? '+' : '') + ((p - 0.5) * 24).toFixed(1) + ' st';
+    case 'cutoff': return (preview.wCut * c.V_CUT * p * 1000).toFixed(1) + ' mV';
+    case 'resonance': return 'k = ' + (c.A_Q21 * p).toFixed(1);
+    case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
+    default: return Math.round(p * 100) + '%';
+  }
+}
+const knobEls = {};
+for (const k of KNOBS) {
+  const wrap = document.createElement('div'); wrap.className = 'kn';
+  wrap.innerHTML = `<div class="knob" tabindex="0" role="slider" aria-label="${k.name}" aria-valuemin="0" aria-valuemax="100" id="knob-${k.id}">${knobSVG()}</div>
+    <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
+  panel.appendChild(wrap);
+  const el = wrap.querySelector('.knob');
+  knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val') };
+  let startY = 0, startV = 0;
+  el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); startY = e.clientY; startV = state.knobs[k.id]; });
+  el.addEventListener('pointermove', (e) => { if (!el.hasPointerCapture(e.pointerId)) return; setKnob(k.id, startV + (startY - e.clientY) / (e.shiftKey ? 600 : 160)); });
+  el.addEventListener('wheel', (e) => { e.preventDefault(); setKnob(k.id, state.knobs[k.id] - Math.sign(e.deltaY) * 0.02); }, { passive: false });
+  el.addEventListener('keydown', (e) => {
+    const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02, PageUp: .1, PageDown: -.1 }[e.key];
+    if (d) { e.preventDefault(); setKnob(k.id, state.knobs[k.id] + d); }
+    if (e.key === 'Home') setKnob(k.id, 0); if (e.key === 'End') setKnob(k.id, 1);
+  });
+  el.addEventListener('dblclick', () => setKnob(k.id, k.def));
+}
+function drawKnob(id) {
+  const p = state.knobs[id], k = knobEls[id];
+  k.arc.setAttribute('d', arcPath(p));
+  k.ptr.setAttribute('transform', `rotate(${-135 + 270 * p} 32 32)`);
+  k.el.setAttribute('aria-valuenow', Math.round(p * 100));
+  k.val.textContent = knobText(id, p);
+}
+function setKnob(id, p) {
+  p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;
+  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); readouts();
+}
+
+// ---------- readouts ----------
+function readouts() {
+  const v = preview, c = state.parts, k = state.knobs;
+  const vb = v.wCut * v.vCutPot;
+  const envTop = vb + v.wEnv * c.V_ENV * v.envModFrac;
+  const rd = c.R138 + c.VR6 * Math.pow(k.decay, 2.74);
+  const rows = [
+    ['VCO at A (code 33)', fmt(c.F_TUNE * Math.pow(2, (k.tuning - 0.5) * 2) * Math.pow(2, dacVoltage(33, c.VREF, c.R_DAC, c.R2_DAC) - c.CV_TUNE), 'Hz')],
+    ['Ramp current at A', fmt(c.F_TUNE * c.C33 * (c.V_HI - c.V_LO), 'A')],
+    ['VCF peak, knob only', fmt(Math.round(v.vcfResonantHz(vb)), 'Hz')],
+    ['VCF peak, env top', fmt(Math.round(Math.min(v.vcfResonantHz(envTop), 99999)), 'Hz')],
+    ['Feedback k / k_crit', (c.A_Q21 * k.resonance).toFixed(1) + ' / 17.0'],
+    ['Env decay to 10%', (2.3026 * rd * c.C62 * 1000).toFixed(0) + ' ms'],
+    ['Accent decay to 10%', (2.3026 * c.R138 * c.C62 * 1000).toFixed(0) + ' ms'],
+    ['Slide time constant', (c.R93 * c.C35 * 1000).toFixed(1) + ' ms'],
+    ['Square HPF corner', fmt(+(1 / (2 * Math.PI * c.C10 * c.R_SQB)).toFixed(1), 'Hz')],
+  ];
+  document.getElementById('readouts').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+}
+
+// ---------- sequencer grid ----------
+const seq = document.getElementById('seq');
+function renderSeq() {
+  const P = state.pattern;
+  let h = '<div class="rowh">STEP</div>' + P.map((_, i) => `<div class="stepn" id="sn${i}">${i + 1}</div>`).join('');
+  h += '<div class="rowh">NOTE</div>' + P.map((s, i) => {
+    let o = ''; for (let c = 9; c <= 57; c++) o += `<option value="${c}"${c === s.code ? ' selected' : ''}>${codeName(c)}</option>`;
+    return `<div><select id="note${i}" data-i="${i}" aria-label="Step ${i + 1} note">${o}</select></div>`;
+  }).join('');
+  for (const [key, lab, cls] of [['gate', 'G', ''], ['accent', 'A', 'acc'], ['slide', 'S', '']]) {
+    h += `<div class="rowh">${key.toUpperCase()}</div>` + P.map((s, i) =>
+      `<div><button type="button" class="tog ${cls}" id="${key}${i}" data-k="${key}" data-i="${i}" aria-pressed="${s[key]}" aria-label="Step ${i + 1} ${key}">${lab}</button></div>`).join('');
+  }
+  seq.innerHTML = h;
+}
+seq.addEventListener('change', (e) => { const i = +e.target.dataset.i; state.pattern[i].code = +e.target.value; pushPattern(); });
+seq.addEventListener('click', (e) => {
+  const b = e.target.closest('.tog'); if (!b) return;
+  const s = state.pattern[+b.dataset.i]; s[b.dataset.k] = !s[b.dataset.k];
+  b.setAttribute('aria-pressed', s[b.dataset.k]); pushPattern();
+});
+function pushPattern() { store.set('pattern', state.pattern); send({ type: 'pattern', value: state.pattern }); }
+document.getElementById('rand').onclick = () => {
+  const scale = [0, 3, 5, 7, 10, 12, 15], root = 21;
+  state.pattern = Array.from({ length: 16 }, (_, i) => ({
+    code: root + scale[Math.floor(Math.random() * scale.length)] + (Math.random() < 0.15 ? 12 : 0) - (Math.random() < 0.1 ? 12 : 0),
+    gate: i % 4 === 0 || Math.random() < 0.75, accent: Math.random() < 0.28, slide: Math.random() < 0.22,
+  }));
+  renderSeq(); pushPattern();
+};
+document.getElementById('reset').onclick = () => { state.pattern = EXAMPLE.map(s => ({ ...s })); renderSeq(); pushPattern(); };
+
+// ---------- parts list ----------
+const partsEl = document.getElementById('parts');
+function renderParts() {
+  const groups = {};
+  for (const k in COMPONENTS) (groups[COMPONENTS[k].block] ||= []).push(k);
+  partsEl.innerHTML = Object.entries(groups).map(([g, keys]) => `<table><caption>${g}</caption><tbody>` + keys.map(k => {
+    const d = COMPONENTS[k];
+    return `<tr><td class="ref">${k}</td><td class="v"><input id="part-${k}" data-k="${k}" value="${fmt(state.parts[k], d.unit)}" aria-label="${k} value" spellcheck="false"></td>
+      <td class="note">${d.note}${d.source === 'estimate' ? '<span class="badge est">est.</span>' : d.source === 'td3' ? '<span class="badge td3">TD-3</span>' : ''}</td></tr>`;
+  }).join('') + '</tbody></table>').join('');
+}
+partsEl.addEventListener('change', (e) => {
+  const inp = e.target, k = inp.dataset.k; if (!k) return;
+  const val = parse(inp.value);
+  if (!(val > 0) || !isFinite(val)) { inp.classList.add('bad'); return; }
+  inp.classList.remove('bad');
+  state.parts[k] = val; inp.value = fmt(val, COMPONENTS[k].unit);
+  inp.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-9);
+  preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
+  for (const id in knobEls) drawKnob(id); readouts();
+});
+document.getElementById('restore').onclick = () => {
+  for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
+  renderParts(); for (const id in knobEls) drawKnob(id); readouts();
+};
+
+// ---------- transport / audio ----------
+const playBtn = document.getElementById('play'), status = document.getElementById('status');
+let playing = false;
+async function initAudio() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+  analyser = ctx.createAnalyser(); analyser.fftSize = 2048; analyser.connect(ctx.destination);
+  const src = document.getElementById('model').textContent + '\n' + document.getElementById('worklet-src').textContent;
+  try {
+    const url = URL.createObjectURL(new Blob([src], { type: 'application/javascript' }));
+    await ctx.audioWorklet.addModule(url);
+    node = new AudioWorkletNode(ctx, 'tb303', { numberOfInputs: 0, outputChannelCount: [2] });
+    node.port.onmessage = (e) => { if (e.data.type === 'step') markStep(e.data.step); };
+    node.connect(analyser);
+  } catch (err) {
+    console.warn("worklet failed", err && err.message);
+    // Fallback: run the same voice on the main thread
+    fallback = makeFallback(); fallback.sp.connect(analyser);
+  }
+  document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
+  for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
+  for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
+  send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); send({ type: 'pattern', value: state.pattern });
+  drawScope();
+}
+function makeFallback() {
+  const v = new TB303Voice(ctx.sampleRate), sp = ctx.createScriptProcessor(1024, 0, 1);
+  const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1 };
+  f.msg = (m) => {
+    if (m.type === 'knob') v.setKnob(m.name, m.value); else if (m.type === 'component') v.setComponent(m.name, m.value);
+    else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'pattern') f.pattern = m.value;
+    else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
+  };
+  sp.onaudioprocess = (e) => {
+    const out = e.outputBuffer.getChannelData(0);
+    for (let i = 0; i < out.length; i++) {
+      if (f.playing) {
+        if (f.ctr <= 0) {
+          const P = f.pattern; f.step = (f.step + 1) % P.length; const s = P[f.step], pr = P[(f.step + P.length - 1) % P.length];
+          f.len = Math.round(ctx.sampleRate * 60 / f.bpm / 4); f.ctr = f.len;
+          if (s.gate) { v.noteOn(s.code, s.accent, pr.gate && pr.slide); f.off = s.slide ? -1 : f.len >> 1; } else { v.noteOff(); f.off = -1; }
+          markStep(f.step);
+        }
+        if (f.len - f.ctr === f.off) v.noteOff();
+        f.ctr--;
+      }
+      v.process(out, i, i + 1);
+    }
+  };
+  return f;
+}
+let lastStep = -1;
+function markStep(i) {
+  requestAnimationFrame(() => {
+    if (lastStep >= 0) document.getElementById('sn' + lastStep)?.classList.remove('on');
+    if (i >= 0) document.getElementById('sn' + i)?.classList.add('on'); lastStep = i;
+  });
+}
+playBtn.onclick = async () => {
+  if (!ctx) { try { await initAudio(); } catch (e) { status.textContent = 'Audio could not start in this browser'; return; } }
+  if (ctx.state === 'suspended') await ctx.resume();
+  playing = !playing;
+  send({ type: 'play', value: playing });
+  playBtn.textContent = playing ? 'Stop' : 'Play';
+  status.textContent = playing ? (node ? 'Running · AudioWorklet' : 'Running · main thread') : 'Stopped';
+  if (!playing) markStep(-1);
+};
+const bpmEl = document.getElementById('bpm');
+bpmEl.addEventListener('change', () => { state.bpm = Math.min(200, Math.max(60, +bpmEl.value || 128)); bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm }); });
+for (const w of ['saw', 'square']) document.getElementById('w-' + w).onclick = () => {
+  state.wave = w; preview.waveform = w;
+  document.getElementById('w-saw').setAttribute('aria-pressed', w === 'saw');
+  document.getElementById('w-square').setAttribute('aria-pressed', w === 'square');
+  send({ type: 'wave', value: w });
+};
+
+// ---------- scope ----------
+const cv = document.getElementById('scope'), g = cv.getContext('2d');
+function drawStatic(data) {
+  const W = cv.width, H = cv.height, cs = getComputedStyle(document.documentElement);
+  g.clearRect(0, 0, W, H);
+  g.strokeStyle = cs.getPropertyValue('--rule'); g.lineWidth = 1;
+  for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(i * W / 10, 0); g.lineTo(i * W / 10, H); g.stroke(); }
+  for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(0, i * H / 4); g.lineTo(W, i * H / 4); g.stroke(); }
+  if (!data) return;
+  g.strokeStyle = cs.getPropertyValue('--trace'); g.lineWidth = 3; g.beginPath();
+  for (let i = 0; i < data.length; i++) { const x = i / (data.length - 1) * W, y = H / 2 - data[i] * H * 0.45; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+  g.stroke();
+}
+let buf = null;
+function drawScope() {
+  if (analyser) {
+    buf ||= new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(buf);
+    let t = 0; for (let i = 1; i < buf.length / 2; i++) if (buf[i - 1] < 0 && buf[i] >= 0) { t = i; break; }
+    drawStatic(buf.subarray(t, t + 1024));
+  }
+  requestAnimationFrame(drawScope);
+}
+// static preview so the scope is not empty before Play
+(function previewTrace() {
+  const v = new TB303Voice(44100); for (const k of KNOBS) v.setKnob(k.id, state.knobs[k.id]);
+  v.noteOn(21, false, false); const b = new Float32Array(4000); v.process(b);
+  let t = 2000; while (t < 3000 && !(b[t - 1] < 0 && b[t] >= 0)) t++;
+  drawStatic(b.subarray(t, t + 1000));
+})();
+
+for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); drawKnob(k.id); }
+renderSeq(); renderParts(); readouts();
+})();
+</script>
