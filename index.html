@@ -165,18 +165,18 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
   </section>
 
   <section>
-    <div class="presets">
-      <h2>Settings</h2>
+    <div class="presets" id="snd-bar">
+      <h2>Sound presets</h2>
       <label class="field"><span class="label">Preset</span>
-        <select id="preset" aria-label="Preset"></select></label>
-      <input id="preset-name" type="text" placeholder="Name this setting" maxlength="40" aria-label="Preset name">
-      <button type="button" id="preset-save">Save preset</button>
-      <button type="button" id="preset-del">Delete</button>
+        <select id="snd-preset" aria-label="Sound presets"></select></label>
+      <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound presets name">
+      <button type="button" id="snd-save">Save</button>
+      <button type="button" id="snd-del">Delete</button>
       <span class="sep" aria-hidden="true"></span>
-      <button type="button" id="preset-export">Export JSON</button>
-      <button type="button" id="preset-import">Import JSON</button>
+      <button type="button" id="preset-export">Export all</button>
+      <button type="button" id="preset-import">Import</button>
       <input type="file" id="preset-file" accept=".json,application/json" hidden>
-      <span class="hint" id="preset-msg">Your knobs, parts, waveform, tempo and pattern are remembered on this browser.</span>
+      <span class="hint" id="snd-msg">Knobs, part values and waveform. Loading one leaves the pattern alone.</span>
     </div>
   </section>
 
@@ -197,11 +197,18 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
   </section>
 
   <section>
-    <h2 style="margin-bottom:10px">Pattern</h2>
-    <div class="seqwrap"><div class="seq" id="seq"></div></div>
+    <div class="presets" id="pat-bar">
+      <h2>Pattern</h2>
+      <label class="field"><span class="label">Preset</span>
+        <select id="pat-preset" aria-label="Pattern presets"></select></label>
+      <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern presets name">
+      <button type="button" id="pat-save">Save</button>
+      <button type="button" id="pat-del">Delete</button>
+      <span class="hint" id="pat-msg">Pattern and tempo. Loading one leaves the sound alone.</span>
+    </div>
+    <div class="seqwrap" style="margin-top:14px"><div class="seq" id="seq"></div></div>
     <div class="seqbar">
       <button type="button" id="rand">New random pattern</button>
-      <button type="button" id="reset">Restore example pattern</button>
       <span class="hint">A = accent, S = slide into the next step, G = gate (off is a rest). Notes are DAC codes: A = 33 → 2.75 V → 110 Hz.</span>
     </div>
   </section>
@@ -718,16 +725,24 @@ const state = {
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
 };
-const BUILTIN = {
+const SOUND_BUILTIN = {
   'Stock 303': { knobs: {}, parts: {} },
   'Devil Fish style': {
     knobs: { resonance: 0.9, envmod: 0.7, decay: 0.2, accent: 0.9 },
     parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C_ACC: 0.47e-6, R_IN: 47e3, R72: 120e3, V_CUT: 4.5 },
   },
   'Long drone': {
-    knobs: { cutoff: 0.25, resonance: 0.75, envmod: 0.4, decay: 0.9 }, wave: 'square', bpm: 100,
+    knobs: { cutoff: 0.25, resonance: 0.75, envmod: 0.4, decay: 0.9 }, wave: 'square',
     parts: { C35: 1e-6, R52: 4.7e6, R_SOFT: 22e3 },
   },
+};
+const P = (rows) => rows.map(([code, accent, slide, gate]) => ({ code, accent: !!accent, slide: !!slide, gate: !!gate }));
+const PATTERN_BUILTIN = {
+  'Example line': { bpm: 128, pattern: EXAMPLE.map(st => ({ ...st })) },
+  'Octave bounce': { bpm: 132, pattern: P([[21,1,0,1],[33,0,0,1],[21,0,0,1],[33,1,0,1],[21,0,0,1],[33,0,1,1],[31,0,0,1],[21,0,0,1],
+    [24,1,0,1],[36,0,0,1],[24,0,0,1],[36,1,0,1],[19,0,0,1],[31,0,1,1],[33,0,0,1],[21,1,0,1]]) },
+  'Slow squelch': { bpm: 108, pattern: P([[21,1,1,1],[28,0,1,1],[33,0,0,1],[21,0,0,0],[21,0,1,1],[24,1,1,1],[26,0,0,1],[21,0,0,0],
+    [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
 };
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
 function cleanSettings(x) {
@@ -881,7 +896,6 @@ document.getElementById('rand').onclick = () => {
   }));
   renderSeq(); pushPattern();
 };
-document.getElementById('reset').onclick = () => { state.pattern = EXAMPLE.map(s => ({ ...s })); renderSeq(); pushPattern(); };
 
 // ---------- parts list ----------
 const partsEl = document.getElementById('parts');
@@ -1084,66 +1098,89 @@ function drawScope() {
 })();
 
 // ---------- presets ----------
-const presetSel = document.getElementById('preset'), presetMsg = document.getElementById('preset-msg');
-const nameEl = document.getElementById('preset-name');
-let userPresets = store.get('presets', {});
-if (!userPresets || typeof userPresets !== 'object' || Array.isArray(userPresets)) userPresets = {};
-function say(t) { presetMsg.textContent = t; }
-function renderPresets(selected) {
-  const opt = (g, n) => `<option value="${g}:${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</option>`;
-  const names = Object.keys(userPresets).sort((a, b) => a.localeCompare(b));
-  presetSel.innerHTML = '<option value="">Current settings</option>'
-    + '<optgroup label="Built-in">' + Object.keys(BUILTIN).map(n => opt('b', n)).join('') + '</optgroup>'
-    + (names.length ? '<optgroup label="Saved">' + names.map(n => opt('u', n)).join('') + '</optgroup>' : '');
-  presetSel.value = selected || '';
-  document.getElementById('preset-del').disabled = !presetSel.value.startsWith('u:');
-}
-function applySettings(x, keepPattern) {
+function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave }; }
+function patternSnap() { return { bpm: state.bpm, pattern: state.pattern.map(st => ({ ...st })) }; }
+function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
-  state.wave = c.wave || 'saw'; state.bpm = c.bpm || 128;
-  if (!keepPattern && c.pattern) state.pattern = c.pattern;
+  state.wave = c.wave || 'saw';
   for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); send({ type: 'knob', name: k.id, value: state.knobs[k.id] }); }
   for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
   document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
   document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
-  bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm });
-  renderSeq(); pushPattern(); renderParts();
-  for (const id in knobEls) drawKnob(id); readouts(); saveSession();
+  renderParts(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
-presetSel.addEventListener('change', () => {
-  const v = presetSel.value; document.getElementById('preset-del').disabled = !v.startsWith('u:');
-  if (!v) return;
-  const name = v.slice(2);
-  if (v[0] === 'b') { applySettings(BUILTIN[name], true); say(`Loaded ${name}. Your pattern was kept.`); }
-  else { applySettings(userPresets[name], false); nameEl.value = name; say(`Loaded ${name}.`); }
-});
-document.getElementById('preset-save').onclick = () => {
-  const name = nameEl.value.trim();
-  if (!name) { nameEl.focus(); say('Type a name first, then save.'); return; }
-  const existed = name in userPresets;
-  userPresets[name] = snapshot(); store.set('presets', userPresets);
-  renderPresets('u:' + name); say(existed ? `Updated ${name}.` : `Saved ${name}.`);
-};
-nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('preset-save').click(); });
-let delArmed = '';
-document.getElementById('preset-del').onclick = (e) => {
-  const v = presetSel.value; if (!v.startsWith('u:')) return;
-  const name = v.slice(2);
-  if (delArmed !== name) { delArmed = name; e.target.textContent = 'Confirm delete'; say(`Click Confirm delete to remove ${name}.`); return; }
-  delete userPresets[name]; store.set('presets', userPresets); delArmed = '';
-  e.target.textContent = 'Delete'; renderPresets(''); say(`Deleted ${name}.`);
-};
-presetSel.addEventListener('change', () => { delArmed = ''; document.getElementById('preset-del').textContent = 'Delete'; });
+function applyPattern(x) {
+  const c = cleanSettings(x);
+  if (c.bpm) { state.bpm = c.bpm; bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm }); }
+  if (c.pattern) { state.pattern = c.pattern; renderSeq(); pushPattern(); }
+  saveSession();
+}
+function loadStore(key) { const v = store.get(key, {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
+// one-time migration from the single combined preset list
+{
+  const old = store.get('presets', null);
+  if (old && typeof old === 'object' && !store.get('migrated2', false)) {
+    const sp = loadStore('soundPresets'), pp = loadStore('patternPresets');
+    for (const [n, x] of Object.entries(old)) { const c = cleanSettings(x); sp[n] ||= { knobs: c.knobs, parts: c.parts, wave: c.wave }; if (c.pattern) pp[n] ||= { bpm: c.bpm, pattern: c.pattern }; }
+    store.set('soundPresets', sp); store.set('patternPresets', pp); store.set('migrated2', true);
+  }
+}
+function presetBar(pre, storeKey, builtins, snap, apply) {
+  const sel = document.getElementById(pre + '-preset'), nameEl = document.getElementById(pre + '-name');
+  const delBtn = document.getElementById(pre + '-del'), msg = document.getElementById(pre + '-msg');
+  const bar = { user: loadStore(storeKey), say: (t) => { msg.textContent = t; } };
+  let armed = '';
+  const esc = (n) => n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  bar.render = (selected) => {
+    const opt = (g, n) => `<option value="${g}:${esc(n)}">${esc(n)}</option>`;
+    const names = Object.keys(bar.user).sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = '<option value="">Choose…</option>'
+      + '<optgroup label="Built-in">' + Object.keys(builtins).map(n => opt('b', n)).join('') + '</optgroup>'
+      + (names.length ? '<optgroup label="Saved">' + names.map(n => opt('u', n)).join('') + '</optgroup>' : '');
+    sel.value = selected || '';
+    delBtn.disabled = !sel.value.startsWith('u:'); armed = ''; delBtn.textContent = 'Delete';
+  };
+  bar.save = () => store.set(storeKey, bar.user);
+  sel.addEventListener('change', () => {
+    const v = sel.value; delBtn.disabled = !v.startsWith('u:'); armed = ''; delBtn.textContent = 'Delete';
+    if (!v) return;
+    const name = v.slice(2);
+    apply(v[0] === 'b' ? builtins[name] : bar.user[name]);
+    if (v[0] === 'u') nameEl.value = name;
+    bar.say(`Loaded ${name}.`);
+  });
+  document.getElementById(pre + '-save').onclick = () => {
+    const name = nameEl.value.trim();
+    if (!name) { nameEl.focus(); bar.say('Type a name first, then save.'); return; }
+    const existed = name in bar.user;
+    bar.user[name] = snap(); bar.save(); bar.render('u:' + name);
+    bar.say(existed ? `Updated ${name}.` : `Saved ${name}.`);
+  };
+  nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById(pre + '-save').click(); });
+  delBtn.onclick = () => {
+    const v = sel.value; if (!v.startsWith('u:')) return;
+    const name = v.slice(2);
+    if (armed !== name) { armed = name; delBtn.textContent = 'Confirm delete'; bar.say(`Click Confirm delete to remove ${name}.`); return; }
+    delete bar.user[name]; bar.save(); bar.render(''); bar.say(`Deleted ${name}.`);
+  };
+  bar.render('');
+  return bar;
+}
+const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
+const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);
+
 document.getElementById('preset-export').onclick = () => {
-  const data = JSON.stringify({ app: 'tb303-circuit-model', version: 1, current: snapshot(), presets: userPresets }, null, 2);
+  const data = JSON.stringify({ app: 'tb303-circuit-model', version: 2,
+    current: { sound: soundSnap(), pattern: patternSnap() },
+    soundPresets: soundBar.user, patternPresets: patBar.user }, null, 2);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
   a.download = 'tb303-settings.json'; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  say('Exported tb303-settings.json with the current settings and ' + Object.keys(userPresets).length + ' saved presets.');
+  soundBar.say(`Exported tb303-settings.json: current sound and pattern, ${Object.keys(soundBar.user).length} sound and ${Object.keys(patBar.user).length} pattern presets.`);
 };
 const fileEl = document.getElementById('preset-file');
 document.getElementById('preset-import').onclick = () => fileEl.click();
@@ -1151,13 +1188,22 @@ fileEl.addEventListener('change', async () => {
   const f = fileEl.files[0]; fileEl.value = ''; if (!f) return;
   try {
     const j = JSON.parse(await f.text());
-    let n = 0;
-    if (j && typeof j.presets === 'object' && j.presets) for (const [name, p] of Object.entries(j.presets)) { if (name.trim()) { userPresets[name.trim().slice(0, 40)] = cleanSettings(p); n++; } }
-    store.set('presets', userPresets);
-    const cur = j.current || (j.knobs || j.parts ? j : null);
-    if (cur) applySettings(cur, false);
-    renderPresets(''); say(`Imported ${n} preset${n === 1 ? '' : 's'}${cur ? ' and applied the saved settings' : ''}.`);
-  } catch { say('That file is not a settings JSON from this page. Export one here to see the format.'); }
+    if (!j || typeof j !== 'object') throw 0;
+    let ns = 0, np = 0;
+    const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
+    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
+    add(j.patternPresets, patBar, c => ({ bpm: c.bpm, pattern: c.pattern }));
+    if (j.presets) { // version 1 files: combined presets
+      add(j.presets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
+      const withPat = Object.fromEntries(Object.entries(j.presets).filter(([, x]) => Array.isArray(x?.pattern)));
+      add(withPat, patBar, c => ({ bpm: c.bpm, pattern: c.pattern }));
+    }
+    soundBar.save(); patBar.save(); soundBar.render(''); patBar.render('');
+    const cur = j.current;
+    if (cur?.sound || cur?.pattern) { if (cur.sound) applySound(cur.sound); if (cur.pattern) applyPattern(cur.pattern); }
+    else if (cur) { applySound(cur); applyPattern(cur); }
+    soundBar.say(`Imported ${ns} sound and ${np} pattern preset${np === 1 ? '' : 's'}${cur ? ', and applied the saved sound and pattern' : ''}.`);
+  } catch { soundBar.say('That file is not a settings export from this page. Use Export all here to see the format.'); }
 });
 
 for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); drawKnob(k.id); }
@@ -1165,6 +1211,6 @@ for (const k in COMPONENTS) preview.setComponent(k, state.parts[k]);
 preview.waveform = state.wave; bpmEl.value = state.bpm;
 document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
 document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
-renderPresets(''); renderSeq(); renderParts(); readouts();
+renderSeq(); renderParts(); readouts();
 })();
 </script>
