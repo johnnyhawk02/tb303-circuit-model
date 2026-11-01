@@ -99,7 +99,7 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
 .hint { color: var(--ink-2); font-size: 12px; }
 
 /* parts list */
-.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 26px; align-items: start; }
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 26px; align-items: start; min-height: 120px; }
 .parts .grp { min-width: 0; }
 .parts h3 { margin: 0; font: 700 13px var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1.5px solid var(--ink); }
 .part { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 7px 2px 8px; border-bottom: 1px solid var(--rule); }
@@ -112,7 +112,12 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
 .part .modnote { grid-column: 1 / -1; font-size: 11.5px; line-height: 1.4; color: var(--ink); }
 .part .modnote b { color: var(--accent); font: 500 10px var(--font-mono); letter-spacing: .06em; margin-right: 6px; }
 .part.fixed .val { cursor: default; color: var(--ink-2); }
-.parts.only-mod .part:not(.mod), .parts.only-mod .grp:not(:has(.mod)) { display: none; }
+.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; gap: 0; border-bottom: 1.5px solid var(--ink); margin-bottom: 14px; }
+.tabs button { flex: none; border: 0; border-radius: 0; padding: 8px 14px 7px; font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); border-bottom: 3px solid transparent; margin-bottom: -1.5px; }
+.tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--trace); }
+.tabs button .n { font: 500 10px var(--font-mono); color: var(--accent); margin-left: 5px; letter-spacing: 0; }
+.parts.flat { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 26px; }
+.parts.flat .part { align-self: stretch; }
 .badge.mod { color: var(--accent); }
 .badge { display: inline-block; font: 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; margin-left: 6px; }
 .badge.est { color: var(--est); }
@@ -204,15 +209,15 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
   <section>
     <h2>Parts list</h2>
     <div class="legend">
-      <span>Drag any slider to re-derive the circuit while it plays. Resistors and caps sweep from a tenth to ten times stock. Click a value to reset that part.</span>
+      <span>Pick a circuit block, or Mods for the parts people usually change. Drag any slider to re-derive the circuit while it plays. Resistors and caps sweep from a tenth to ten times stock. Click a value to reset that part.</span>
       <span><span class="badge mod">mod</span> a part people commonly mod on 303s and TD-3s</span>
       <span><span class="badge">schematic</span> printed on the sheet</span>
       <span><span class="badge td3">TD-3</span> read from the TD-3 clone sheet</span>
       <span><span class="badge est">estimate</span> on neither sheet; chosen to match documented behaviour</span>
-      <label class="field"><input type="checkbox" id="onlymod"> <span>Show only commonly modded parts</span></label>
       <button type="button" id="restore">Restore all parts</button>
     </div>
-    <div class="parts" id="parts"></div>
+    <div class="tabs" role="tablist" aria-label="Circuit blocks" id="ptabs"></div>
+    <div class="parts" id="parts" role="tabpanel"></div>
   </section>
 
   <section>
@@ -499,30 +504,65 @@ function fromSlider(k, x) {
 function srcBadge(d) {
   return d.source === 'estimate' ? '<span class="badge est">est.</span>' : d.source === 'td3' ? '<span class="badge td3">TD-3</span>' : '';
 }
-function renderParts() {
-  const groups = {};
-  for (const k in COMPONENTS) (groups[COMPONENTS[k].block] ||= []).push(k);
-  partsEl.innerHTML = Object.entries(groups).map(([g, keys]) => `<div class="grp"><h3>${g}</h3>` + keys.map(k => {
-    const d = COMPONENTS[k], v = state.parts[k];
-    const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
-    const ctl = d.fixed
-      ? '<span class="note" style="grid-column:auto">sets taper only</span>'
-      : `<input type="range" id="part-${k}" data-k="${k}" min="0" max="${SL}" step="1" value="${toSlider(k, v)}" aria-label="${k}">`;
-    return `<div class="part${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}">
-      <span class="ref">${k}</span>${ctl}
-      <span class="val${changed}" id="val-${k}" data-k="${k}" title="Click to reset to ${fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
-      <span class="note">${d.note}${srcBadge(d)}</span>
-      ${d.mod ? `<span class="modnote"><b>MOD</b>${d.mod}</span>` : ''}
-    </div>`;
-  }).join('') + '</div>').join('');
+function partRow(k) {
+  const d = COMPONENTS[k], v = state.parts[k];
+  const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
+  const ctl = d.fixed
+    ? '<span class="note" style="grid-column:auto">sets taper only</span>'
+    : `<input type="range" id="part-${k}" data-k="${k}" min="0" max="${SL}" step="1" value="${toSlider(k, v)}" aria-label="${k}">`;
+  return `<div class="part${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}">
+    <span class="ref">${k}</span>${ctl}
+    <span class="val${changed}" id="val-${k}" data-k="${k}" title="Click to reset to ${fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
+    <span class="note">${d.note}${srcBadge(d)}</span>
+    ${d.mod ? `<span class="modnote"><b>MOD</b>${d.mod}</span>` : ''}
+  </div>`;
 }
+const BLOCKS = [...new Set(Object.values(COMPONENTS).map(d => d.block))];
+const TABS = ['Mods', ...BLOCKS];
+let partsTab = store.get('partsTab', 'Mods'); if (!TABS.includes(partsTab)) partsTab = 'Mods';
+const tabsEl = document.getElementById('ptabs');
+function tabKeys(t) { return Object.keys(COMPONENTS).filter(k => t === 'Mods' ? COMPONENTS[k].mod : COMPONENTS[k].block === t); }
+function changedIn(t) { return tabKeys(t).filter(k => Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6).length; }
+function renderTabs() {
+  tabsEl.innerHTML = TABS.map(t => {
+    const n = changedIn(t);
+    return `<button type="button" role="tab" id="tab-${t}" data-t="${t}" aria-selected="${t === partsTab}" tabindex="${t === partsTab ? 0 : -1}" aria-controls="parts">${t}${n ? `<span class="n" title="${n} changed">●${n}</span>` : ''}</button>`;
+  }).join('');
+  partsEl.setAttribute('aria-labelledby', 'tab-' + partsTab);
+}
+function renderParts() {
+  renderTabs();
+  if (partsTab === 'Mods') {
+    partsEl.className = 'parts';
+    partsEl.innerHTML = BLOCKS.map(g => {
+      const keys = tabKeys('Mods').filter(k => COMPONENTS[k].block === g);
+      return keys.length ? `<div class="grp"><h3>${g}</h3>${keys.map(partRow).join('')}</div>` : '';
+    }).join('');
+  } else {
+    partsEl.className = 'parts flat';
+    partsEl.innerHTML = tabKeys(partsTab).map(partRow).join('');
+  }
+}
+function selectTab(t, focus) {
+  partsTab = t; store.set('partsTab', t); renderParts();
+  if (focus) document.getElementById('tab-' + t)?.focus();
+}
+tabsEl.addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) selectTab(b.dataset.t, true); });
+tabsEl.addEventListener('keydown', (e) => {
+  const i = TABS.indexOf(partsTab);
+  const j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+  if (j === undefined) return; e.preventDefault();
+  selectTab(TABS[(j + TABS.length) % TABS.length], true);
+});
 function applyPart(k, val) {
   state.parts[k] = val;
   const lab = document.getElementById('val-' + k);
   if (lab) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
-  for (const id in knobEls) drawKnob(id); readouts(); saveSession();
+  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon();
 }
+let tabTimer = 0;
+function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(renderTabs, 120); }
 partsEl.addEventListener('input', (e) => {
   const k = e.target.dataset.k; if (!k || e.target.type !== 'range') return;
   applyPart(k, fromSlider(k, +e.target.value));
@@ -533,7 +573,6 @@ partsEl.addEventListener('click', (e) => {
   applyPart(k, COMPONENTS[k].v);
   const sl = document.getElementById('part-' + k); if (sl) sl.value = toSlider(k, COMPONENTS[k].v);
 });
-document.getElementById('onlymod').addEventListener('change', (e) => partsEl.classList.toggle('only-mod', e.target.checked));
 document.getElementById('restore').onclick = () => {
   for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
   renderParts(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
