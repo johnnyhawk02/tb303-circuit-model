@@ -48,7 +48,8 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: v
 /* transport */
 .transport { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
 button { font: 500 13px var(--font-body); color: var(--ink); background: transparent; border: 1px solid var(--ink); padding: 7px 14px; cursor: pointer; border-radius: 2px; }
-button:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+button:disabled { opacity: .4; cursor: default; }
 button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px solid var(--trace); outline-offset: 2px; }
 button.primary { background: var(--ink); color: var(--sheet); min-width: 92px; }
 button.primary:hover { background: color-mix(in srgb, var(--ink) 85%, var(--trace)); }
@@ -57,6 +58,13 @@ input[type=number] { width: 64px; font: 14px var(--font-mono); background: trans
 .seg { display: inline-flex; border: 1px solid var(--ink); border-radius: 2px; }
 .seg button { border: 0; border-radius: 0; padding: 7px 12px; }
 .seg button[aria-pressed=true] { background: var(--ink); color: var(--sheet); }
+.presets { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+.presets h2 { margin-right: 6px; }
+.presets select, .presets input[type=text] { font: 13px var(--font-body); color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); padding: 6px 8px; border-radius: 2px; }
+.presets select { min-width: 190px; max-width: 100%; }
+.presets input[type=text] { width: 180px; max-width: 100%; }
+.presets .sep { width: 1px; align-self: stretch; background: var(--rule); }
+.presets .hint { flex-basis: 100%; }
 .status { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
 
 /* panel */
@@ -148,6 +156,22 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
         </div>
       </div>
       <span class="status" id="status">Stopped</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="presets">
+      <h2>Settings</h2>
+      <label class="field"><span class="label">Preset</span>
+        <select id="preset" aria-label="Preset"></select></label>
+      <input id="preset-name" type="text" placeholder="Name this setting" maxlength="40" aria-label="Preset name">
+      <button type="button" id="preset-save">Save preset</button>
+      <button type="button" id="preset-del">Delete</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" id="preset-export">Export JSON</button>
+      <button type="button" id="preset-import">Import JSON</button>
+      <input type="file" id="preset-file" accept=".json,application/json" hidden>
+      <span class="hint" id="preset-msg">Your knobs, parts, waveform, tempo and pattern are remembered on this browser.</span>
     </div>
   </section>
 
@@ -689,7 +713,41 @@ const state = {
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
 };
+const BUILTIN = {
+  'Stock 303': { knobs: {}, parts: {} },
+  'Devil Fish style': {
+    knobs: { resonance: 0.9, envmod: 0.7, decay: 0.2, accent: 0.9 },
+    parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C_ACC: 0.47e-6, R_IN: 47e3, R72: 120e3, V_CUT: 4.5 },
+  },
+  'Long drone': {
+    knobs: { cutoff: 0.25, resonance: 0.75, envmod: 0.4, decay: 0.9 }, wave: 'square', bpm: 100,
+    parts: { C35: 1e-6, R52: 4.7e6, R_SOFT: 22e3 },
+  },
+};
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
+function cleanSettings(x) {
+  const out = { knobs: {}, parts: {} };
+  if (!x || typeof x !== 'object') return out;
+  for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
+  for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = v; }
+  if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
+  if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
+  if (Array.isArray(x.pattern) && x.pattern.length === 16) out.pattern = x.pattern.map(st => ({
+    code: Math.min(57, Math.max(9, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
+  return out;
+}
+function snapshot() {
+  const parts = {};
+  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
+  return { knobs: { ...state.knobs }, parts, wave: state.wave, bpm: state.bpm, pattern: state.pattern.map(st => ({ ...st })) };
+}
+{ // restore last session
+  const sess = cleanSettings(store.get('session', null));
+  Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
+  if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
+}
+let saveTimer = 0;
+function saveSession() { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('session', snapshot()), 300); }
 const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 
 let ctx = null, node = null, analyser = null, fallback = null;
@@ -765,7 +823,7 @@ function drawKnob(id) {
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;
-  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); readouts();
+  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); readouts(); saveSession();
 }
 
 // ---------- readouts ----------
@@ -809,7 +867,7 @@ seq.addEventListener('click', (e) => {
   const s = state.pattern[+b.dataset.i]; s[b.dataset.k] = !s[b.dataset.k];
   b.setAttribute('aria-pressed', s[b.dataset.k]); pushPattern();
 });
-function pushPattern() { store.set('pattern', state.pattern); send({ type: 'pattern', value: state.pattern }); }
+function pushPattern() { store.set('pattern', state.pattern); send({ type: 'pattern', value: state.pattern }); saveSession(); }
 document.getElementById('rand').onclick = () => {
   const scale = [0, 3, 5, 7, 10, 12, 15], root = 21;
   state.pattern = Array.from({ length: 16 }, (_, i) => ({
@@ -863,7 +921,7 @@ function applyPart(k, val) {
   const lab = document.getElementById('val-' + k);
   if (lab) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
-  for (const id in knobEls) drawKnob(id); readouts();
+  for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
 partsEl.addEventListener('input', (e) => {
   const k = e.target.dataset.k; if (!k || e.target.type !== 'range') return;
@@ -878,7 +936,7 @@ partsEl.addEventListener('click', (e) => {
 document.getElementById('onlymod').addEventListener('change', (e) => partsEl.classList.toggle('only-mod', e.target.checked));
 document.getElementById('restore').onclick = () => {
   for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
-  renderParts(); for (const id in knobEls) drawKnob(id); readouts();
+  renderParts(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 };
 
 // ---------- transport / audio ----------
@@ -948,12 +1006,12 @@ playBtn.onclick = async () => {
   if (!playing) markStep(-1);
 };
 const bpmEl = document.getElementById('bpm');
-bpmEl.addEventListener('change', () => { state.bpm = Math.min(200, Math.max(60, +bpmEl.value || 128)); bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm }); });
+bpmEl.addEventListener('change', () => { state.bpm = Math.min(200, Math.max(60, +bpmEl.value || 128)); bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm }); saveSession(); });
 for (const w of ['saw', 'square']) document.getElementById('w-' + w).onclick = () => {
   state.wave = w; preview.waveform = w;
   document.getElementById('w-saw').setAttribute('aria-pressed', w === 'saw');
   document.getElementById('w-square').setAttribute('aria-pressed', w === 'square');
-  send({ type: 'wave', value: w });
+  send({ type: 'wave', value: w }); saveSession();
 };
 
 // ---------- scope ----------
@@ -986,7 +1044,88 @@ function drawScope() {
   drawStatic(b.subarray(t, t + 1000));
 })();
 
+// ---------- presets ----------
+const presetSel = document.getElementById('preset'), presetMsg = document.getElementById('preset-msg');
+const nameEl = document.getElementById('preset-name');
+let userPresets = store.get('presets', {});
+if (!userPresets || typeof userPresets !== 'object' || Array.isArray(userPresets)) userPresets = {};
+function say(t) { presetMsg.textContent = t; }
+function renderPresets(selected) {
+  const opt = (g, n) => `<option value="${g}:${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</option>`;
+  const names = Object.keys(userPresets).sort((a, b) => a.localeCompare(b));
+  presetSel.innerHTML = '<option value="">Current settings</option>'
+    + '<optgroup label="Built-in">' + Object.keys(BUILTIN).map(n => opt('b', n)).join('') + '</optgroup>'
+    + (names.length ? '<optgroup label="Saved">' + names.map(n => opt('u', n)).join('') + '</optgroup>' : '');
+  presetSel.value = selected || '';
+  document.getElementById('preset-del').disabled = !presetSel.value.startsWith('u:');
+}
+function applySettings(x, keepPattern) {
+  const c = cleanSettings(x);
+  for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
+  for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
+  state.wave = c.wave || 'saw'; state.bpm = c.bpm || 128;
+  if (!keepPattern && c.pattern) state.pattern = c.pattern;
+  for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); send({ type: 'knob', name: k.id, value: state.knobs[k.id] }); }
+  for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
+  preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
+  document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
+  document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
+  bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm });
+  renderSeq(); pushPattern(); renderParts();
+  for (const id in knobEls) drawKnob(id); readouts(); saveSession();
+}
+presetSel.addEventListener('change', () => {
+  const v = presetSel.value; document.getElementById('preset-del').disabled = !v.startsWith('u:');
+  if (!v) return;
+  const name = v.slice(2);
+  if (v[0] === 'b') { applySettings(BUILTIN[name], true); say(`Loaded ${name}. Your pattern was kept.`); }
+  else { applySettings(userPresets[name], false); nameEl.value = name; say(`Loaded ${name}.`); }
+});
+document.getElementById('preset-save').onclick = () => {
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); say('Type a name first, then save.'); return; }
+  const existed = name in userPresets;
+  userPresets[name] = snapshot(); store.set('presets', userPresets);
+  renderPresets('u:' + name); say(existed ? `Updated ${name}.` : `Saved ${name}.`);
+};
+nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('preset-save').click(); });
+let delArmed = '';
+document.getElementById('preset-del').onclick = (e) => {
+  const v = presetSel.value; if (!v.startsWith('u:')) return;
+  const name = v.slice(2);
+  if (delArmed !== name) { delArmed = name; e.target.textContent = 'Confirm delete'; say(`Click Confirm delete to remove ${name}.`); return; }
+  delete userPresets[name]; store.set('presets', userPresets); delArmed = '';
+  e.target.textContent = 'Delete'; renderPresets(''); say(`Deleted ${name}.`);
+};
+presetSel.addEventListener('change', () => { delArmed = ''; document.getElementById('preset-del').textContent = 'Delete'; });
+document.getElementById('preset-export').onclick = () => {
+  const data = JSON.stringify({ app: 'tb303-circuit-model', version: 1, current: snapshot(), presets: userPresets }, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+  a.download = 'tb303-settings.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  say('Exported tb303-settings.json with the current settings and ' + Object.keys(userPresets).length + ' saved presets.');
+};
+const fileEl = document.getElementById('preset-file');
+document.getElementById('preset-import').onclick = () => fileEl.click();
+fileEl.addEventListener('change', async () => {
+  const f = fileEl.files[0]; fileEl.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    let n = 0;
+    if (j && typeof j.presets === 'object' && j.presets) for (const [name, p] of Object.entries(j.presets)) { if (name.trim()) { userPresets[name.trim().slice(0, 40)] = cleanSettings(p); n++; } }
+    store.set('presets', userPresets);
+    const cur = j.current || (j.knobs || j.parts ? j : null);
+    if (cur) applySettings(cur, false);
+    renderPresets(''); say(`Imported ${n} preset${n === 1 ? '' : 's'}${cur ? ' and applied the saved settings' : ''}.`);
+  } catch { say('That file is not a settings JSON from this page. Export one here to see the format.'); }
+});
+
 for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); drawKnob(k.id); }
-renderSeq(); renderParts(); readouts();
+for (const k in COMPONENTS) preview.setComponent(k, state.parts[k]);
+preview.waveform = state.wave; bpmEl.value = state.bpm;
+document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
+document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
+renderPresets(''); renderSeq(); renderParts(); readouts();
 })();
 </script>
