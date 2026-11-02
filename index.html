@@ -313,6 +313,23 @@ input[type=text] { background: var(--well); }
 .pm .pm-i { font: 12px/1.6 var(--font-body); background: transparent; padding-left: 26px; }
 .pm .pm-i[aria-selected=true] { background: var(--on); color: #161616; }
 .pm-i.act, .pm-i:hover, .pm-g.act { background: #454545; }
+.pm .pm-g { padding-left: calc(10px + var(--d, 0) * 14px); }
+.pm .pm-g.sub { font-weight: 500; color: var(--fg); border-top-color: transparent; }
+.pm-row { display: flex; align-items: stretch; }
+.pm-row .pm-i { flex: 1; min-width: 0; padding-left: calc(12px + var(--d, 0) * 14px) !important; display: flex; gap: 8px; align-items: baseline; }
+.pm-path { margin-left: auto; color: var(--mute); font-size: 10px; flex: none; }
+.pm-i[aria-selected=true] .pm-path { color: #3a2a00; }
+.pm .pm-star { flex: none; width: 28px; padding: 0; border: 0; background: transparent; color: #555; font-size: 12px; }
+.pm .pm-star:hover { color: var(--fg); }
+.pm .pm-star[aria-pressed=true] { color: var(--on); }
+.pm-head { display: grid; min-width: 0; }
+.pm-btn .cur { flex: 1 1 auto; min-width: 0; }
+.pm-btn .grp { display: none; }
+.pm-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
+.pm .pm-chip { font: 600 10.5px var(--font-body); padding: 3px 8px; border-radius: 10px; background: #333; color: var(--mute); border: 1px solid #1a1a1a; }
+.pm .pm-chip[aria-pressed=true] { background: var(--hi); color: #161616; }
+.pm-sum { padding: 4px 12px 6px; font-size: 10.5px; color: var(--mute); }
+.pm-sep { border-top: 1px solid #222; margin: 4px 0; }
 .fn-menu button { font: 12px/1.4 var(--font-body) !important; background: transparent; border: 0; }
 .fn-menu button:not(:disabled):hover, .fn-menu button:focus-visible { background: var(--hi) !important; color: #161616 !important; }
 .sq-msg { font: 12px/1.4 var(--font-body); color: var(--fg); }
@@ -489,7 +506,10 @@ dialog#options { height: fit-content; min-height: min(460px, calc(100dvh - 32px)
   .lex-progs button b { font-size: 12px; }
   .lex-note { display: none; }
   .pm-pop { min-width: 0; width: 340px; }
-  .pm-pop .pm-foot { flex-wrap: nowrap; box-sizing: border-box; width: 100%; } .pm-pop .pm-foot input { min-width: 0; width: auto; flex: 1 1 0; } .pm-pop .pm-foot button { flex: none; padding: 4px 10px; }
+  .pm-pop .pm-foot { flex-wrap: wrap; box-sizing: border-box; width: 100%; }
+  .top button.pm-chip, .top button.pm-star, .top button.pm-i, .top button.pm-g { min-height: 0; }
+  .pm-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .pm .pm-chip { flex: none; padding: 4px 9px; } .pm-pop .pm-foot input { min-width: 0; width: auto; flex: 1 1 0; } .pm-pop .pm-foot button { flex: none; padding: 4px 10px; }
   dialog#options { height: calc(100dvh - 16px); max-height: none; min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -3195,51 +3215,128 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
 }
 // ---------- preset menu: our own picker over the hidden <select>, grouped, searchable, with prev/next ----------
 function presetMenu(host) {
-  const sel = document.getElementById(host.dataset.for);
+  const sel = document.getElementById(host.dataset.for), pre = host.dataset.for.replace('-preset', '');
+  const isPat = pre === 'pat';
   host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span><span class="grp"></span></button>`
     + `<button type="button" class="pm-step" data-d="-1" aria-label="Previous preset">◀</button><button type="button" class="pm-step" data-d="1" aria-label="Next preset">▶</button>`
-    + `<div class="pm-pop" hidden><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets"><div class="pm-list" role="listbox" aria-label="${sel.getAttribute('aria-label')}"></div></div>`;
+    + `<div class="pm-pop" hidden><div class="pm-head"><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets">`
+    + (isPat ? `<div class="pm-chips" role="group" aria-label="Filter">${PM_TAGS.map(t => `<button type="button" class="pm-chip" data-t="${t.k}" aria-pressed="false" title="${t.tip}">${t.label}</button>`).join('')}</div>` : '')
+    + `</div><div class="pm-list" role="listbox" aria-label="${sel.getAttribute('aria-label')}"></div></div>`;
   host.querySelector('.pm-pop').appendChild(host.parentElement.querySelector('.pm-foot'));
   const btn = host.querySelector('.pm-btn'), pop = host.querySelector('.pm-pop'), q = host.querySelector('.pm-q'), list = host.querySelector('.pm-list');
-  const open = new Set(); let act = -1;
-  const groups = () => [...sel.querySelectorAll('optgroup')].map(g => ({ label: g.label, items: [...g.querySelectorAll('option')] }));
-  const allOpts = () => [...sel.querySelectorAll('optgroup option')];
-  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+  const favKey = 'fav.' + pre, recKey = 'recent.' + pre, openKey = 'pmOpen.' + pre;
+  const fav = new Set(store.get(favKey, [])), open = new Set(store.get(openKey, ['fav', 'rec', 'my', 'built']));
+  let recent = store.get(recKey, []), chips = new Set(), act = -1, tree = null, order = [], byV = new Map();
+
+  // every option becomes an item with a folder path: My presets, Built-in, or source > author > song
+  function build() {
+    const items = [...sel.querySelectorAll('option')].filter(o => o.value).map(o => {
+      const v = o.value, full = v.slice(2);
+      let path, name = full;
+      if (v.startsWith('u:')) path = ['my'];
+      else if (full.includes(' / ')) {
+        const [grp, nm] = full.split(' / '); name = nm;
+        const m = /^ABL3 (.+)$/.exec(grp); path = m ? ['ABL3', m[1]] : [grp];
+      } else path = ['built'];
+      name = name.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+      return { v, name, path, label: name };
+    });
+    byV = new Map(items.map(it => [it.v, it]));
+    const root = { kids: new Map(), items: [] };
+    const node = (path) => { let n = root; for (const k of path) { if (!n.kids.has(k)) n.kids.set(k, { key: (n.key ? n.key + '/' : '') + k, label: k, kids: new Map(), items: [] }); n = n.kids.get(k); } return n; };
+    for (const it of items) node(it.path).items.push(it);
+    // multi-part songs ("Name - Part") become one row inside their folder
+    const songs = (n) => {
+      const stems = new Map();
+      for (const it of n.items) { const i = it.name.indexOf(' - '); if (i > 0) { const st = it.name.slice(0, i); (stems.get(st) || stems.set(st, []).get(st)).push(it); } }
+      for (const [st, its] of stems) if (its.length > 1) {
+        const k = { key: n.key + '/' + st, label: st, kids: new Map(), items: its, song: true };
+        for (const it of its) it.label = it.name.slice(st.length + 3);
+        n.items = n.items.filter(it => !its.includes(it)); n.kids.set(st, k);
+      }
+      for (const c of n.kids.values()) if (!c.song) songs(c);
+    };
+    for (const c of root.kids.values()) if (c.key !== 'my' && c.key !== 'built') songs(c);
+    const LABEL = { my: 'My presets', built: 'Built-in' };
+    for (const [k, c] of root.kids) if (LABEL[k]) c.label = LABEL[k];
+    const sortN = (n) => { n.items.sort((a, b) => coll.compare(a.label, b.label)); for (const c of n.kids.values()) sortN(c); };
+    sortN(root);
+    // top level order: mine, built-in, then sources A-Z
+    const top = [...root.kids.values()].sort((a, b) => (a.key === 'my' ? -2 : a.key === 'built' ? -1 : 0) - (b.key === 'my' ? -2 : b.key === 'built' ? -1 : 0) || coll.compare(a.label, b.label));
+    tree = top; order = [];
+    // folders before loose items inside a folder, song rows sorted in with folders
+    const walk2 = (n) => { n.sorted = [...n.kids.values()].sort((a, b) => (a.song - b.song) || coll.compare(a.label, b.label)); for (const c of n.sorted) walk2(c); };
+    for (const t of top) walk2(t);
+    const flatten = (n) => { for (const c of n.sorted) if (!c.song) flatten(c); const rows = [...n.sorted.filter(c => c.song).map(c => ({ song: c })), ...n.items.map(it => ({ it }))].sort((a, b) => coll.compare((a.song || a.it).label, (b.song || b.it).label)); for (const r of rows) if (r.song) order.push(...r.song.items); else order.push(r.it); };
+    for (const t of top) flatten(t);
+    recent = recent.filter(v => byV.has(v)); for (const v of [...fav]) if (!byV.has(v)) fav.delete(v);
+  }
+  const small = () => byV.size <= 14;
+  const pathText = (it) => it.path.map(k => ({ my: 'My presets', built: 'Built-in' }[k] || k)).join(' › ');
   function sync() {
-    const o = sel.selectedOptions[0];
-    btn.querySelector('.cur').textContent = o && o.value ? o.textContent : 'Choose…';
-    btn.querySelector('.grp').textContent = o && o.value ? o.parentElement.label.replace(/^ABL3 /, '') : '';
+    const it = byV.get(sel.value);
+    btn.querySelector('.cur').textContent = it ? it.name : 'Choose…';
+    btn.querySelector('.grp').textContent = it && it.path[0] !== 'my' && it.path[0] !== 'built' ? it.path[it.path.length - 1] : '';
+  }
+  const row = (it, d, hint) => `<div class="pm-row" style="--d:${d}"><button type="button" class="pm-i" role="option" data-v="${esc(it.v)}" aria-selected="${it.v === sel.value}">${esc(hint ? it.name : it.label)}${hint ? `<span class="pm-path">${esc(pathText(it))}</span>` : ''}</button>`
+    + `<button type="button" class="pm-star" data-v="${esc(it.v)}" aria-pressed="${fav.has(it.v)}" aria-label="${fav.has(it.v) ? 'Remove from' : 'Add to'} favourites">★</button></div>`;
+  const folder = (key, label, n, d) => `<button type="button" class="pm-g${d ? ' sub' : ''}" style="--d:${d}" data-g="${esc(key)}" aria-expanded="${open.has(key)}">${esc(label)}<span class="n">${n}</span></button>`;
+  const count = (n) => n.items.length + [...n.kids.values()].reduce((a, c) => a + count(c), 0);
+  function drawNode(n, d) {
+    let h = folder(n.key, n.label, count(n), d);
+    if (!open.has(n.key)) return h;
+    const rows = [...n.sorted.map(c => ({ c })), ...n.items.map(it => ({ it }))];
+    rows.sort((a, b) => (a.c && !a.c.song ? 0 : 1) - (b.c && !b.c.song ? 0 : 1) || coll.compare((a.c || a.it).label, (b.c || b.it).label));
+    for (const r of rows) h += r.c ? drawNode(r.c, d + 1) : row(r.it, d + 1);
+    return h;
   }
   function draw() {
     const term = q.value.trim().toLowerCase(); let h = '';
-    for (const g of groups()) {
-      const items = term ? g.items.filter(o => (g.label + ' ' + o.textContent).toLowerCase().includes(term)) : g.items;
-      if (!items.length) continue;
-      const exp = !!term || open.has(g.label);
-      h += `<button type="button" class="pm-g" data-g="${esc(g.label)}" aria-expanded="${exp}">${esc(g.label)}<span class="n">${items.length}</span></button>`;
-      if (exp) h += items.map(o => `<button type="button" class="pm-i" role="option" data-v="${esc(o.value)}" aria-selected="${o.value === sel.value}">${esc(o.textContent)}</button>`).join('');
+    if (term || chips.size) {
+      const hits = order.filter(it => (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)) && [...chips].every(t => pmTags(it.v).has(t)));
+      h = hits.slice(0, 300).map(it => row(it, 0, true)).join('');
+      h = (hits.length ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
+    } else {
+      const favs = order.filter(it => fav.has(it.v)), recs = recent.map(v => byV.get(v)).filter(Boolean);
+      if (favs.length) h += folder('fav', '★ Favourites', favs.length, 0) + (open.has('fav') ? favs.map(it => row(it, 1, true)).join('') : '');
+      if (recs.length) h += folder('rec', 'Recent', recs.length, 0) + (open.has('rec') ? recs.map(it => row(it, 1, true)).join('') : '');
+      if (small()) h += (h ? '<div class="pm-sep"></div>' : '') + order.map(it => row(it, 0)).join('');
+      else for (const t of tree) h += drawNode(t, 0);
     }
     list.innerHTML = h || '<div class="pm-none">Nothing matches.</div>';
     act = -1;
   }
   function show() {
-    const o = sel.selectedOptions[0];
-    open.clear(); open.add('Built-in'); open.add('Saved'); if (o && o.value) open.add(o.parentElement.label);
-    q.value = ''; draw(); pop.hidden = false; pop.style.maxHeight = Math.max(240, Math.min(460, innerHeight - btn.getBoundingClientRect().bottom - 16)) + 'px'; btn.setAttribute('aria-expanded', 'true'); q.focus();
-    list.querySelector('[aria-selected=true]')?.scrollIntoView({ block: 'center' });
+    build();
+    const it = byV.get(sel.value);
+    if (it) { let k = ''; for (const p of it.path) { k = k ? k + '/' + p : p; open.add(k); } const i = it.name.indexOf(' - '); if (i > 0) open.add(it.path.join('/') + '/' + it.name.slice(0, i)); }
+    q.value = ''; draw(); pop.hidden = false; pop.style.maxHeight = Math.max(240, Math.min(520, innerHeight - btn.getBoundingClientRect().bottom - 16)) + 'px'; btn.setAttribute('aria-expanded', 'true');
+    if (matchMedia('(pointer: fine)').matches) q.focus();
+    list.querySelector('.pm-g ~ .pm-row [aria-selected=true], .pm-row [aria-selected=true]')?.scrollIntoView({ block: 'center' });
   }
   function hide(refocus) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (refocus) btn.focus(); }
-  function choose(v) { sel.value = v; sel.dispatchEvent(new Event('change')); sync(); }
+  function choose(v, remember) {
+    sel.value = v; sel.dispatchEvent(new Event('change')); sync();
+    if (remember) { recent = [v, ...recent.filter(x => x !== v)].slice(0, 8); store.set(recKey, recent); }
+  }
   btn.onclick = () => (pop.hidden ? show() : hide());
   host.querySelectorAll('.pm-step').forEach(b => b.onclick = () => {
-    const os = allOpts(); if (!os.length) return;
-    const d = +b.dataset.d, i = os.findIndex(o => o.value === sel.value);
-    choose(os[i < 0 ? (d > 0 ? 0 : os.length - 1) : (i + d + os.length) % os.length].value);
+    build(); if (!order.length) return;
+    const d = +b.dataset.d, i = order.findIndex(it => it.v === sel.value);
+    choose(order[i < 0 ? (d > 0 ? 0 : order.length - 1) : (i + d + order.length) % order.length].v);
   });
   list.addEventListener('click', (e) => {
     const g = e.target.closest('.pm-g');
-    if (g) { open.has(g.dataset.g) ? open.delete(g.dataset.g) : open.add(g.dataset.g); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
-    const it = e.target.closest('.pm-i'); if (it) { choose(it.dataset.v); hide(true); }
+    if (g) { open.has(g.dataset.g) ? open.delete(g.dataset.g) : open.add(g.dataset.g); store.set(openKey, [...open]); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
+    const st = e.target.closest('.pm-star');
+    if (st) { const v = st.dataset.v; fav.has(v) ? fav.delete(v) : fav.add(v); store.set(favKey, [...fav]); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
+    const it = e.target.closest('.pm-i'); if (it) { choose(it.dataset.v, true); hide(true); }
+  });
+  host.querySelector('.pm-chips')?.addEventListener('click', (e) => {
+    const c = e.target.closest('.pm-chip'); if (!c) return;
+    chips.has(c.dataset.t) ? chips.delete(c.dataset.t) : chips.add(c.dataset.t); c.setAttribute('aria-pressed', chips.has(c.dataset.t)); draw();
   });
   q.addEventListener('input', draw);
   pop.addEventListener('keydown', (e) => {
@@ -3252,8 +3349,31 @@ function presetMenu(host) {
     } else if (e.key === 'Enter' && act >= 0 && items[act]) { e.preventDefault(); items[act].click(); }
   });
   document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !host.contains(e.target)) hide(); });
-  sel.addEventListener('sync', sync); sel.addEventListener('change', sync);
-  sync();
+  sel.addEventListener('sync', () => { build(); sync(); }); sel.addEventListener('change', sync);
+  build(); sync();
+}
+// pattern tags, worked out from the notes themselves
+const PM_TAGS = [
+  { k: 'short', label: 'Short', tip: 'Under 16 steps' }, { k: 'long', label: 'Long', tip: 'Over 16 steps' },
+  { k: 'sparse', label: 'Sparse', tip: 'A quarter or more of the steps are rests' }, { k: 'slidey', label: 'Slidey', tip: 'Slides on 40% or more of the steps' },
+  { k: 'accents', label: 'Accents', tip: 'Accents on 40% or more of the steps' }, { k: 'tempo', label: 'Tempo', tip: 'Comes with its own tempo' },
+];
+const pmTagCache = new Map();
+function pmTags(v) {
+  let p;
+  if (v.startsWith('b:')) p = PATTERN_BUILTIN[v.slice(2)]; else if (v.startsWith('u:')) p = loadStore('patternPresets')[v.slice(2)];
+  if (v.startsWith('b:') && pmTagCache.has(v)) return pmTagCache.get(v);
+  const t = new Set(), P = p && Array.isArray(p.pattern) ? p.pattern : [];
+  if (P.length) {
+    const n = P.length, frac = (f) => P.filter(f).length / n;
+    if (n < 16) t.add('short'); if (n > 16) t.add('long');
+    if (frac(s => !s.gate) >= 0.25) t.add('sparse');
+    if (frac(s => s.slide) >= 0.4) t.add('slidey');
+    if (frac(s => s.accent) >= 0.4) t.add('accents');
+    if (p.bpm) t.add('tempo');
+  }
+  if (v.startsWith('b:')) pmTagCache.set(v, t);
+  return t;
 }
 // ---------- projects: everything at once (sound, effects, tempo, all 48 bank slots, chain) ----------
 const SLOT_RE = /^[A-D]([1-9]|1[0-2])$/;
