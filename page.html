@@ -337,10 +337,13 @@ input[type=text] { background: var(--well); }
 .kn .val, .md .val, .pk .val { font: 500 10.5px var(--font-body); color: var(--hi); opacity: 1; }
 .md .mdesc { font-size: 10.5px; }
 .md .val.changed, .pk .val.changed { color: var(--on); text-decoration: none; }
-.knob svg path:first-child { stroke: #1d1d1d; stroke-width: 5; }
-.knob svg .arc { stroke: var(--hi); stroke-width: 5; stroke-linecap: butt; }
-.knob svg circle { fill: transparent; }
-.knob svg .ptr { stroke: var(--fg); stroke-width: 3.5; }
+.knob svg .trk { stroke: #1b1b1b; stroke-width: 6; stroke-linecap: butt; }
+.knob svg .arc { stroke: var(--hi); stroke-width: 6; stroke-linecap: butt; }
+.knob svg .ptr { stroke: #141414; stroke-width: 5; stroke-linecap: round; }
+/* label above the dial, value below (as in Live) */
+.kn .name, .md .mname, .pk .ref { order: -1; }
+.md .mdesc { order: 2; }
+.kn .val, .md .val, .pk .val { color: var(--fg); }
 .kn .knob { width: 54px; height: 54px; }
 .pk.mod::after, .dot { background: var(--on); }
 /* sequencer */
@@ -862,11 +865,11 @@ function parse(str) {
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 function knobSVG() {
+  // Live-style dial: thick value arc over a dark track, and a dark pointer that runs out through the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path d="M14.1 49.9 A25 25 0 1 1 49.9 49.9" fill="none" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/>
-    <path class="arc" d="" fill="none" stroke="var(--fg)" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="32" cy="32" r="18" fill="var(--fg)"/>
-    <line class="ptr" x1="32" y1="32" x2="32" y2="17" stroke="var(--bg)" stroke-width="3" stroke-linecap="round"/>
+    <path class="trk" d="M14.32 49.68 A25 25 0 1 1 49.68 49.68" fill="none" stroke="var(--line)" stroke-width="6"/>
+    <path class="arc" d="" fill="none" stroke="var(--fg)" stroke-width="6"/>
+    <line class="ptr" x1="32" y1="21" x2="32" y2="4.5" stroke="var(--bg)" stroke-width="5" stroke-linecap="round"/>
   </svg>`;
 }
 function arcPath(p) {
