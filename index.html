@@ -100,9 +100,9 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* front panel knobs */
-.panel { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 22px 10px; }
+.panel { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 22px 10px; align-items: start; }
 .parts-kn { align-content: start; gap: 5px; }
-.trim { display: grid; justify-items: center; gap: 1px; margin-bottom: 4px; }
+.trim { display: grid; justify-items: center; gap: 1px; margin-top: -2px; }
 .kn .trim .knob, .main > #panel .trim .knob { width: 28px; height: 28px; cursor: ns-resize; touch-action: none; }
 .trim .tname { font: 600 9.5px var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
 .trim .tval { font: 500 10px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; }
@@ -474,11 +474,8 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
   .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
   .panel { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
   .panel .mini { min-width: 0; width: 100%; padding: 3px 4px; min-height: 24px; }
-  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px 4px; grid-template-columns: auto 1fr; align-items: center; }
-  .main > #panel > .parts-kn .name { grid-column: 1 / -1; }
-  .main > #panel > .parts-kn .trim { grid-row: 2 / 4; margin: 0; }
-  .main > #panel > .parts-kn .trim .tname { display: none; }
-  .main > #panel > .parts-kn .mini { width: 100%; }
+  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px; } .main > #panel > .parts-kn .mini { width: 80%; }
+  .main > #panel .trim .tname, .main > #panel .trim .tval { display: none; } .main > #panel .trim { margin-top: -4px; }
   .wave-kn .switch { margin: 6px 0 4px; }
   .kn { gap: 1px; } .kn .knob { width: 34px; height: 34px; }
   .kn .name { font-size: 10px; } .panel .kn .val { display: none; }
@@ -3194,6 +3191,7 @@ panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="nam
   <button type="button" class="mini" id="parts-rand" title="Nudge every part around its stock value">Randomise</button>
   <button type="button" class="mini" id="parts-undo" disabled>Undo</button></div>`);
 // TM3 filter trimmer: the factory cutoff calibration pot, shown as a little trimmer under the voice knobs
+knobEls.cutoff.el.closest('.kn').appendChild(panel.querySelector('.trim'));
 const trimEl = panel.querySelector('.trim .knob');
 function drawTrim() {
   drawPartKnob('I_REF');
