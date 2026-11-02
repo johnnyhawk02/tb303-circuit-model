@@ -443,6 +443,8 @@ function flushTiny(o, depth) {
   }
 }
 
+const RAT_OS = 2; // the RAT runs at 2x the voice rate (4x the host rate)
+
 class TB303Voice {
   constructor(sampleRate, components) {
     this.fsOut = sampleRate;
@@ -457,7 +459,7 @@ class TB303Voice {
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5 };
     this.fx = { rat: false, lex: false };
     this.lex = new Lexicon224(sampleRate);
-    this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0 };
+    this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
 
     // state
@@ -533,8 +535,15 @@ class TB303Voice {
   }
 
   _deriveFx() {
-    const c = this.c, k = this.knobs, fs = this.fs, e = (tau) => Math.exp(-1 / (Math.max(tau, 1e-12) * fs));
-    // RAT: LM308 non-inverting stage
+    const c = this.c, k = this.knobs, fs = this.fs * RAT_OS, e = (tau) => Math.exp(-1 / (Math.max(tau, 1e-12) * fs));
+    // RAT: LM308 non-inverting stage. It runs RAT_OS times faster than the voice, because the rail clip,
+    // slew limit and diodes turn a loud resonant peak into harmonics far above 20 kHz that otherwise fold
+    // back down as inharmonic whine.
+    if (!this.ratLP) {
+      const fc = 22000 / fs, w = 2 * Math.PI * fc, cs = Math.cos(w);
+      this.ratLP = [0.5176, 0.7071, 1.9319].map(Q => { const al = Math.sin(w) / (2 * Q), a0 = 1 + al; return { b0: (1 - cs) / 2 / a0, b1: (1 - cs) / a0, b2: (1 - cs) / 2 / a0, a1: -2 * cs / a0, a2: (1 - al) / a0, x1: 0, x2: 0, y1: 0, y2: 0 }; });
+    }
+    this.ratDcA = Math.exp(-2 * Math.PI * 5 / this.fs); // output coupling: blocks the DC that asymmetric clipping leaves
     const rd = c.RAT_RD * audioTaper(k.dist) + 1;
     this.ratRd = rd;
     this.ratInA = e(c.RAT_CIN * 1e6);
@@ -555,6 +564,18 @@ class TB303Voice {
   }
 
   _rat(x) {
+    const s = this.rt, x0 = s.xp; s.xp = x;
+    let y = 0;
+    for (let i = 1; i <= RAT_OS; i++) {
+      let z = this._ratCore(x0 + (x - x0) * (i / RAT_OS));
+      for (const q of this.ratLP) { const o = q.b0 * z + q.b1 * q.x1 + q.b2 * q.x2 - q.a1 * q.y1 - q.a2 * q.y2; q.x2 = q.x1; q.x1 = z; q.y2 = q.y1; q.y1 = o; z = o; }
+      y = z;
+    }
+    s.dco = this.ratDcA * (s.dco + y - s.dci); s.dci = y;
+    return s.dco;
+  }
+
+  _ratCore(x) {
     const s = this.rt, c = this.c;
     s.hin = this.ratInA * (s.hin + x - s.xin); s.xin = x;
     const u = s.hin;
@@ -569,11 +590,18 @@ class TB303Voice {
     s.hc = this.ratCA * (s.hc + s.y - s.xc); s.xc = s.y;         // 4.7µ output coupling
     // diode pair to ground through RAT_RCL: (w - v)/R = 2 Is sinh(v / nVt)
     const w = s.hc, R = c.RAT_RCL, n = this.ratN, Is = this.ratIs;
-    let v = s.v;
-    for (let i = 0; i < 4; i++) { // Newton, warm-started from last sample; stops once the step is under 0.1 µV
-      const t = Math.min(Math.max(v / n, -80), 80), e = Math.exp(t), ei = 1 / e, sh = 0.5 * (e - ei), ch = 0.5 * (e + ei);
-      const f = (w - v) / R - 2 * Is * sh, df = -1 / R - 2 * Is * ch / n, dv = f / df;
-      v -= dv;
+    // Safeguarded Newton: the root lies between 0 and w, so keep it bracketed and bisect whenever a Newton
+    // step would leave the bracket. Plain Newton from the last sample could not follow a fast swing into
+    // the diodes' exponential region in 4 steps and left v volts off, which was heard as spitting and fizz.
+    let lo = w < 0 ? w : 0, hi = w < 0 ? 0 : w;
+    let v = Math.min(hi, Math.max(lo, s.v));
+    for (let i = 0; i < 40; i++) {
+      const t = Math.min(Math.max(v / n, -80), 80), e = Math.exp(t), ei = 1 / e;
+      const f = (w - v) / R - Is * (e - ei), df = -1 / R - Is * (e + ei) / n;
+      if (f > 0) lo = v; else hi = v;
+      let nv = v - f / df;
+      if (!(nv > lo && nv < hi)) nv = 0.5 * (lo + hi);
+      const dv = nv - v; v = nv;
       if (dv < 1e-7 && dv > -1e-7) break;
     }
     s.v = v;
