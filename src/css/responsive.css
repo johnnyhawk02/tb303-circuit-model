@@ -91,7 +91,8 @@
   .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
   .stp button { height: 20px; }
   .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
+  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 30px repeat(var(--steps, 16), minmax(14px, 1fr)); font-size: 8.5px; }
+  .sq-side .dup { padding: 2px 0; font-size: 9.5px; }
 
   .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
   .md .mdesc { font-size: 9.5px; }

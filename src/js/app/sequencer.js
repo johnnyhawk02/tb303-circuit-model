@@ -6,30 +6,37 @@ const BLACK = new Set([1, 3, 6, 8, 10]);
 const splitCode = (c) => { const o = Math.floor((c - 24) / 12); return { o, k: c - 24 - 12 * o }; };
 const clampCode = (c) => Math.min(59, Math.max(0, c));
 let seqCols = [], tail = []; // tail keeps steps removed by shortening, so lengthening brings them back
+// the grid always shows at least 32 steps; columns past the pattern's length are dimmed, and pressing one
+// extends the pattern up to that step (with rests, or the steps you shortened away) and sets that cell
+const SEQ_SHOW = 32;
 function renderSeq() {
-  const P = state.pattern, n = P.length, focusId = document.activeElement?.closest?.('#seq') ? document.activeElement.id : '';
+  const P = state.pattern, n = P.length, cols = Math.max(SEQ_SHOW, n), focusId = document.activeElement?.closest?.('#seq') ? document.activeElement.id : '';
   seqCols = P.map(() => []);
-  const bar = (i) => (i % 4 === 3 && i < n - 1 ? ' bar' : '');
-  let h = '<div class="rh">STEP</div>' + P.map((_, i) => `<div class="hd${bar(i)}" data-col="${i}">${i % 8 === 0 ? i + 1 : ''}</div>`).join('');
+  const ghost = Array.from({ length: cols - n }, (_, j) => n + j);
+  const bar = (i) => (i % 4 === 3 && i < cols - 1 ? ' bar' : '') + (i === n - 1 && n < cols ? ' end' : '');
+  const gcell = (cls, t, v, i, lab) => `<button type="button" class="cell ghost${cls}${bar(i)}" data-gcol="${i}" data-gt="${t}" data-v="${v}" tabindex="-1" aria-label="Extend to step ${i + 1}, ${lab}"></button>`;
+  let h = '<div class="rh">STEP</div>' + P.map((_, i) => `<div class="hd${bar(i)}" data-col="${i}">${i % 8 === 0 ? i + 1 : ''}</div>`).join('')
+    + ghost.map(i => `<div class="hd ghost${bar(i)}">${i % 8 === 0 ? i + 1 : ''}</div>`).join('');
   OCT_ROWS.forEach((o, r) => {
-    const last = r === OCT_ROWS.length - 1 ? ' gap' : '';
+    const last = r === OCT_ROWS.length - 1 ? ' gap' : '', ol = `octave ${o > 0 ? '+' : '−'}${Math.abs(o)}`;
     h += `<div class="rh${last}">${o > 0 ? '+' : '−'}${Math.abs(o)}</div>` + P.map((s, i) => {
       const on = splitCode(s.code).o === o;
-      return `<button type="button" class="cell${on && s.gate ? ' on' : ''}${bar(i)}${last}" id="so${o}_${i}" data-col="${i}" data-t="o" data-v="${o}" aria-pressed="${on}" aria-label="Step ${i + 1} octave ${o > 0 ? '+' : '−'}${Math.abs(o)}"></button>`;
-    }).join('');
+      return `<button type="button" class="cell${on && s.gate ? ' on' : ''}${bar(i)}${last}" id="so${o}_${i}" data-col="${i}" data-t="o" data-v="${o}" aria-pressed="${on}" aria-label="Step ${i + 1} ${ol}"></button>`;
+    }).join('') + ghost.map(i => gcell(last, 'o', o, i, ol)).join('');
   });
   KEY_ROWS.forEach((k, r) => {
     const cls = (BLACK.has(k) ? ' blk' : '') + (r === KEY_ROWS.length - 1 ? ' gap' : '');
     h += `<div class="rh${cls}">${NOTE[k]}</div>` + P.map((s, i) => {
       const on = splitCode(s.code).k === k;
       return `<button type="button" class="cell${cls}${on && s.gate ? ' on' : ''}${bar(i)}" id="sk${k}_${i}" data-col="${i}" data-t="k" data-v="${k}" aria-pressed="${on && s.gate}" aria-label="Step ${i + 1} ${NOTE[k]}${on && !s.gate ? ' (rest)' : ''}"></button>`;
-    }).join('');
+    }).join('') + ghost.map(i => gcell(cls, 'k', k, i, NOTE[k])).join('');
   });
   for (const [key, lab] of [['slide', 'SLIDE'], ['accent', 'ACC']]) {
     h += `<div class="rh">${lab}</div>` + P.map((s, i) =>
-      `<button type="button" class="cell${s[key] ? ' on' : ''}${bar(i)}" id="s${key}_${i}" data-col="${i}" data-t="${key}" aria-pressed="${s[key]}" aria-label="Step ${i + 1} ${key}"></button>`).join('');
+      `<button type="button" class="cell${s[key] ? ' on' : ''}${bar(i)}" id="s${key}_${i}" data-col="${i}" data-t="${key}" aria-pressed="${s[key]}" aria-label="Step ${i + 1} ${key}"></button>`).join('')
+      + ghost.map(i => gcell('', key, 0, i, key)).join('');
   }
-  seq.innerHTML = h; seq.style.setProperty('--steps', n);
+  seq.innerHTML = h; seq.style.setProperty('--steps', cols);
   for (const el of seq.querySelectorAll('[data-col]')) seqCols[+el.dataset.col].push(el);
   for (const el of seqCols[lastStep] || []) el.classList.add('cur');
   if (focusId) document.getElementById(focusId)?.focus();
@@ -54,7 +61,21 @@ function paintCell(b) {
   else { if (t !== paint.t) return false; s[t] = paint.on; }
   return before !== s.code + ':' + s.gate + s.accent + s.slide;
 }
+// grow the pattern to `len` steps, bringing back steps removed by shortening first, then rests on the last note
+function extendTo(len) {
+  const P = state.pattern;
+  while (P.length < Math.min(64, len)) P.push(tail.shift() || restStep(P[P.length - 1].code));
+}
 seq.addEventListener('pointerdown', (e) => {
+  const g = e.target.closest('button[data-gcol]');
+  if (g && e.button <= 0) { // a dimmed step past the end: extend, then treat it as a press on the real cell
+    e.preventDefault(); const i = +g.dataset.gcol, t = g.dataset.gt, v = g.dataset.v;
+    extendTo(i + 1); renderSeq();
+    const id = t === 'o' ? `so${v}_${i}` : t === 'k' ? `sk${v}_${i}` : `s${t}_${i}`, b = document.getElementById(id);
+    if (b) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: e.pointerId, button: 0, clientX: e.clientX, clientY: e.clientY }));
+    else pushPattern();
+    return;
+  }
   const b = e.target.closest('button[data-t]'); if (!b || e.button > 0) return;
   e.preventDefault(); applyCell(b); paintedClick = true;
   const s = state.pattern[+b.dataset.col], t = b.dataset.t;
@@ -100,7 +121,7 @@ document.querySelector('.sq-side').addEventListener('click', (e) => {
   switch (b.dataset.a) {
     case 'len':
       if (d < 0 && P.length > 1) tail.unshift(P.pop());
-      else if (d > 0 && P.length < 64) P.push(tail.shift() || restStep(P[P.length - 1].code));
+      else if (d > 0) extendTo(P.length + 1);
       break;
     case 'shuf': state.shuffle = Math.min(SHUF_MAX, Math.max(0, Math.round((state.shuffle + d * 0.05) * 100) / 100)); sendGroove(); break;
     case 'gate': state.gate = Math.min(0.95, Math.max(0.1, Math.round((state.gate + d * 0.05) * 100) / 100)); sendGroove(); break;
@@ -109,6 +130,15 @@ document.querySelector('.sq-side').addEventListener('click', (e) => {
   }
   renderSeq(); pushPattern();
 });
+// Duplicate steps: repeat the pattern until it fills the next of 16, 32 or 64 steps (a 5-step riff becomes 16, then 32)
+document.getElementById('p-dup').onclick = () => {
+  const P = state.pattern, n = P.length, to = [16, 32, 64].find(x => x > n);
+  if (!to) { sqSay('Already at the 64-step maximum.'); return; }
+  pushUndo();
+  state.pattern = Array.from({ length: to }, (_, i) => ({ ...P[i % n] })); tail = [];
+  renderSeq(); pushPattern();
+  sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Functions › Undo puts it back.`);
+};
 drawGen();
 document.querySelector('.sq-side').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-g]'); if (!b) return;
