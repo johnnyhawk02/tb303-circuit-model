@@ -3,266 +3,222 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: an engineering drawing sheet. Title block, front panel, scope, step grid, then the parts list. */
+/* Layout: one quiet black-and-white instrument page (knobs, transport, steps); everything else lives in the Options sheet. */
 :root {
-  --paper: #e8ece9;
-  --sheet: #f4f6f3;
-  --ink: #18272b;
-  --ink-2: #4a5a5e;
-  --rule: #b9c4c2;
-  --trace: #0b7a83;
-  --accent: #c2410c;
-  --est: #8a6d1d;
-  --knob: #1f2f33;
-  --knob-ring: #cfd6d4;
+  --bg: #ffffff;
+  --fg: #000000;
+  --mute: #6e6e6e;
+  --line: #d9d9d9;
+  --soft: #f2f2f2;
   --font-display: "Archivo Narrow", "Arial Narrow", sans-serif-condensed, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --paper: #0f1719; --sheet: #152124; --ink: #dce6e4; --ink-2: #93a5a6; --rule: #2c3d40;
-  --trace: #4fd1c5; --accent: #fb923c; --est: #d4b25a; --knob: #d9e3e1; --knob-ring: #34474a; color-scheme: dark } }
-:root[data-theme="dark"] {
-  --paper: #0f1719; --sheet: #152124; --ink: #dce6e4; --ink-2: #93a5a6; --rule: #2c3d40;
-  --trace: #4fd1c5; --accent: #fb923c; --est: #d4b25a; --knob: #d9e3e1; --knob-ring: #34474a; color-scheme: dark }
+  --bg: #000000; --fg: #ffffff; --mute: #8f8f8f; --line: #2e2e2e; --soft: #141414; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #000000; --fg: #ffffff; --mute: #8f8f8f; --line: #2e2e2e; --soft: #141414; color-scheme: dark }
 
 * { box-sizing: border-box; }
-body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px; }
-.sheet { max-width: 1120px; margin: 0 auto; background: var(--sheet); border: 1.5px solid var(--ink); display: grid; }
-.sheet > section { border-top: 1px solid var(--rule); padding: 20px 22px; min-width: 0; }
-.mono { font-family: var(--font-mono); }
-h1, h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: .01em; text-wrap: balance; margin: 0; }
-h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.05; }
-h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-2); font-weight: 500; }
-.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-body); font-size: 14px; line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
+.main { max-width: 980px; margin: 0 auto; display: grid; gap: 36px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
+.label { font: 500 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+.hint { color: var(--mute); font-size: 12px; }
 
-/* title block */
-.title { display: grid; grid-template-columns: 1fr auto; gap: 16px 24px; align-items: end; border-top: 0 !important; }
-.title p { margin: 6px 0 0; color: var(--ink-2); max-width: 62ch; }
-.tblock { display: grid; grid-template-columns: auto auto; border: 1px solid var(--ink); font-family: var(--font-mono); font-size: 11px; }
-.tblock div { padding: 4px 10px; border-bottom: 1px solid var(--rule); }
-.tblock div:nth-child(odd) { color: var(--ink-2); border-right: 1px solid var(--rule); }
-.tblock div:nth-last-child(-n+2) { border-bottom: 0; }
+button { font: 500 13px var(--font-body); color: var(--fg); background: var(--bg); border: 1.5px solid var(--fg); padding: 7px 14px; cursor: pointer; border-radius: 0; }
+button:hover:not(:disabled) { background: var(--soft); }
+button:disabled { opacity: .35; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible, .pk .knob:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+button.primary { background: var(--fg); color: var(--bg); }
+button.primary:hover { background: var(--fg); opacity: .85; }
+select, input[type=text], input[type=number] { font: 13px var(--font-body); color: var(--fg); background: var(--bg); border: 1.5px solid var(--fg); padding: 6px 8px; border-radius: 0; }
+input[type=number] { width: 68px; font-family: var(--font-mono); }
 
-/* transport */
-.transport { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
-button { font: 500 13px var(--font-body); color: var(--ink); background: transparent; border: 1px solid var(--ink); padding: 7px 14px; cursor: pointer; border-radius: 2px; }
-button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 8%, transparent); }
-button:disabled { opacity: .4; cursor: default; }
-button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px solid var(--trace); outline-offset: 2px; }
-button.primary { background: var(--ink); color: var(--sheet); min-width: 92px; }
-button.primary:hover { background: color-mix(in srgb, var(--ink) 85%, var(--trace)); }
+/* top bar */
+.top { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; }
+.top h1 { font-size: 30px; letter-spacing: .02em; line-height: 1; margin-right: auto; }
+#play { min-width: 96px; }
+.seg { display: inline-flex; border: 1.5px solid var(--fg); }
+.seg button { border: 0; padding: 7px 12px; }
+.seg button[aria-pressed=true] { background: var(--fg); color: var(--bg); }
 .field { display: flex; align-items: center; gap: 8px; }
-input[type=number] { width: 64px; font: 14px var(--font-mono); background: transparent; color: var(--ink); border: 1px solid var(--rule); padding: 5px 6px; border-radius: 2px; }
-.seg { display: inline-flex; border: 1px solid var(--ink); border-radius: 2px; }
-.seg button { border: 0; border-radius: 0; padding: 7px 12px; }
-.seg button[aria-pressed=true] { background: var(--ink); color: var(--sheet); }
-.presets { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
-.presets h2 { margin-right: 6px; }
-.presets select, .presets input[type=text] { font: 13px var(--font-body); color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); padding: 6px 8px; border-radius: 2px; }
-.presets select { min-width: 190px; max-width: 100%; }
-.presets input[type=text] { width: 180px; max-width: 100%; }
-.presets .sep { width: 1px; align-self: stretch; background: var(--rule); }
-.presets .hint { flex-basis: 100%; }
-.status { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-/* panel */
-.panel { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 18px 10px; }
-.kn { display: grid; justify-items: center; gap: 4px; text-align: center; min-width: 0; }
-.kn .name { font: 700 13px var(--font-display); letter-spacing: .06em; text-transform: uppercase; }
-.kn .ref { font: 11px var(--font-mono); color: var(--ink-2); }
-.kn .val { font: 500 12px var(--font-mono); color: var(--trace); font-variant-numeric: tabular-nums; min-height: 1.5em; }
-.knob { width: 64px; height: 64px; touch-action: none; cursor: ns-resize; border-radius: 50%; }
+/* front panel knobs */
+.panel { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 22px 10px; }
+.kn { display: grid; justify-items: center; gap: 6px; text-align: center; min-width: 0; }
+.kn .name { font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+.kn .val { font: 500 11px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; min-height: 1.5em; opacity: 0; transition: opacity .15s; }
+.kn:hover .val, .kn:focus-within .val, .kn.active .val { opacity: 1; }
+.kn .ref { display: none; }
+.knob { width: 68px; height: 68px; touch-action: none; cursor: ns-resize; border-radius: 50%; }
 .knob svg { width: 100%; height: 100%; display: block; overflow: visible; }
-
-/* scope + readouts */
-.scope { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
-canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rule); background: var(--paper); }
-.readouts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-content: start; font-family: var(--font-mono); font-size: 12px; }
-.readouts dt { color: var(--ink-2); }
-.readouts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.kn.small .knob { width: 44px; height: 44px; }
+.kn.small .name { font-size: 11.5px; }
+.kn.small .val { opacity: 1; }
 
 /* sequencer */
 .seqwrap { overflow-x: auto; }
-.seq { display: grid; grid-template-columns: 64px repeat(var(--steps, 16), minmax(46px, 1fr)); gap: 0; width: max-content; min-width: 100%; font-family: var(--font-mono); font-size: 12px; }
-.seq > div { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 5px 4px; display: flex; justify-content: center; align-items: center; min-height: 34px; }
-.seq > .rowh { justify-content: flex-start; color: var(--ink-2); font-size: 11px; letter-spacing: .08em; }
-.seq .stepn { color: var(--ink-2); }
-.seq .stepn.on { color: var(--sheet); background: var(--accent); }
-.seq select { font: 12px var(--font-mono); background: transparent; color: var(--ink); border: 0; width: 100%; text-align: center; padding: 2px 0; }
-.seq select option { background: var(--sheet); color: var(--ink); }
-.tog { width: 26px; height: 22px; padding: 0; border: 1px solid var(--rule); font: 500 11px var(--font-mono); color: var(--ink-2); }
-.tog[aria-pressed=true] { background: var(--trace); border-color: var(--trace); color: var(--sheet); }
-.tog.acc[aria-pressed=true] { background: var(--accent); border-color: var(--accent); }
-.seqbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; align-items: center; }
-.hint { color: var(--ink-2); font-size: 12px; }
+.seq { display: grid; grid-template-columns: 44px repeat(var(--steps, 16), minmax(44px, 1fr)); width: max-content; min-width: 100%; font-family: var(--font-mono); font-size: 12px; border-top: 1.5px solid var(--fg); }
+.seq > div { border-bottom: 1px solid var(--line); padding: 5px 3px; display: flex; justify-content: center; align-items: center; min-height: 34px; }
+.seq > .rowh { justify-content: flex-start; color: var(--mute); font-size: 11px; letter-spacing: .08em; }
+.seq .stepn { color: var(--mute); }
+.seq .stepn.on { color: var(--bg); background: var(--fg); }
+.seq select { font: 12px var(--font-mono); background: transparent; color: var(--fg); border: 0; width: 100%; text-align: center; padding: 2px 0; }
+.seq select option { background: var(--bg); color: var(--fg); }
+.tog { width: 26px; height: 22px; padding: 0; border: 1.5px solid var(--line); font: 500 11px var(--font-mono); color: var(--mute); background: var(--bg); }
+.tog[aria-pressed=true] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
 
-/* parts list */
-.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 26px; align-items: start; min-height: 120px; }
-.parts .grp { min-width: 0; }
-.parts h3 { margin: 0; font: 700 13px var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1.5px solid var(--ink); }
-.part { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 7px 2px 8px; border-bottom: 1px solid var(--rule); }
-.part.mod { box-shadow: inset 3px 0 0 var(--accent); padding-left: 10px; }
-.part .ref { font: 500 12.5px var(--font-mono); }
-.part .val { font: 500 12.5px var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; cursor: pointer; white-space: nowrap; }
-.part .val.changed { color: var(--accent); }
-.part input[type=range] { width: 100%; margin: 0; accent-color: var(--trace); min-width: 0; }
-.part .note { grid-column: 1 / -1; color: var(--ink-2); font-size: 11.5px; line-height: 1.4; }
-.part .modnote { grid-column: 1 / -1; font-size: 11.5px; line-height: 1.4; color: var(--ink); }
-.part .modnote b { color: var(--accent); font: 500 10px var(--font-mono); letter-spacing: .06em; margin-right: 6px; }
-.part.fixed .val { cursor: default; color: var(--ink-2); }
-.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; gap: 0; border-bottom: 1.5px solid var(--ink); margin-bottom: 14px; }
-.tabs button { flex: none; border: 0; border-radius: 0; padding: 8px 14px 7px; font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); border-bottom: 3px solid transparent; margin-bottom: -1.5px; }
-.tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--trace); }
-.tabs button .n { font: 500 10px var(--font-mono); color: var(--accent); margin-left: 5px; letter-spacing: 0; }
-.parts.flat { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 26px; }
-.parts.flat .part { align-self: stretch; }
-.badge.mod { color: var(--accent); }
-.badge { display: inline-block; font: 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; margin-left: 6px; }
-.badge.est { color: var(--est); }
-.badge.td3 { color: var(--trace); }
-.fxgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px 26px; }
-.fx { border: 1px solid var(--rule); padding: 14px 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
-.fx.on { border-color: var(--trace); }
-.fxhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.fxhead h3 { margin: 0; font: 700 15px var(--font-display); letter-spacing: .06em; text-transform: uppercase; }
-.onoff { min-width: 58px; }
-.onoff[aria-pressed=true] { background: var(--trace); border-color: var(--trace); color: var(--sheet); }
+/* options sheet */
+dialog#options { width: min(1080px, 100vw); max-width: 100vw; height: 100%; max-height: 100%; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1.5px solid var(--fg); background: var(--bg); color: var(--fg); }
+dialog#options::backdrop { background: rgb(0 0 0 / .35); }
+.opt-head { position: sticky; top: 0; z-index: 2; background: var(--bg); display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 14px 20px; border-bottom: 1.5px solid var(--fg); }
+.opt-head h2 { font-size: 22px; letter-spacing: .04em; }
+.opt-body { padding: 8px max(20px, env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) 20px; display: grid; }
+.opt-body > section { padding: 22px 0; border-bottom: 1px solid var(--line); min-width: 0; display: grid; gap: 14px; }
+.opt-body > section > h3 { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+.presets { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+.presets select { min-width: 200px; max-width: 100%; }
+.presets input[type=text] { width: 180px; max-width: 100%; }
+.presets .sep { width: 1px; align-self: stretch; background: var(--line); }
+.presets .hint { flex-basis: 100%; }
+.fx { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; }
 .fxknobs { display: flex; flex-wrap: wrap; gap: 14px 22px; }
-.fx select { font: 13px var(--font-body); color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); padding: 5px 8px; border-radius: 2px; }
-.fx .hint { margin: 0; }
-.legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 16px; color: var(--ink-2); font-size: 12px; align-items: center; }
-.notes { columns: 2 320px; column-gap: 32px; color: var(--ink-2); font-size: 13px; }
+.onoff { min-width: 58px; }
+.onoff[aria-pressed=true] { background: var(--fg); color: var(--bg); }
+
+.monitor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
+canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--fg); background: var(--bg); }
+.readouts { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; align-content: start; margin: 0; font: 12px var(--font-mono); }
+.readouts dt { color: var(--mute); }
+.readouts dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; border-bottom: 1.5px solid var(--fg); }
+.tabs button { flex: none; border: 0; padding: 8px 12px 7px; font: 700 12.5px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); border-bottom: 3px solid transparent; margin-bottom: -1.5px; background: transparent; }
+.tabs button[aria-selected=true] { color: var(--fg); border-bottom-color: var(--fg); }
+.tabs button .n { font: 500 10px var(--font-mono); margin-left: 4px; }
+.parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 10px; min-height: 120px; padding-top: 6px; }
+.pk { display: grid; justify-items: center; gap: 3px; text-align: center; min-width: 0; padding: 6px 2px; position: relative; }
+.pk .knob { width: 44px; height: 44px; }
+.pk .ref { font: 500 11.5px var(--font-mono); }
+.pk .val { font: 11px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; cursor: pointer; white-space: nowrap; }
+.pk .val.changed { color: var(--fg); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.parts.all-mod .pk.mod::after { display: none; }
+.pk.mod::after { content: ""; position: absolute; top: 4px; right: 18%; width: 6px; height: 6px; border-radius: 50%; background: var(--fg); }
+.pk.fixed .val { cursor: default; }
+.pk.fixed .knob { opacity: .3; cursor: default; }
+.detail { min-height: 3.2em; font-size: 12.5px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
+.detail b { color: var(--fg); font-family: var(--font-mono); font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 12px; color: var(--mute); }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--fg); margin-right: 6px; vertical-align: middle; }
+.notes { columns: 2 300px; column-gap: 32px; color: var(--mute); font-size: 13px; }
 .notes p { margin: 0 0 10px; break-inside: avoid; }
-.notes strong { color: var(--ink); font-weight: 600; }
+.notes strong { color: var(--fg); font-weight: 600; }
 
 @media (max-width: 760px) {
   .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .scope, .title { grid-template-columns: 1fr; }
-  .sheet > section { padding: 16px 14px; }
+  .monitor { grid-template-columns: 1fr; }
 }
-@media (max-width: 420px) { .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } .top h1 { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
-<div class="sheet">
-  <section class="title">
-    <div>
-      <div class="label">Main board · voice section</div>
-      <h1>303 Circuit Model</h1>
-      <p>A bass voice simulated from the 1982 main board schematic. Each block runs from its part values: the R-2R pitch DAC, the C33 ramp core, the Q8 square shaper, the transistor ladder filter with its 18n bottom cap, the C62 envelope and the OTA VCA.</p>
+<div class="main">
+  <header class="top">
+    <h1>303</h1>
+    <button class="primary" id="play" type="button">Play</button>
+    <label class="field"><span class="label">BPM</span><input id="bpm" type="number" min="60" max="200" value="128" aria-label="Tempo"></label>
+    <div class="seg" role="group" aria-label="Waveform">
+      <button type="button" id="w-saw" aria-pressed="true">Saw</button>
+      <button type="button" id="w-square" aria-pressed="false">Square</button>
     </div>
-    <div class="tblock" aria-label="Drawing reference">
-      <div>Source</div><div>Main board, Feb 19 1982</div>
-      <div>Model rate</div><div id="rate">2× oversampled</div>
-      <div>VCF solver</div><div>Implicit trapezoidal</div>
-    </div>
-  </section>
+    <button type="button" id="open-options" aria-haspopup="dialog">Options</button>
+    <span class="status" id="status" role="status">Stopped</span>
+  </header>
 
-  <section>
-    <div class="transport">
-      <button class="primary" id="play" type="button">Play</button>
-      <label class="field"><span class="label">Tempo</span><input id="bpm" type="number" min="60" max="200" value="128"><span class="label">BPM</span></label>
-      <div class="field"><span class="label">Waveform · S1</span>
-        <div class="seg" role="group" aria-label="Waveform">
-          <button type="button" id="w-saw" aria-pressed="true">Saw</button>
-          <button type="button" id="w-square" aria-pressed="false">Square</button>
-        </div>
-      </div>
-      <span class="status" id="status">Stopped</span>
-    </div>
-  </section>
+  <div class="panel" id="panel"></div>
 
-  <section>
-    <div class="presets" id="snd-bar">
-      <h2>Sound presets</h2>
-      <label class="field"><span class="label">Preset</span>
-        <select id="snd-preset" aria-label="Sound presets"></select></label>
-      <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound presets name">
-      <button type="button" id="snd-save">Save</button>
-      <button type="button" id="snd-del">Delete</button>
-      <span class="sep" aria-hidden="true"></span>
-      <button type="button" id="preset-export">Export all</button>
-      <button type="button" id="preset-import">Import</button>
-      <input type="file" id="preset-file" accept=".json,application/json" hidden>
-      <span class="hint" id="snd-msg">Knobs, part values and waveform. Loading one leaves the pattern alone.</span>
-    </div>
-  </section>
-
-  <section>
-    <h2 style="margin-bottom:14px">Front panel</h2>
-    <div class="panel" id="panel"></div>
-  </section>
-
-  <section>
-    <h2 style="margin-bottom:14px">Effects · after the VCA</h2>
-    <div class="fxgrid">
-      <div class="fx" id="fx-rat">
-        <div class="fxhead"><h3>ProCo RAT</h3><button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button></div>
-        <div class="fxknobs" id="fx-rat-knobs"></div>
-        <p class="hint">LM308 gain stage with its 30p slew limit, 1N914 diodes to ground, then the 3.3n filter. Mods are in the RAT parts tab.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="scope">
-    <div>
-      <h2 style="margin-bottom:10px">Output · TP6 equivalent</h2>
-      <canvas id="scope" width="1200" height="340" aria-label="Oscilloscope view of the output"></canvas>
-    </div>
-    <div>
-      <h2 style="margin-bottom:10px">Derived from parts</h2>
-      <dl class="readouts" id="readouts"></dl>
-    </div>
-  </section>
-
-  <section>
-    <div class="presets" id="pat-bar">
-      <h2>Pattern</h2>
-      <label class="field"><span class="label">Preset</span>
-        <select id="pat-preset" aria-label="Pattern presets"></select></label>
-      <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern presets name">
-      <button type="button" id="pat-save">Save</button>
-      <button type="button" id="pat-del">Delete</button>
-      <span class="hint" id="pat-msg">Pattern and tempo. Loading one leaves the sound alone. Phoscyon patterns keep the current tempo.</span>
-    </div>
-    <div class="seqwrap" style="margin-top:14px"><div class="seq" id="seq"></div></div>
-    <div class="seqbar">
-      <button type="button" id="rand">New random pattern</button>
-      <span class="hint">A = accent, S = slide into the next step, G = gate (off is a rest). Notes are DAC codes: A = 33 → 2.75 V → 110 Hz.</span>
-    </div>
-  </section>
-
-  <section>
-    <h2>Parts list</h2>
-    <div class="legend">
-      <span>Pick a circuit block, or Mods for the parts people usually change. Drag any slider to re-derive the circuit while it plays. Resistors and caps sweep from a tenth to ten times stock. Click a value to reset that part.</span>
-      <span><span class="badge mod">mod</span> a part people commonly mod on 303s and TD-3s</span>
-      <span><span class="badge">schematic</span> printed on the sheet</span>
-      <span><span class="badge td3">TD-3</span> read from the TD-3 clone sheet</span>
-      <span><span class="badge">RAT</span> standard ProCo RAT values</span>
-      <span><span class="badge est">estimate</span> on neither sheet; chosen to match documented behaviour</span>
-      <button type="button" id="restore">Restore all parts</button>
-    </div>
-    <div class="tabs" role="tablist" aria-label="Circuit blocks" id="ptabs"></div>
-    <div class="parts" id="parts" role="tabpanel"></div>
-  </section>
-
-  <section>
-    <h2 style="margin-bottom:10px">How the model works</h2>
-    <div class="notes">
-      <p><strong>Pitch.</strong> The 6-bit latch drives a 100k/200k ladder from 5.333 V, so each code step is exactly 1/12 V. The ladder is solved by Thevenin reduction, so a mismatched resistor detunes the notes it feeds, as on the board.</p>
-      <p><strong>VCO.</strong> An exponential current charges C33 from 5.5 V to 12 V, then Q27/Q28 reset it. The reset is placed with sub-sample accuracy and smoothed with a polyBLEP so high notes stay clean.</p>
-      <p><strong>Square.</strong> The ramp is coupled through C10 into the base of Q8. Because that coupling is a high-pass, the duty cycle narrows on low notes, which is part of the original's character.</p>
-      <p><strong>VCF.</strong> Four coupled capacitor voltages, one per ladder stage, with a tanh law for each transistor pair. The bottom cap is 18n against 33n above it. Feedback through VR4 is high-passed by C15, so resonance thins out at low cutoff settings. Full feedback (k = 17) is the point of self-oscillation.</p>
-      <p><strong>Envelopes.</strong> The filter envelope charges C62 and decays through R138 + VR6, which gives the 200 ms to 2.5 s range printed on the sheet. On accented notes the 4066 shorts VR6, so decay drops to minimum, and the envelope also charges the accent sweep cap through R117. Consecutive accents build up on that cap.</p>
-      <p><strong>VCA and resonance compensation.</strong> The filter feeds the OTA through C49/R88, and the resonance pot wiper is mixed in through C76/R100. That second path restores much of the bass the ladder loses as feedback rises (its passband gain is 1/(1+k)). The VCA envelope is C67 charged through R49 and decaying through R52.</p>
-      <p><strong>Mods.</strong> Parts marked mod are the ones people usually change on 303s and TD-3s. Most map to Devil Fish controls (Robin Whittle's well-known rebuild): Normal and Accent decay, VEG decay, Soft attack, Slide time, Sweep speed, and resonance raised to self-oscillation.</p>
-      <p><strong>Sources.</strong> Values the 1982 sheet does not show clearly were read from the TD-3 clone schematic where its circuit matches. The few marked estimate appear on neither sheet.</p>
-    </div>
-  </section>
+  <div class="seqwrap"><div class="seq" id="seq"></div></div>
 </div>
+
+<dialog id="options" aria-labelledby="opt-title">
+  <div class="opt-head">
+    <h2 id="opt-title">Options</h2>
+    <button type="button" id="close-options">Done</button>
+  </div>
+  <div class="opt-body">
+    <section>
+      <h3>Sound</h3>
+      <div class="presets" id="snd-bar">
+        <select id="snd-preset" aria-label="Sound presets"></select>
+        <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound preset name">
+        <button type="button" id="snd-save">Save</button>
+        <button type="button" id="snd-del">Delete</button>
+        <span class="sep" aria-hidden="true"></span>
+        <button type="button" id="preset-export">Export all</button>
+        <button type="button" id="preset-import">Import</button>
+        <input type="file" id="preset-file" accept=".json,application/json" hidden>
+        <span class="hint" id="snd-msg">Knobs, parts, waveform and effects. Loading one leaves the pattern alone.</span>
+      </div>
+    </section>
+
+    <section>
+      <h3>Pattern</h3>
+      <div class="presets" id="pat-bar">
+        <select id="pat-preset" aria-label="Pattern presets"></select>
+        <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern preset name">
+        <button type="button" id="pat-save">Save</button>
+        <button type="button" id="pat-del">Delete</button>
+        <span class="sep" aria-hidden="true"></span>
+        <button type="button" id="rand">Random pattern</button>
+        <span class="hint" id="pat-msg">Pattern and tempo. Loading one leaves the sound alone. Phoscyon patterns keep the current tempo.</span>
+      </div>
+    </section>
+
+    <section>
+      <h3>ProCo RAT</h3>
+      <div class="fx" id="fx-rat">
+        <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
+        <div class="fxknobs" id="fx-rat-knobs"></div>
+      </div>
+    </section>
+
+    <section>
+      <h3>Circuit</h3>
+      <div class="legend">
+        <span><span class="dot"></span>commonly modded</span>
+        <span>Drag a knob to change the part. Click its value to reset it.</span>
+        <button type="button" id="restore">Restore all parts</button>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Circuit blocks" id="ptabs"></div>
+      <div class="parts" id="parts" role="tabpanel"></div>
+      <div class="detail" id="pdetail" aria-live="polite">Hover or focus a part to see what it does.</div>
+    </section>
+
+    <section>
+      <h3>Monitor</h3>
+      <div class="monitor">
+        <canvas id="scope" width="1200" height="300" aria-label="Oscilloscope view of the output"></canvas>
+        <dl class="readouts" id="readouts"></dl>
+      </div>
+    </section>
+
+    <section>
+      <h3>About the model</h3>
+      <div class="notes">
+        <p><strong>Source.</strong> Roland main board schematic, Feb 19 1982, with unclear values read from the TD-3 clone sheet. Parts on neither sheet are estimates. Running at <span id="rate">2× oversampling</span>.</p>
+        <p><strong>Pitch and VCO.</strong> A 6-bit R-2R ladder from 5.333 V gives 1/12 V per step. An exponential current charges C33 from 5.5 V to 12 V, then resets, smoothed with a polyBLEP.</p>
+        <p><strong>VCF.</strong> Four coupled ladder stages with a tanh law per transistor pair, 18n bottom cap and 33n above, solved implicitly. Full feedback (k = 17) self-oscillates.</p>
+        <p><strong>Envelopes and VCA.</strong> C62 decays through R138 + VR6 (200 ms to 2.5 s). Accent shorts VR6 and charges the sweep cap. The OTA VCA gets resonance compensation through C76/R100, and normal notes fade in through R_SOFT.</p>
+        <p><strong>Mods.</strong> Dotted parts map mostly to Devil Fish controls: Normal and Accent decay, VEG decay, Soft attack, Slide time, Sweep speed and self-oscillating resonance.</p>
+        <p><strong>RAT.</strong> LM308 stage with gain-bandwidth and slew limits from its 30p cap, 1N914 diodes to ground, then the 3.3n filter.</p>
+      </div>
+    </section>
+  </div>
+</dialog>
 
 <script id="model">
 /*__MODEL__*/
@@ -425,10 +381,10 @@ function parse(str) {
 const panel = document.getElementById('panel');
 function knobSVG() {
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path d="M14.1 49.9 A25 25 0 1 1 49.9 49.9" fill="none" stroke="var(--knob-ring)" stroke-width="3" stroke-linecap="round"/>
-    <path class="arc" d="" fill="none" stroke="var(--trace)" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="32" cy="32" r="18" fill="var(--knob)"/>
-    <line class="ptr" x1="32" y1="32" x2="32" y2="17" stroke="var(--sheet)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M14.1 49.9 A25 25 0 1 1 49.9 49.9" fill="none" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/>
+    <path class="arc" d="" fill="none" stroke="var(--fg)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="32" cy="32" r="18" fill="var(--fg)"/>
+    <line class="ptr" x1="32" y1="32" x2="32" y2="17" stroke="var(--bg)" stroke-width="3" stroke-linecap="round"/>
   </svg>`;
 }
 function arcPath(p) {
@@ -451,14 +407,16 @@ function knobText(id, p) {
 }
 const knobEls = {};
 for (const k of KNOBS) {
-  const wrap = document.createElement('div'); wrap.className = 'kn';
+  const wrap = document.createElement('div'); wrap.className = k.fx ? 'kn small' : 'kn';
   wrap.innerHTML = `<div class="knob" tabindex="0" role="slider" aria-label="${k.name}" aria-valuemin="0" aria-valuemax="100" id="knob-${k.id}">${knobSVG()}</div>
     <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
   (k.fx ? document.getElementById('fx-' + k.fx + '-knobs') : panel).appendChild(wrap);
   const el = wrap.querySelector('.knob');
   knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val') };
   let startY = 0, startV = 0;
-  el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); startY = e.clientY; startV = state.knobs[k.id]; });
+  el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); startY = e.clientY; startV = state.knobs[k.id]; wrap.classList.add('active'); });
+  el.addEventListener('pointerup', () => wrap.classList.remove('active'));
+  el.addEventListener('pointercancel', () => wrap.classList.remove('active'));
   el.addEventListener('pointermove', (e) => { if (!el.hasPointerCapture(e.pointerId)) return; setKnob(k.id, startV + (startY - e.clientY) / (e.shiftKey ? 600 : 160)); });
   el.addEventListener('wheel', (e) => { e.preventDefault(); setKnob(k.id, state.knobs[k.id] - Math.sign(e.deltaY) * 0.02); }, { passive: false });
   el.addEventListener('keydown', (e) => {
@@ -549,21 +507,29 @@ function fromSlider(k, x) {
   const v = m === 'log' ? lo * Math.pow(hi / lo, t) : lo + (hi - lo) * t;
   return +v.toPrecision(3);
 }
-function srcBadge(d) {
-  return { estimate: '<span class="badge est">est.</span>', td3: '<span class="badge td3">TD-3</span>', rat: '<span class="badge">RAT</span>' }[d.source] || '';
-}
+const SRC_TEXT = { schematic: 'from the 1982 sheet', td3: 'read from the TD-3 sheet', rat: 'standard RAT value', estimate: 'estimate' };
 function partRow(k) {
   const d = COMPONENTS[k], v = state.parts[k];
   const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
-  const ctl = d.fixed
-    ? '<span class="note" style="grid-column:auto">sets taper only</span>'
-    : `<input type="range" id="part-${k}" data-k="${k}" min="0" max="${SL}" step="1" value="${toSlider(k, v)}" aria-label="${k}">`;
-  return `<div class="part${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}">
-    <span class="ref">${k}</span>${ctl}
-    <span class="val${changed}" id="val-${k}" data-k="${k}" title="Click to reset to ${fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
-    <span class="note">${d.note}${srcBadge(d)}</span>
-    ${d.mod ? `<span class="modnote"><b>MOD</b>${d.mod}</span>` : ''}
+  const t = d.fixed ? 0.5 : toSlider(k, v) / SL;
+  return `<div class="pk${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}" data-k="${k}">
+    <div class="knob" id="pknob-${k}" data-k="${k}" ${d.fixed ? '' : 'tabindex="0" role="slider"'} aria-label="${k}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t * 100)}">${knobSVG()}</div>
+    <span class="ref">${k}</span>
+    <span class="val${changed}" id="val-${k}" data-k="${k}" title="${d.fixed ? 'Sets taper only' : 'Click to reset to ' + fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
   </div>`;
+}
+function drawPartKnob(k) {
+  const el = document.getElementById('pknob-' + k); if (!el) return;
+  const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL;
+  el.querySelector('.arc').setAttribute('d', arcPath(t));
+  el.querySelector('.ptr').setAttribute('transform', `rotate(${-135 + 270 * t} 32 32)`);
+  el.setAttribute('aria-valuenow', Math.round(t * 100));
+}
+const detailEl = document.getElementById('pdetail');
+function showDetail(k) {
+  const d = COMPONENTS[k];
+  const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  detailEl.innerHTML = `<b>${k}</b> · ${esc(d.note)} (${SRC_TEXT[d.source] || d.source}). Stock ${fmt(d.v, d.unit)}.${d.mod ? `<br><span class="dot"></span>${esc(d.mod)}` : ''}`;
 }
 const BLOCKS = [...new Set(Object.values(COMPONENTS).map(d => d.block))];
 const TABS = ['Mods', ...BLOCKS];
@@ -580,16 +546,9 @@ function renderTabs() {
 }
 function renderParts() {
   renderTabs();
-  if (partsTab === 'Mods') {
-    partsEl.className = 'parts';
-    partsEl.innerHTML = BLOCKS.map(g => {
-      const keys = tabKeys('Mods').filter(k => COMPONENTS[k].block === g);
-      return keys.length ? `<div class="grp"><h3>${g}</h3>${keys.map(partRow).join('')}</div>` : '';
-    }).join('');
-  } else {
-    partsEl.className = 'parts flat';
-    partsEl.innerHTML = tabKeys(partsTab).map(partRow).join('');
-  }
+  partsEl.classList.toggle('all-mod', partsTab === 'Mods');
+  partsEl.innerHTML = tabKeys(partsTab).map(partRow).join('');
+  for (const k of tabKeys(partsTab)) drawPartKnob(k);
 }
 function selectTab(t, focus) {
   partsTab = t; store.set('partsTab', t); renderParts();
@@ -606,21 +565,51 @@ function applyPart(k, val) {
   state.parts[k] = val;
   const lab = document.getElementById('val-' + k);
   if (lab) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
+  drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
   for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx();
 }
 let tabTimer = 0;
 function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(renderTabs, 120); }
-partsEl.addEventListener('input', (e) => {
-  const k = e.target.dataset.k; if (!k || e.target.type !== 'range') return;
-  applyPart(k, fromSlider(k, +e.target.value));
+let pDrag = null;
+const partT = (k) => toSlider(k, state.parts[k]) / SL;
+function setPartT(k, t) { t = Math.min(1, Math.max(0, t)); applyPart(k, fromSlider(k, t * SL)); }
+partsEl.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.knob[role=slider]'); if (!el) return;
+  const k = el.dataset.k; el.setPointerCapture(e.pointerId); el.focus();
+  pDrag = { k, y: e.clientY, t: partT(k), id: e.pointerId }; showDetail(k);
 });
+partsEl.addEventListener('pointermove', (e) => {
+  if (!pDrag || e.pointerId !== pDrag.id) return;
+  setPartT(pDrag.k, pDrag.t + (pDrag.y - e.clientY) / (e.shiftKey ? 600 : 180));
+});
+const endDrag = () => { pDrag = null; };
+partsEl.addEventListener('pointerup', endDrag); partsEl.addEventListener('pointercancel', endDrag);
+partsEl.addEventListener('wheel', (e) => {
+  const el = e.target.closest('.knob[role=slider]'); if (!el) return;
+  e.preventDefault(); setPartT(el.dataset.k, partT(el.dataset.k) - Math.sign(e.deltaY) * 0.02);
+}, { passive: false });
+partsEl.addEventListener('keydown', (e) => {
+  const el = e.target.closest('.knob[role=slider]'); if (!el) return;
+  const k = el.dataset.k;
+  const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02, PageUp: .1, PageDown: -.1 }[e.key];
+  if (d) { e.preventDefault(); setPartT(k, partT(k) + d); }
+  if (e.key === 'Home') setPartT(k, 0); if (e.key === 'End') setPartT(k, 1);
+});
+partsEl.addEventListener('dblclick', (e) => { const el = e.target.closest('.knob[role=slider]'); if (el) applyPart(el.dataset.k, COMPONENTS[el.dataset.k].v); });
 partsEl.addEventListener('click', (e) => {
   const lab = e.target.closest('.val'); if (!lab) return;
   const k = lab.dataset.k; if (COMPONENTS[k].fixed) return;
   applyPart(k, COMPONENTS[k].v);
-  const sl = document.getElementById('part-' + k); if (sl) sl.value = toSlider(k, COMPONENTS[k].v);
 });
+partsEl.addEventListener('pointerover', (e) => { const p = e.target.closest('.pk'); if (p && !pDrag) showDetail(p.dataset.k); });
+partsEl.addEventListener('focusin', (e) => { const p = e.target.closest('.pk'); if (p) showDetail(p.dataset.k); });
+
+// ---------- options sheet ----------
+const optDlg = document.getElementById('options');
+document.getElementById('open-options').onclick = () => { if (optDlg.showModal) optDlg.showModal(); else optDlg.setAttribute('open', ''); };
+document.getElementById('close-options').onclick = () => { if (optDlg.close) optDlg.close(); else optDlg.removeAttribute('open'); };
+optDlg.addEventListener('click', (e) => { if (e.target === optDlg) optDlg.close(); });
 document.getElementById('restore').onclick = () => {
   for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
   renderParts(); renderFx(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
@@ -707,11 +696,11 @@ const cv = document.getElementById('scope'), g = cv.getContext('2d');
 function drawStatic(data) {
   const W = cv.width, H = cv.height, cs = getComputedStyle(document.documentElement);
   g.clearRect(0, 0, W, H);
-  g.strokeStyle = cs.getPropertyValue('--rule'); g.lineWidth = 1;
+  g.strokeStyle = cs.getPropertyValue('--line'); g.lineWidth = 1;
   for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(i * W / 10, 0); g.lineTo(i * W / 10, H); g.stroke(); }
   for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(0, i * H / 4); g.lineTo(W, i * H / 4); g.stroke(); }
   if (!data) return;
-  g.strokeStyle = cs.getPropertyValue('--trace'); g.lineWidth = 3; g.beginPath();
+  g.strokeStyle = cs.getPropertyValue('--fg'); g.lineWidth = 2.5; g.beginPath();
   for (let i = 0; i < data.length; i++) { const x = i / (data.length - 1) * W, y = H / 2 - data[i] * H * 0.45; i ? g.lineTo(x, y) : g.moveTo(x, y); }
   g.stroke();
 }
