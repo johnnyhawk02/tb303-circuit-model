@@ -420,6 +420,22 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
   .mods .md .knob { width: 36px; height: 36px; }
   .md .mdesc { display: none; }
   dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
+  /* voice knobs become a strip on the left, so the step grid gets the full height */
+  body { padding-bottom: max(6px, env(safe-area-inset-bottom, 0px)); }
+  .main { max-width: none; grid-template-columns: minmax(118px, 13vw) minmax(0, 1fr); gap: 6px 8px; align-items: start; }
+  .main > .top { grid-column: 1 / -1; }
+  .main > #panel { grid-column: 1; grid-row: 2 / span 2; align-self: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: space-evenly; gap: 6px 2px; padding: 8px 4px; }
+  .main > .mtabs, .main > .pane { grid-column: 2; }
+  .main > .mtabs { grid-row: 2; margin: 0 0 -7px; }
+  .main > .pane { grid-row: 3; max-height: calc(100dvh - 92px); overflow: auto; }
+  .panel .kn .knob { width: 36px; height: 36px; }
+  .top { min-height: 42px; }
+  .top button:not(.switch), .pm .pm-btn { min-height: 30px; }
+  .mtabs button { padding: 6px 14px; }
+  .seq { grid-auto-rows: clamp(11px, calc((100dvh - 126px) / 19.5), 19px); }
+  .sq-body { grid-template-columns: 128px minmax(0, 1fr); }
+  .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
+  .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
