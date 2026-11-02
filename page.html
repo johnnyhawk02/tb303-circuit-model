@@ -54,8 +54,23 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 
 /* top bar */
 .top { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; }
-.top h1 { font: 400 52px var(--font-lcd); letter-spacing: .04em; line-height: .8; margin-right: auto; }
-#play { min-width: 96px; }
+.top { gap: 14px 30px; }
+.icon { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; }
+.icon svg { width: 26px; height: 26px; fill: var(--fg); }
+.play .sq, .play[aria-pressed=true] .tri { display: none; }
+.play[aria-pressed=true] .sq { display: inline; }
+.play[aria-pressed=true] { background: var(--fg); box-shadow: 2px 2px 0 var(--ghost); }
+.play[aria-pressed=true] svg { fill: var(--bg); }
+.gear { margin-left: auto; border-color: transparent; }
+.gear svg { width: 30px; height: 30px; }
+.bpm { display: flex; align-items: center; gap: 10px; }
+.bpm .knob { width: 52px; height: 52px; }
+.bpm-read { display: grid; line-height: 1; }
+.bpm-read output { font: 400 40px/0.85 var(--font-lcd); font-variant-numeric: tabular-nums; min-width: 2.2ch; }
+.wsw { display: flex; align-items: center; gap: 10px; }
+.switch { width: 58px; height: 28px; padding: 0; position: relative; }
+.switch .thumb { position: absolute; top: 3px; left: 3px; width: 22px; height: 19px; background: var(--fg); box-shadow: 2px 2px 0 var(--ghost); transition: left .12s; }
+.switch[aria-checked=true] .thumb { left: 30px; }
 .seg { display: inline-flex; border: 1.5px solid var(--fg); }
 .seg button { border: 0; padding: 7px 12px; }
 .seg button[aria-pressed=true] { background: var(--fg); color: var(--bg); }
@@ -208,20 +223,25 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
   .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .monitor { grid-template-columns: 1fr; }
 }
-@media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pane { min-height: 0; } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } .top h1 { font-size: 40px; } }
+@media (max-width: 520px) { .wsw .label { font-size: 10px; } .top { gap: 12px 16px; } }
+@media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pane { min-height: 0; } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
 <div class="main">
   <header class="top">
-    <h1>303</h1>
-    <button class="primary" id="play" type="button">Play</button>
-    <label class="field"><span class="label">BPM</span><input id="bpm" type="number" min="60" max="200" value="128" aria-label="Tempo"></label>
-    <div class="seg" role="group" aria-label="Waveform">
-      <button type="button" id="w-saw" aria-pressed="true">Saw</button>
-      <button type="button" id="w-square" aria-pressed="false">Square</button>
+    <h1 class="status">303 circuit model</h1>
+    <button class="icon play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M7 4.5 L19.5 12 L7 19.5 Z"/><rect class="sq" x="6" y="6" width="12" height="12"/></svg></button>
+    <div class="bpm">
+      <div class="knob" id="bpm" tabindex="0" role="slider" aria-label="Tempo" aria-valuemin="60" aria-valuemax="200"></div>
+      <div class="bpm-read"><output id="bpm-val">128</output><span class="label">BPM</span></div>
     </div>
-    <button type="button" id="open-options" aria-haspopup="dialog">Options</button>
+    <div class="wsw">
+      <span class="label" aria-hidden="true">Saw</span>
+      <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
+      <span class="label" aria-hidden="true">Square</span>
+    </div>
+    <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
     <span class="status" id="status" role="status">Stopped</span>
   </header>
 
@@ -934,17 +954,39 @@ playBtn.onclick = async () => {
   if (ctx.state === 'suspended') await ctx.resume();
   playing = !playing;
   send({ type: 'play', value: playing });
-  playBtn.textContent = playing ? 'Stop' : 'Play';
+  playBtn.setAttribute('aria-pressed', playing); playBtn.setAttribute('aria-label', playing ? 'Stop' : 'Play');
   status.textContent = playing ? (node ? 'Running · AudioWorklet' : 'Running · main thread') : 'Stopped';
   if (!playing) markStep(-1);
 };
-const bpmEl = document.getElementById('bpm');
-bpmEl.addEventListener('change', () => { state.bpm = Math.min(200, Math.max(60, +bpmEl.value || 128)); bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm }); saveSession(); });
-for (const w of ['saw', 'square']) document.getElementById('w-' + w).onclick = () => {
-  state.wave = w; preview.waveform = w;
-  document.getElementById('w-saw').setAttribute('aria-pressed', w === 'saw');
-  document.getElementById('w-square').setAttribute('aria-pressed', w === 'square');
-  send({ type: 'wave', value: w }); saveSession();
+// tempo dial: drag, wheel or arrows, 60-200 BPM; double-click to type a value
+const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById('bpm-val');
+bpmKnob.innerHTML = knobSVG();
+function drawBpm() {
+  const p = (state.bpm - 60) / 140;
+  bpmKnob.querySelector('.arc').setAttribute('d', arcPath(p));
+  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${-135 + 270 * p} 32 32)`);
+  bpmKnob.setAttribute('aria-valuenow', state.bpm); bpmVal.textContent = state.bpm;
+}
+function setBpm(v) {
+  v = Math.min(200, Math.max(60, Math.round(v))); if (v === state.bpm) return;
+  state.bpm = v; drawBpm(); send({ type: 'bpm', value: v }); saveSession();
+}
+{
+  let y0 = 0, b0 = 0;
+  bpmKnob.addEventListener('pointerdown', (e) => { bpmKnob.setPointerCapture(e.pointerId); y0 = e.clientY; b0 = state.bpm; });
+  bpmKnob.addEventListener('pointermove', (e) => { if (bpmKnob.hasPointerCapture(e.pointerId)) setBpm(b0 + (y0 - e.clientY) / (e.shiftKey ? 8 : 2)); });
+  bpmKnob.addEventListener('wheel', (e) => { e.preventDefault(); setBpm(state.bpm - Math.sign(e.deltaY)); }, { passive: false });
+  bpmKnob.addEventListener('keydown', (e) => {
+    const d = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10 }[e.key];
+    if (d) { e.preventDefault(); setBpm(state.bpm + d); }
+  });
+  bpmKnob.addEventListener('dblclick', () => { const v = parseInt(prompt('Tempo (60–200 BPM)', state.bpm), 10); if (v) setBpm(v); });
+}
+const waveSw = document.getElementById('wave-sw');
+function drawWave() { waveSw.setAttribute('aria-checked', state.wave === 'square'); }
+waveSw.onclick = () => {
+  const w = state.wave === 'square' ? 'saw' : 'square';
+  state.wave = w; preview.waveform = w; drawWave(); send({ type: 'wave', value: w }); saveSession();
 };
 
 // ---------- scope ----------
@@ -1004,13 +1046,12 @@ function applySound(x) {
   for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); send({ type: 'knob', name: k.id, value: state.knobs[k.id] }); }
   for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
-  document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
-  document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
+  drawWave();
   renderParts(); renderFrontMods(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
 function applyPattern(x) {
   const c = cleanSettings(x);
-  if (c.bpm) { state.bpm = c.bpm; bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm }); }
+  if (c.bpm) { state.bpm = c.bpm; drawBpm(); send({ type: 'bpm', value: state.bpm }); }
   if (c.shuffle != null) state.shuffle = c.shuffle; if (c.gate != null) state.gate = c.gate;
   if (c.pattern) { state.pattern = c.pattern; tail = []; }
   renderSeq(); pushPattern();
@@ -1170,9 +1211,8 @@ fileEl.addEventListener('change', async () => {
 
 for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); drawKnob(k.id); }
 for (const k in COMPONENTS) preview.setComponent(k, state.parts[k]);
-preview.waveform = state.wave; bpmEl.value = state.bpm;
-document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
-document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
+preview.waveform = state.wave; drawBpm();
+drawWave();
 for (const n in state.fx) preview.setFx(n, state.fx[n]);
 // ---------- MIDI: front dials on CC 1 onwards, any channel ----------
 const MIDI_MAP = [...KNOBS.filter(k => !k.fx).map(k => ({ name: k.name, set: (t) => setKnob(k.id, t) })),
