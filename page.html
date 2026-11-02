@@ -588,7 +588,7 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
       <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
       <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
       <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
-      <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new random preset">Refill</button></div>
+      <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button></div>
     </div>
     <div class="sq-body">
       <div class="sq-side">
@@ -597,7 +597,7 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
         <div class="stp"><span class="label">Step len</span><button type="button" data-a="gate" data-d="-1" aria-label="Step len down">◀</button><output id="o-gate">50%</output><button type="button" data-a="gate" data-d="1" aria-label="Step len up">▶</button></div>
         <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift" class="unit">step</output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
         <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr" class="unit">semi</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
-        <button type="button" class="rnd" id="rand">Random</button>
+        <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled">Generate</button>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
     </div>
@@ -809,8 +809,34 @@ const PATTERN_BUILTIN = {
 };
 // the ABL3 and Phoscyon factory patterns, from patterns.json; a step is code * 8 + gate + 2 * accent + 4 * slide
 const PATTERN_BANK = /*__PATTERNS__*/{};
-for (const [g, ps] of Object.entries(PATTERN_BANK)) for (const [n, [bpm, steps]] of Object.entries(ps))
-  PATTERN_BUILTIN[`${g} / ${n}`] = { ...(bpm ? { bpm } : {}), pattern: steps.map(v => ({ code: v >> 3, gate: !!(v & 1), accent: !!(v & 2), slide: !!(v & 4) })) };
+// they are not listed as presets: Generate uses them as raw material only
+const SOURCES = [];
+for (const [g, ps] of Object.entries(PATTERN_BANK)) for (const [n, [, steps]] of Object.entries(ps))
+  if (steps.some(v => v & 1)) SOURCES.push({ name: `${g.replace(/^ABL3 /, '')} / ${n}`, pattern: steps.map(v => ({ code: v >> 3, gate: !!(v & 1), accent: !!(v & 2), slide: !!(v & 4) })) });
+const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+// Generate: a random source pattern, fitted to the slot length, then one to three of these moves
+const GEN_MOVES = {
+  // grab a few steps and loop them to the end
+  loop(P) { const n = P.length, k = rint(2, Math.max(2, Math.min(8, n >> 1))), at = rint(0, n - k), from = rint(at + k, n - 1);
+    const seg = P.slice(at, at + k); for (let i = from; i < n; i++) P[i] = { ...seg[(i - from) % k] }; return `looped steps ${at + 1}–${at + k} from step ${from + 1} to the end`; },
+  reverse(P) { if (Math.random() < 0.5) { P.reverse(); return 'reversed'; }
+    const h = P.length >> 1, back = P.slice(h).reverse(); P.splice(h, back.length, ...back); return 'reversed the second half'; },
+  // a step plays twice in a row, pushing the rest along (the end drops off)
+  dup(P) { const c = rint(1, Math.max(1, P.length >> 3)); for (let j = 0; j < c; j++) { const i = rint(0, P.length - 2); P.splice(i, 0, { ...P[i] }); P.pop(); } return `doubled ${c} step${c > 1 ? 's' : ''}`; },
+  shuffle(P) { const n = P.length, b = n >= 8 && Math.random() < 0.5 ? 4 : 1, blocks = [];
+    for (let i = 0; i < n; i += b) blocks.push(P.slice(i, i + b));
+    const sw = rint(1, Math.max(1, blocks.length >> 2));
+    for (let j = 0; j < sw; j++) { const x = rint(0, blocks.length - 1), y = rint(0, blocks.length - 1); [blocks[x], blocks[y]] = [blocks[y], blocks[x]]; }
+    P.splice(0, n, ...blocks.flat()); return b > 1 ? `swapped ${sw} beat${sw > 1 ? 's' : ''}` : `swapped ${sw} step${sw > 1 ? 's' : ''}`; },
+};
+function generatePattern(len) {
+  const src = SOURCES[Math.floor(Math.random() * SOURCES.length)], sp = src.pattern;
+  const P = Array.from({ length: len }, (_, i) => ({ ...sp[i % sp.length] }));
+  const names = Object.keys(GEN_MOVES).sort(() => Math.random() - 0.5).slice(0, rint(1, 3));
+  const did = names.map(m => GEN_MOVES[m](P));
+  if (!P.some(st => st.gate)) P[0].gate = true;
+  return { pattern: P, src: src.name, did };
+}
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
@@ -1091,12 +1117,11 @@ document.querySelector('.sq-side').addEventListener('click', (e) => {
   renderSeq(); pushPattern();
 });
 document.getElementById('rand').onclick = () => {
-  const scale = [0, 3, 5, 7, 10, 12, 15], root = 21;
-  state.pattern = Array.from({ length: state.pattern.length }, (_, i) => ({
-    code: root + scale[Math.floor(Math.random() * scale.length)] + (Math.random() < 0.15 ? 12 : 0) - (Math.random() < 0.1 ? 12 : 0),
-    gate: i % 4 === 0 || Math.random() < 0.75, accent: Math.random() < 0.28, slide: Math.random() < 0.22,
-  }));
-  tail = []; renderSeq(); pushPattern();
+  pushUndo();
+  const g = generatePattern(state.pattern.length);
+  state.pattern = g.pattern; tail = []; renderSeq(); pushPattern();
+  const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
+  sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
 };
 
 // ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
@@ -1113,15 +1138,14 @@ function storeSlot() {
   store.set('banks', banks);
 }
 // slots that are empty, or still hold an untouched random pick, get a random preset
-const PRESET_NAMES = Object.keys(PATTERN_BUILTIN);
 function fillSlots(force) {
   const cur = slotKey(sel.g, sel.n); let n = 0;
   for (const g of 'ABCD') for (let i = 0; i < 12; i++) {
     const k = slotKey(g, i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
-    const name = PRESET_NAMES[Math.floor(Math.random() * PRESET_NAMES.length)];
-    banks[k] = { shuffle: 0, gate: 0.5, pattern: PATTERN_BUILTIN[name].pattern.map(st => ({ ...st })), auto: true, name }; n++;
+    const gp = generatePattern(16);
+    banks[k] = { shuffle: 0, gate: 0.5, pattern: gp.pattern, auto: true, name: gp.src }; n++;
   }
   store.set('banks', banks); return n;
 }
