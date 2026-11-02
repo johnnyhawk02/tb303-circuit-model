@@ -174,8 +174,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .wave-kn .switch { align-self: center; margin: 14px 0 12px; }
 .parts-kn { align-content: start; grid-template-columns: auto 1fr; align-items: center; }
 .parts-kn .name { grid-column: 1 / -1; }
-.parts-kn .trim { grid-row: 2 / 4; }
-.parts-kn .mini { width: 100%; min-width: 0; padding: 3px 4px; font: 600 10.5px var(--font-body); }
+.parts-kn .trim { grid-row: 2 / 5; }
+.parts-kn .mini { width: 100%; min-width: 0; padding: 3px 2px; font: 600 10px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trim { display: grid; justify-items: center; gap: 1px; }
 .kn .trim .knob { width: 28px; height: 28px; cursor: ns-resize; touch-action: none; }
 .trim .tname { font: 600 9.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
@@ -407,9 +407,9 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
   .kn .val, .md .val, .pk .val { font-size: 9.5px; }
   .panel .kn .val { display: none; }
   .wave-kn .switch { margin: 6px 0 4px; }
-  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px 4px; }
+  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 2px 4px; }
   .main > #panel .trim .tname { display: none; }
-  .parts-kn .mini { min-height: 24px; }
+  .parts-kn .mini { min-height: 0; padding: 2px; }
   .mtabs button { padding: 6px 14px; }
 
   .sq { gap: 6px; }
@@ -2841,16 +2841,22 @@ const FUNCTIONS = {
     const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
     sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
   },
-  // nudge every adjustable part around its stock value (15% of its knob travel either way, CV parts only 0.5%), and keep only sets that still make a sound
-  parts() {
+  // New machine: like building a real unit, each part lands somewhere inside its tolerance (triangular, so most land near the middle).
+  // Messed up: circuit-bent; every part swings a quarter of its knob travel either way and about a third swing up to 60%.
+  // The pitch DAC and tuning stay within tolerance either way, so it still plays in tune. Only sets that still make a sound are kept.
+  parts(wild = false) {
     partsUndo.push({ ...state.parts }); if (partsUndo.length > 30) partsUndo.shift(); syncPartsUndo();
     const keys = Object.keys(COMPONENTS).filter(k => !COMPONENTS[k].fixed && tolerance(k));
-    // like building a real unit: each part lands somewhere inside its tolerance (triangular, so most land near the middle)
-    const nudge = (k) => { const t = tolerance(k), [lo, hi] = partRange(k);
-      return t ? +Math.min(hi, Math.max(lo, COMPONENTS[k].v * (1 + t * (Math.random() + Math.random() - 1)))).toPrecision(4) : COMPONENTS[k].v; };
+    const pitch = (k) => COMPONENTS[k].block === 'CV' || k === 'F_TUNE' || k === 'CV_TUNE';
+    const nudge = (k) => {
+      const d = COMPONENTS[k], [lo, hi] = partRange(k), tri = Math.random() + Math.random() - 1;
+      if (!wild || pitch(k)) return +Math.min(hi, Math.max(lo, d.v * (1 + tolerance(k) * tri))).toPrecision(4);
+      const t = toSlider(k, d.v) / SL + (Math.random() * 2 - 1) * (Math.random() < 0.3 ? 0.6 : 0.25);
+      return +fromSlider(k, Math.min(1, Math.max(0, t)) * SL).toPrecision(4);
+    };
     const pick = () => Object.fromEntries(keys.map(k => [k, nudge(k)]));
     let set = null;
-    for (let tries = 0; tries < 8 && !set; tries++) {
+    for (let tries = 0; tries < (wild ? 24 : 8) && !set; tries++) {
       const cand = pick(), v = new TB303Voice(22050);
       for (const k in cand) v.setComponent(k, cand[k]);
       for (const kn of KNOBS) v.setKnob(kn.id, state.knobs[kn.id]);
@@ -2861,9 +2867,9 @@ const FUNCTIONS = {
       if (ok && Math.sqrt(e / buf.length) > 0.015) set = cand;
     }
     if (!set) { partsUndo.pop(); syncPartsUndo(); sqSay('Could not find a random set that still sounds. Try again.'); return; }
-    for (const k in set) state.parts[k] = set[k];
-    applySound({ ...soundSnap(), parts: Object.fromEntries(Object.entries(set)) });
-    sqSay(`Built a new unit: ${keys.length} parts somewhere inside their real tolerances. Options › Circuit shows them, and Undo under the button puts them back.`);
+    applySound({ ...soundSnap(), parts: set });
+    sqSay(wild ? `Messed up: ${keys.length} parts bent well outside spec (tuning left alone). Undo puts them back.`
+      : `Built a new machine: ${keys.length} parts somewhere inside their real tolerances. Options › Circuit shows them, and Undo puts them back.`);
   },
   undo() {
     const u = undoStack.pop(); if (!u) return;
@@ -3165,7 +3171,8 @@ panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="nam
   <div class="trim" title="TM3 filter frequency trimmer: shifts the cutoff about an octave either way. Double-click to reset.">
     <div class="knob" data-k="I_REF" tabindex="0" role="slider" aria-label="Filter trim (TM3)" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
     <span class="tname">Filter trim</span><span class="tval" id="trim-val"></span></div>
-  <button type="button" class="mini" id="parts-rand" title="Build a new unit: every part lands somewhere inside its real tolerance (±5% resistors, ±10–20% capacitors)">Randomise</button>
+  <button type="button" class="mini" id="parts-rand" title="New machine: every part lands somewhere inside its real tolerance (±5% resistors, ±10–20% capacitors), like another unit off the line">New unit</button>
+  <button type="button" class="mini" id="parts-bend" title="Messed up: every part bent well outside spec, circuit-bending style. Tuning parts are left alone so it stays in tune">Messed up</button>
   <button type="button" class="mini" id="parts-undo" disabled>Undo</button></div>`);
 // TM3 filter trimmer: the factory cutoff calibration pot, shown as a little trimmer under the voice knobs
 const trimEl = panel.querySelector('.trim .knob');
@@ -3181,6 +3188,7 @@ drawTrim();
 const partsUndo = [];
 function syncPartsUndo() { document.getElementById('parts-undo').disabled = !partsUndo.length; }
 document.getElementById('parts-rand').onclick = () => FUNCTIONS.parts();
+document.getElementById('parts-bend').onclick = () => FUNCTIONS.parts(true);
 document.getElementById('parts-undo').onclick = () => {
   const u = partsUndo.pop(); if (!u) return;
   applySound({ ...soundSnap(), parts: u }); syncPartsUndo(); sqSay('Part values put back.');

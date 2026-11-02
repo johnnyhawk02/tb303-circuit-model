@@ -7,7 +7,8 @@ panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="nam
   <div class="trim" title="TM3 filter frequency trimmer: shifts the cutoff about an octave either way. Double-click to reset.">
     <div class="knob" data-k="I_REF" tabindex="0" role="slider" aria-label="Filter trim (TM3)" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
     <span class="tname">Filter trim</span><span class="tval" id="trim-val"></span></div>
-  <button type="button" class="mini" id="parts-rand" title="Build a new unit: every part lands somewhere inside its real tolerance (±5% resistors, ±10–20% capacitors)">Randomise</button>
+  <button type="button" class="mini" id="parts-rand" title="New machine: every part lands somewhere inside its real tolerance (±5% resistors, ±10–20% capacitors), like another unit off the line">New unit</button>
+  <button type="button" class="mini" id="parts-bend" title="Messed up: every part bent well outside spec, circuit-bending style. Tuning parts are left alone so it stays in tune">Messed up</button>
   <button type="button" class="mini" id="parts-undo" disabled>Undo</button></div>`);
 // TM3 filter trimmer: the factory cutoff calibration pot, shown as a little trimmer under the voice knobs
 const trimEl = panel.querySelector('.trim .knob');
@@ -23,6 +24,7 @@ drawTrim();
 const partsUndo = [];
 function syncPartsUndo() { document.getElementById('parts-undo').disabled = !partsUndo.length; }
 document.getElementById('parts-rand').onclick = () => FUNCTIONS.parts();
+document.getElementById('parts-bend').onclick = () => FUNCTIONS.parts(true);
 document.getElementById('parts-undo').onclick = () => {
   const u = partsUndo.pop(); if (!u) return;
   applySound({ ...soundSnap(), parts: u }); syncPartsUndo(); sqSay('Part values put back.');

@@ -73,9 +73,9 @@
   .kn .val, .md .val, .pk .val { font-size: 9.5px; }
   .panel .kn .val { display: none; }
   .wave-kn .switch { margin: 6px 0 4px; }
-  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px 4px; }
+  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 2px 4px; }
   .main > #panel .trim .tname { display: none; }
-  .parts-kn .mini { min-height: 24px; }
+  .parts-kn .mini { min-height: 0; padding: 2px; }
   .mtabs button { padding: 6px 14px; }
 
   .sq { gap: 6px; }

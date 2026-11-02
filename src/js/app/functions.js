@@ -58,16 +58,22 @@ const FUNCTIONS = {
     const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
     sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
   },
-  // nudge every adjustable part around its stock value (15% of its knob travel either way, CV parts only 0.5%), and keep only sets that still make a sound
-  parts() {
+  // New machine: like building a real unit, each part lands somewhere inside its tolerance (triangular, so most land near the middle).
+  // Messed up: circuit-bent; every part swings a quarter of its knob travel either way and about a third swing up to 60%.
+  // The pitch DAC and tuning stay within tolerance either way, so it still plays in tune. Only sets that still make a sound are kept.
+  parts(wild = false) {
     partsUndo.push({ ...state.parts }); if (partsUndo.length > 30) partsUndo.shift(); syncPartsUndo();
     const keys = Object.keys(COMPONENTS).filter(k => !COMPONENTS[k].fixed && tolerance(k));
-    // like building a real unit: each part lands somewhere inside its tolerance (triangular, so most land near the middle)
-    const nudge = (k) => { const t = tolerance(k), [lo, hi] = partRange(k);
-      return t ? +Math.min(hi, Math.max(lo, COMPONENTS[k].v * (1 + t * (Math.random() + Math.random() - 1)))).toPrecision(4) : COMPONENTS[k].v; };
+    const pitch = (k) => COMPONENTS[k].block === 'CV' || k === 'F_TUNE' || k === 'CV_TUNE';
+    const nudge = (k) => {
+      const d = COMPONENTS[k], [lo, hi] = partRange(k), tri = Math.random() + Math.random() - 1;
+      if (!wild || pitch(k)) return +Math.min(hi, Math.max(lo, d.v * (1 + tolerance(k) * tri))).toPrecision(4);
+      const t = toSlider(k, d.v) / SL + (Math.random() * 2 - 1) * (Math.random() < 0.3 ? 0.6 : 0.25);
+      return +fromSlider(k, Math.min(1, Math.max(0, t)) * SL).toPrecision(4);
+    };
     const pick = () => Object.fromEntries(keys.map(k => [k, nudge(k)]));
     let set = null;
-    for (let tries = 0; tries < 8 && !set; tries++) {
+    for (let tries = 0; tries < (wild ? 24 : 8) && !set; tries++) {
       const cand = pick(), v = new TB303Voice(22050);
       for (const k in cand) v.setComponent(k, cand[k]);
       for (const kn of KNOBS) v.setKnob(kn.id, state.knobs[kn.id]);
@@ -78,9 +84,9 @@ const FUNCTIONS = {
       if (ok && Math.sqrt(e / buf.length) > 0.015) set = cand;
     }
     if (!set) { partsUndo.pop(); syncPartsUndo(); sqSay('Could not find a random set that still sounds. Try again.'); return; }
-    for (const k in set) state.parts[k] = set[k];
-    applySound({ ...soundSnap(), parts: Object.fromEntries(Object.entries(set)) });
-    sqSay(`Built a new unit: ${keys.length} parts somewhere inside their real tolerances. Options › Circuit shows them, and Undo under the button puts them back.`);
+    applySound({ ...soundSnap(), parts: set });
+    sqSay(wild ? `Messed up: ${keys.length} parts bent well outside spec (tuning left alone). Undo puts them back.`
+      : `Built a new machine: ${keys.length} parts somewhere inside their real tolerances. Options › Circuit shows them, and Undo puts them back.`);
   },
   undo() {
     const u = undoStack.pop(); if (!u) return;
