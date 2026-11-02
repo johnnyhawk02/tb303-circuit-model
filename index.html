@@ -100,7 +100,9 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* front panel knobs */
-.panel { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 22px 10px; }
+.panel { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 22px 10px; }
+.parts-kn { align-content: start; gap: 5px; }
+.panel .mini { font: 600 10.5px var(--font-body); padding: 3px 8px; min-width: 76px; }
 .wave-kn .switch { align-self: center; margin: 14px 0 12px; }
 .wave-kn { align-content: start; }
 .kn { display: grid; justify-items: center; gap: 6px; text-align: center; min-width: 0; }
@@ -465,7 +467,9 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
   .pm-pop { max-height: calc(100dvh - 60px) !important; min-width: 260px; }
   .dev, .main > .pane { padding: 6px 8px 8px; }
   .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
-  .panel { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+  .panel { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+  .panel .mini { min-width: 0; width: 100%; padding: 3px 4px; min-height: 24px; }
+  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px; } .main > #panel > .parts-kn .mini { width: 80%; }
   .wave-kn .switch { margin: 6px 0 4px; }
   .kn { gap: 1px; } .kn .knob { width: 34px; height: 34px; }
   .kn .name { font-size: 10px; } .panel .kn .val { display: none; }
@@ -566,7 +570,7 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
         <span class="hint" id="pat-msg" role="status"></span>
       </div>
     </div>
-    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="parts">Randomise component values</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
+    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
     <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
@@ -2807,7 +2811,7 @@ const FUNCTIONS = {
   },
   // nudge every adjustable part around its stock value (15% of its knob travel either way, CV parts only 0.5%), and keep only sets that still make a sound
   parts() {
-    undoStack.push({ parts: { ...state.parts } }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false;
+    partsUndo.push({ ...state.parts }); if (partsUndo.length > 30) partsUndo.shift(); syncPartsUndo();
     const keys = Object.keys(COMPONENTS).filter(k => !COMPONENTS[k].fixed);
     // CV (pitch DAC) parts only get a 0.5% tolerance, like matched 1% resistors: more than that puts the scale out of tune
     const nudge = (k) => COMPONENTS[k].block === 'CV' ? COMPONENTS[k].v * (1 + (Math.random() * 2 - 1) * 0.005)
@@ -2824,10 +2828,10 @@ const FUNCTIONS = {
       for (const x of buf) { if (!isFinite(x)) ok = false; e += x * x; }
       if (ok && Math.sqrt(e / buf.length) > 0.015) set = cand;
     }
-    if (!set) { undoStack.pop(); document.getElementById('fn-undo').disabled = !undoStack.length; sqSay('Could not find a random set that still sounds. Try again.'); return; }
+    if (!set) { partsUndo.pop(); syncPartsUndo(); sqSay('Could not find a random set that still sounds. Try again.'); return; }
     for (const k in set) state.parts[k] = set[k];
     applySound({ ...soundSnap(), parts: Object.fromEntries(Object.entries(set)) });
-    sqSay(`Randomised ${keys.length} parts around their stock values. Options › Circuit shows them, and Functions › Undo puts them back.`);
+    sqSay(`Randomised ${keys.length} parts around their stock values. Options › Circuit shows them, and Undo under the button puts them back.`);
   },
   undo() {
     const u = undoStack.pop(); if (!u) return;
@@ -3144,11 +3148,21 @@ function setBpm(v) {
   });
   bpmKnob.addEventListener('dblclick', () => { const v = parseInt(prompt('Tempo (60–200 BPM)', state.bpm), 10); if (v) setBpm(v); });
 }
-// the waveform switch sits in the voice panel, after the knobs
-panel.insertAdjacentHTML('beforeend', `<div class="kn wave-kn"><span class="name">Waveform</span>
+// the waveform switch sits at the left of the voice panel; component randomise and its undo at the right
+panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="name">Waveform</span>
   <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
+panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="name">Components</span>
+  <button type="button" class="mini" id="parts-rand" title="Nudge every part around its stock value">Randomise</button>
+  <button type="button" class="mini" id="parts-undo" disabled>Undo</button></div>`);
+const partsUndo = [];
+function syncPartsUndo() { document.getElementById('parts-undo').disabled = !partsUndo.length; }
+document.getElementById('parts-rand').onclick = () => FUNCTIONS.parts();
+document.getElementById('parts-undo').onclick = () => {
+  const u = partsUndo.pop(); if (!u) return;
+  applySound({ ...soundSnap(), parts: u }); syncPartsUndo(); sqSay('Part values put back.');
+};
 function drawWave() { waveSw.setAttribute('aria-checked', state.wave === 'square'); document.getElementById('wave-val').textContent = state.wave === 'square' ? 'Square' : 'Saw'; }
 waveSw.onclick = () => {
   const w = state.wave === 'square' ? 'saw' : 'square';
