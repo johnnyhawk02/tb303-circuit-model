@@ -77,7 +77,7 @@ const COMPONENTS = {
   R63:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'accent to Q10 base' },
   R71:    { v: 2.2e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'Q10 base to ground' },
   V_CUT:  { v: 3.3,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span (R47 10K end stop)', range: [0.5, 6, 'lin'], mod: 'Cutoff knob range. Cutoff range mods (common on TD-3s) let the knob go lower and higher.' },
-  I_REF:  { v: 3.1e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'TM3 FREQ trim: ladder current at 0 V' },
+  I_REF:  { v: 3.1e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'TM3 FREQ trim: ladder current at 0 V', range: [1.55e-6, 6.2e-6, 'log'], mod: 'Filter frequency trimmer (TM3). Sets where the cutoff sits for a given knob position, about one octave either way.' },
 
   // --- VCF envelope (Q38/Q40/Q39 2SK30)
   C62:    { v: 1e-6,    unit: 'F', block: 'Env',   source: 'schematic', note: 'envelope cap (1/35)', mod: 'Envelope cap. Scales every decay time together; a smaller cap gives snappier envelopes.' },
