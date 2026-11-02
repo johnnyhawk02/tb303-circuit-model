@@ -59,6 +59,16 @@ input[type=number] { width: 68px; font-family: var(--font-mono); }
 .kn.small .name { font-size: 11.5px; }
 .kn.small .val { opacity: 1; }
 
+/* front-page mods */
+.mods { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 18px 6px; padding-top: 22px; border-top: 1px solid var(--line); }
+.md { display: grid; justify-items: center; gap: 3px; text-align: center; min-width: 0; }
+.md .knob { width: 40px; height: 40px; }
+.md .mname { font: 700 12px var(--font-display); letter-spacing: .07em; text-transform: uppercase; margin-top: 2px; }
+.md .mdesc { font-size: 11px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
+.md .val { font: 10.5px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; cursor: pointer; white-space: nowrap; opacity: 0; transition: opacity .15s; }
+.md:hover .val, .md:focus-within .val, .md .val.changed { opacity: 1; }
+.md .val.changed { color: var(--fg); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
 /* sequencer */
 .seqwrap { overflow-x: auto; }
 .seq { display: grid; grid-template-columns: 44px repeat(var(--steps, 16), minmax(44px, 1fr)); width: max-content; min-width: 100%; font-family: var(--font-mono); font-size: 12px; border-top: 1.5px solid var(--fg); }
@@ -118,11 +128,12 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 .notes p { margin: 0 0 10px; break-inside: avoid; }
 .notes strong { color: var(--fg); font-weight: 600; }
 
+@media (max-width: 900px) { .mods { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
   .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .monitor { grid-template-columns: 1fr; }
 }
-@media (max-width: 420px) { .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } .top h1 { font-size: 26px; } }
+@media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } .top h1 { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -140,6 +151,8 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
   </header>
 
   <div class="panel" id="panel"></div>
+
+  <div class="mods" id="mods" aria-label="Common mods"></div>
 
   <div class="seqwrap"><div class="seq" id="seq"></div></div>
 </div>
@@ -1676,17 +1689,18 @@ function partRow(k) {
   const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
   const t = d.fixed ? 0.5 : toSlider(k, v) / SL;
   return `<div class="pk${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}" data-k="${k}">
-    <div class="knob" id="pknob-${k}" data-k="${k}" ${d.fixed ? '' : 'tabindex="0" role="slider"'} aria-label="${k}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t * 100)}">${knobSVG()}</div>
+    <div class="knob" data-k="${k}" ${d.fixed ? '' : 'tabindex="0" role="slider"'} aria-label="${k}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t * 100)}">${knobSVG()}</div>
     <span class="ref">${k}</span>
-    <span class="val${changed}" id="val-${k}" data-k="${k}" title="${d.fixed ? 'Sets taper only' : 'Click to reset to ' + fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
+    <span class="val${changed}" data-k="${k}" title="${d.fixed ? 'Sets taper only' : 'Click to reset to ' + fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
   </div>`;
 }
 function drawPartKnob(k) {
-  const el = document.getElementById('pknob-' + k); if (!el) return;
   const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL;
-  el.querySelector('.arc').setAttribute('d', arcPath(t));
-  el.querySelector('.ptr').setAttribute('transform', `rotate(${-135 + 270 * t} 32 32)`);
-  el.setAttribute('aria-valuenow', Math.round(t * 100));
+  for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
+    el.querySelector('.arc').setAttribute('d', arcPath(t));
+    el.querySelector('.ptr').setAttribute('transform', `rotate(${-135 + 270 * t} 32 32)`);
+    el.setAttribute('aria-valuenow', Math.round(t * 100));
+  }
 }
 const detailEl = document.getElementById('pdetail');
 function showDetail(k) {
@@ -1726,8 +1740,7 @@ tabsEl.addEventListener('keydown', (e) => {
 });
 function applyPart(k, val) {
   state.parts[k] = val;
-  const lab = document.getElementById('val-' + k);
-  if (lab) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
+  for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
   for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx();
@@ -1737,34 +1750,62 @@ function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(render
 let pDrag = null;
 const partT = (k) => toSlider(k, state.parts[k]) / SL;
 function setPartT(k, t) { t = Math.min(1, Math.max(0, t)); applyPart(k, fromSlider(k, t * SL)); }
-partsEl.addEventListener('pointerdown', (e) => {
+// ---------- front-page mods ----------
+const FRONT_MODS = [
+  ['R_SOFT', 'Soft attack', 'fade-in on normal notes'],
+  ['C35', 'Slide time', 'how long glides take'],
+  ['R138', 'Short decay', 'fastest and accent decay'],
+  ['R52', 'Note length', 'how long the VCA rings'],
+  ['C_ACC', 'Accent sweep', 'how accents build up'],
+  ['R72', 'Env depth', 'size of the filter sweep'],
+  ['V_CUT', 'Cutoff range', 'how far the cutoff reaches'],
+  ['A_Q21', 'Reso limit', 'up to self-oscillation'],
+  ['R_IN', 'Drive', 'push the filter harder'],
+  ['C18', 'Ladder cap', 'resonance character'],
+].filter(([k]) => k in COMPONENTS);
+const modsEl = document.getElementById('mods');
+function renderFrontMods() {
+  modsEl.innerHTML = FRONT_MODS.map(([k, name, desc]) => {
+    const d = COMPONENTS[k], v = state.parts[k];
+    const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
+    return `<div class="md" data-k="${k}" title="${k}: ${d.mod.replace(/"/g, '&quot;')}">
+      <div class="knob" data-k="${k}" tabindex="0" role="slider" aria-label="${name} (${k})" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
+      <span class="mname">${name}</span><span class="mdesc">${desc}</span>
+      <span class="val${changed}" data-k="${k}" title="Click to reset to ${fmt(d.v, d.unit)}">${fmt(v, d.unit)}</span>
+    </div>`;
+  }).join('');
+  for (const [k] of FRONT_MODS) drawPartKnob(k);
+}
+for (const box of [partsEl, modsEl]) {
+box.addEventListener('pointerdown', (e) => {
   const el = e.target.closest('.knob[role=slider]'); if (!el) return;
   const k = el.dataset.k; el.setPointerCapture(e.pointerId); el.focus();
-  pDrag = { k, y: e.clientY, t: partT(k), id: e.pointerId }; showDetail(k);
+  pDrag = { k, y: e.clientY, t: partT(k), id: e.pointerId }; if (box === partsEl) showDetail(k);
 });
-partsEl.addEventListener('pointermove', (e) => {
+box.addEventListener('pointermove', (e) => {
   if (!pDrag || e.pointerId !== pDrag.id) return;
   setPartT(pDrag.k, pDrag.t + (pDrag.y - e.clientY) / (e.shiftKey ? 600 : 180));
 });
 const endDrag = () => { pDrag = null; };
-partsEl.addEventListener('pointerup', endDrag); partsEl.addEventListener('pointercancel', endDrag);
-partsEl.addEventListener('wheel', (e) => {
+box.addEventListener('pointerup', endDrag); box.addEventListener('pointercancel', endDrag);
+box.addEventListener('wheel', (e) => {
   const el = e.target.closest('.knob[role=slider]'); if (!el) return;
   e.preventDefault(); setPartT(el.dataset.k, partT(el.dataset.k) - Math.sign(e.deltaY) * 0.02);
 }, { passive: false });
-partsEl.addEventListener('keydown', (e) => {
+box.addEventListener('keydown', (e) => {
   const el = e.target.closest('.knob[role=slider]'); if (!el) return;
   const k = el.dataset.k;
   const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02, PageUp: .1, PageDown: -.1 }[e.key];
   if (d) { e.preventDefault(); setPartT(k, partT(k) + d); }
   if (e.key === 'Home') setPartT(k, 0); if (e.key === 'End') setPartT(k, 1);
 });
-partsEl.addEventListener('dblclick', (e) => { const el = e.target.closest('.knob[role=slider]'); if (el) applyPart(el.dataset.k, COMPONENTS[el.dataset.k].v); });
-partsEl.addEventListener('click', (e) => {
+box.addEventListener('dblclick', (e) => { const el = e.target.closest('.knob[role=slider]'); if (el) applyPart(el.dataset.k, COMPONENTS[el.dataset.k].v); });
+box.addEventListener('click', (e) => {
   const lab = e.target.closest('.val'); if (!lab) return;
   const k = lab.dataset.k; if (COMPONENTS[k].fixed) return;
   applyPart(k, COMPONENTS[k].v);
 });
+}
 partsEl.addEventListener('pointerover', (e) => { const p = e.target.closest('.pk'); if (p && !pDrag) showDetail(p.dataset.k); });
 partsEl.addEventListener('focusin', (e) => { const p = e.target.closest('.pk'); if (p) showDetail(p.dataset.k); });
 
@@ -1775,7 +1816,7 @@ document.getElementById('close-options').onclick = () => { if (optDlg.close) opt
 optDlg.addEventListener('click', (e) => { if (e.target === optDlg) optDlg.close(); });
 document.getElementById('restore').onclick = () => {
   for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
-  renderParts(); renderFx(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
+  renderParts(); renderFrontMods(); renderFx(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 };
 
 // ---------- transport / audio ----------
@@ -1913,7 +1954,7 @@ function applySound(x) {
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
   document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
   document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
-  renderParts(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
+  renderParts(); renderFrontMods(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
 function applyPattern(x) {
   const c = cleanSettings(x);
@@ -2017,6 +2058,6 @@ preview.waveform = state.wave; bpmEl.value = state.bpm;
 document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
 document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
 for (const n in state.fx) preview.setFx(n, state.fx[n]);
-renderFx(); renderSeq(); renderParts(); readouts();
+renderFx(); renderSeq(); renderParts(); renderFrontMods(); readouts();
 })();
 </script>
