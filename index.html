@@ -890,7 +890,7 @@ class Lexicon224 {
   constructor(fsHost) {
     this.fsHost = fsHost;
     this.F = 0; this.memWords = 0; this.prog = -1;
-    this.seed = 22477; this.L = 0; this.R = 0;
+    this.seed = 22477; this.L = 0; this.R = 0; this.yl = 0; this.yr = 0;
     this.ph = 0; this.prev = 0; this.hx = 0; this.hxIn = 0;
     this.envIn = 0; this.envL = 0; this.envR = 0; this.zl = 0; this.zr = 0;
   }
@@ -994,7 +994,7 @@ class Lexicon224 {
     const p = this.p = (this.p - 1) & this.mask;
     this._w(p + this.preB, x);
     const u0 = this._r(p + this.preB + this.preD);
-    if (this.alg === 'chorus') return this._chorus(u0);
+    if (this.alg === 'chorus') { this._chorus(u0); return; }
     // input diffusers
     let u = u0, uE = 0;
     for (let i = 0; i < this.ind.length; i++) { u = this._ap(this.ind[i].b, this.ind[i].len, this.gIn[i], u); if (i === this.ind.length - 2) uE = u; }
@@ -1007,18 +1007,17 @@ class Lexicon224 {
       }
     } else { this.meCtr = 1; for (const w of W) { w.from = w.to = 0; } }
     const ph = this.meT ? 1 - this.meCtr / this.meT : 0;
-    const off = (j) => W[j].from + (W[j].to - W[j].from) * ph;
     const len = this.len, B = this.tb_;
-    const outs = [0, 0];
+    let out0 = 0, out1 = 0;
     for (let s = 0; s < 2; s++) {
       const o = s * 4;
       let a = u + (s ? this.lastL : this.lastR);
       // modulated allpass (decay diffusion 1)
-      const vd = this._rf(p + B[o], len[o] + 16 + off(s)), g = -this.dd1, w = a + g * vd;
+      const vd = this._rf(p + B[o], len[o] + 16 + (W[s].from + (W[s].to - W[s].from) * ph)), g = -this.dd1, w = a + g * vd;
       this._w(p + B[o], w); a = vd - g * w;
       // delay 1, read through a wandering tap
       this._w(p + B[o + 1], a);
-      let v = this._rf(p + B[o + 1], len[o + 1] + 16 + off(2 + s));
+      let v = this._rf(p + B[o + 1], len[o + 1] + 16 + (W[2 + s].from + (W[2 + s].to - W[2 + s].from) * ph));
       // Bass / Mid decay split at Crossover, then Treble decay
       this.xl[s] += this.cx * (v - this.xl[s]);
       v = this.gB[s] * this.xl[s] + this.gM[s] * (v - this.xl[s]);
@@ -1027,15 +1026,15 @@ class Lexicon224 {
       v = this._ap(B[o + 2], len[o + 2], this.dd2, v);
       if (this.ap3) v = this._ap(this.ap3B[s], this.ap3[s], -this.dd2 * 0.8, v);
       this._w(p + B[o + 3], v);
-      outs[s] = this._r(p + B[o + 3] + len[o + 3]);
+      if (s) out1 = this._r(p + B[o + 3] + len[o + 3]); else out0 = this._r(p + B[o + 3] + len[o + 3]);
     }
-    this.lastL = outs[0]; this.lastR = outs[1];
+    this.lastL = out0; this.lastR = out1;
     // output taps; Depth crossfades near taps (plus the diffused input) to the far ones
-    const sum = (T) => { let y = 0; for (const [line, pos, sg] of T) y += sg * this._r(p + B[line] + pos); return y; };
     const d = this.depth;
-    const yl = 0.6 * (d * sum(this.tapsL) + (1 - d) * (sum(this.nearL) + this.er * u));
-    const yr = 0.6 * (d * sum(this.tapsR) + (1 - d) * (sum(this.nearR) + this.er * uE));
-    return [yl, yr];
+    this.yl = 0.6 * (d * this._sum(this.tapsL, p, B) + (1 - d) * (this._sum(this.nearL, p, B) + this.er * u));
+    this.yr = 0.6 * (d * this._sum(this.tapsR, p, B) + (1 - d) * (this._sum(this.nearR, p, B) + this.er * uE));
+  }
+  _sum(T, p, B) { let y = 0; for (let i = 0; i < T.length; i++) { const t = T[i]; y += t[2] * this._r(p + B[t[0]] + t[1]); } return y;
   }
 
   // P9: eight voices, four per side, each delay wandering at random; diffusion on pairs 3 and 4
@@ -1052,7 +1051,7 @@ class Lexicon224 {
       if (pair >= 2) { const a = this.chAp[(pair - 2) * 2 + side]; s = this._ap(a.b, a.len, this.dd2 * 1.2, s); }
       y[side] += this.pairs[pair] * s;
     }
-    return [0.5 * y[0], 0.5 * y[1]];
+    this.yl = 0.5 * y[0]; this.yr = 0.5 * y[1];
   }
 
   // one host-rate sample in, sets this.L / this.R
@@ -1066,7 +1065,7 @@ class Lexicon224 {
       this.ph -= 1;
       const back = this.ph / this.ratio, xi = v - (v - this.prev) * Math.min(1, back);
       const a = Math.abs(xi); this.envIn = a > this.envIn ? a : this.envIn * this.envRel;
-      const [yl, yr] = this._tick(this._conv(xi, this.envIn));
+      this._tick(this._conv(xi, this.envIn)); const yl = this.yl, yr = this.yr;
       const al = Math.abs(yl), ar = Math.abs(yr);
       this.envL = al > this.envL ? al : this.envL * this.envRel; this.envR = ar > this.envR ? ar : this.envR * this.envRel;
       this.zl = this._conv(yl, this.envL); this.zr = this._conv(yr, this.envR); // DAC with zero-order hold
@@ -1076,6 +1075,21 @@ class Lexicon224 {
   }
 
   memoryUse() { return { words: this.words, of: this.memWords, scale: this.scale }; }
+}
+
+// zero subnormal-bound numbers in an object's own state (plain numbers, small arrays, nested state objects)
+const FLUSH_SKIP = new Set(['c', 'knobs', 'fx', 'lex', 'mem', 'C']);
+function flushTiny(o, depth) {
+  if (Array.isArray(o) || ArrayBuffer.isView(o)) {
+    if (o.length > 64) return;
+    for (let i = 0; i < o.length; i++) { const x = o[i]; if (typeof x === 'number') { if (x !== 0 && x < 1e-150 && x > -1e-150) o[i] = 0; } else if (x && typeof x === 'object' && depth < 2) flushTiny(x, depth + 1); }
+    return;
+  }
+  for (const k in o) {
+    const x = o[k];
+    if (typeof x === 'number') { if (x !== 0 && x < 1e-150 && x > -1e-150) o[k] = 0; }
+    else if (x && typeof x === 'object' && depth < 2 && !FLUSH_SKIP.has(k)) flushTiny(x, depth + 1);
+  }
 }
 
 class TB303Voice {
@@ -1205,10 +1219,11 @@ class TB303Voice {
     // diode pair to ground through RAT_RCL: (w - v)/R = 2 Is sinh(v / nVt)
     const w = s.hc, R = c.RAT_RCL, n = this.ratN, Is = this.ratIs;
     let v = s.v;
-    for (let i = 0; i < 4; i++) {
-      const t = Math.min(Math.max(v / n, -80), 80), sh = Math.sinh(t), ch = Math.cosh(t);
-      const f = (w - v) / R - 2 * Is * sh, df = -1 / R - 2 * Is * ch / n;
-      v -= f / df;
+    for (let i = 0; i < 4; i++) { // Newton, warm-started from last sample; stops once the step is under 0.1 µV
+      const t = Math.min(Math.max(v / n, -80), 80), e = Math.exp(t), ei = 1 / e, sh = 0.5 * (e - ei), ch = 0.5 * (e + ei);
+      const f = (w - v) / R - 2 * Is * sh, df = -1 / R - 2 * Is * ch / n, dv = f / df;
+      v -= dv;
+      if (dv < 1e-7 && dv > -1e-7) break;
     }
     s.v = v;
     s.f = v + this.ratFltA * (s.f - v);                          // FILTER: (1.5k + pot) with 3.3n
@@ -1245,49 +1260,37 @@ class TB303Voice {
   _vcfStep(u, Iladder) {
     // ladder states v[0..3]; branch b0 = input pair diff voltage x,
     // b1..b3 = differences between stages, b4 = top stage to fixed bases.
-    const v = this.v, C = this.C, h2 = this.h / 2, twoVt = 2 * VT, Ih = Iladder / 2;
+    // Same maths as before, written out without per-sample array allocation (it was most of the voice's CPU).
+    const v = this.v, C = this.C, h2 = this.h / 2, twoVt = 2 * VT, Ih = Iladder / 2, G0 = Iladder / (4 * VT);
     const k = this.kFb;
     const uEff = u + k * this.fbLp;           // x = u - k*(v4 - LP(v4)) = uEff - k*v4
-    const x = uEff - k * v[3];
-    const b = [x, v[0] - v[1], v[1] - v[2], v[2] - v[3], v[3]];
-    const G = new Array(5), T = new Array(5);
-    for (let i = 0; i < 5; i++) {
-      T[i] = Ih * Math.tanh(b[i] / twoVt);
-      G[i] = Math.abs(b[i]) > 1e-9 ? T[i] / b[i] : Iladder / (4 * VT);
-    }
-    const f = [(T[0] - T[1]) / C[0], (T[1] - T[2]) / C[1], (T[2] - T[3]) / C[2], (T[3] - T[4]) / C[3]];
-    // linearised M (with feedback folded in), B for uEff
-    const M = [
-      [-G[1] / C[0], G[1] / C[0], 0, -G[0] * k / C[0]],
-      [G[1] / C[1], -(G[1] + G[2]) / C[1], G[2] / C[1], 0],
-      [0, G[2] / C[2], -(G[2] + G[3]) / C[2], G[3] / C[2]],
-      [0, 0, G[3] / C[3], -(G[3] + G[4]) / C[3]],
-    ];
-    const B0 = G[0] / C[0];
-    // (I - h/2 M) vn = v + h/2 (f + B uEff)
-    const A = [], r = [];
-    for (let i = 0; i < 4; i++) {
-      A.push([0, 0, 0, 0]);
-      for (let j = 0; j < 4; j++) A[i][j] = (i === j ? 1 : 0) - h2 * M[i][j];
-      r.push(v[i] + h2 * f[i] + (i === 0 ? h2 * B0 * uEff : 0));
-    }
-    // Gaussian elimination (well-conditioned, diagonally dominant)
-    for (let i = 0; i < 4; i++) {
-      for (let rr = i + 1; rr < 4; rr++) {
-        const m = A[rr][i] / A[i][i];
-        if (m === 0) continue;
-        for (let j = i; j < 4; j++) A[rr][j] -= m * A[i][j];
-        r[rr] -= m * r[i];
-      }
-    }
-    for (let i = 3; i >= 0; i--) {
-      let s = r[i];
-      for (let j = i + 1; j < 4; j++) s -= A[i][j] * v[j];
-      v[i] = s / A[i][i];
-    }
+    const v0 = v[0], v1 = v[1], v2 = v[2], v3 = v[3];
+    const b0 = uEff - k * v3, b1 = v0 - v1, b2 = v1 - v2, b3 = v2 - v3, b4 = v3;
+    const T0 = Ih * Math.tanh(b0 / twoVt), T1 = Ih * Math.tanh(b1 / twoVt), T2 = Ih * Math.tanh(b2 / twoVt), T3 = Ih * Math.tanh(b3 / twoVt), T4 = Ih * Math.tanh(b4 / twoVt);
+    const G0_ = Math.abs(b0) > 1e-9 ? T0 / b0 : G0, G1 = Math.abs(b1) > 1e-9 ? T1 / b1 : G0, G2 = Math.abs(b2) > 1e-9 ? T2 / b2 : G0,
+      G3 = Math.abs(b3) > 1e-9 ? T3 / b3 : G0, G4 = Math.abs(b4) > 1e-9 ? T4 / b4 : G0;
+    const C0 = C[0], C1 = C[1], C2 = C[2], C3 = C[3];
+    // A = I - h/2 M (M linearised with feedback folded in), r = v + h/2 (f + B uEff)
+    let a00 = 1 + h2 * G1 / C0, a01 = -h2 * G1 / C0, a02 = 0, a03 = h2 * G0_ * k / C0;
+    let a10 = -h2 * G1 / C1, a11 = 1 + h2 * (G1 + G2) / C1, a12 = -h2 * G2 / C1, a13 = 0;
+    let a20 = 0, a21 = -h2 * G2 / C2, a22 = 1 + h2 * (G2 + G3) / C2, a23 = -h2 * G3 / C2;
+    let a30 = 0, a31 = 0, a32 = -h2 * G3 / C3, a33 = 1 + h2 * (G3 + G4) / C3;
+    let r0 = v0 + h2 * (T0 - T1) / C0 + h2 * (G0_ / C0) * uEff, r1 = v1 + h2 * (T1 - T2) / C1, r2 = v2 + h2 * (T2 - T3) / C2, r3 = v3 + h2 * (T3 - T4) / C3;
+    // Gaussian elimination (well-conditioned, diagonally dominant); zero entries skipped as before
+    let m = a10 / a00;
+    if (m !== 0) { a11 -= m * a01; a12 -= m * a02; a13 -= m * a03; r1 -= m * r0; }
+    m = a21 / a11;
+    if (m !== 0) { a22 -= m * a12; a23 -= m * a13; r2 -= m * r1; }
+    m = a32 / a22;
+    if (m !== 0) { a33 -= m * a23; r3 -= m * r2; }
+    const n3 = r3 / a33;
+    const n2 = (r2 - a23 * n3) / a22;
+    const n1 = (r1 - a12 * n2 - a13 * n3) / a11;
+    const n0 = (r0 - a01 * n1 - a02 * n2 - a03 * n3) / a00;
+    v[0] = n0; v[1] = n1; v[2] = n2; v[3] = n3;
     // feedback-path HPF (C15) tracked as LP of v4
-    this.fbLp = v[3] + this.fbA * (this.fbLp - v[3]);
-    return v[3];
+    this.fbLp = n3 + this.fbA * (this.fbLp - n3);
+    return n3;
   }
 
   // one sample at the oversampled rate
@@ -1386,8 +1389,14 @@ class TB303Voice {
     return x;
   }
 
+  // Decaying filter and envelope states eventually reach subnormal floats, which run many times
+  // slower on most CPUs (CPU climbed 3x over 15 s of silence). Snap anything that small to zero once
+  // per block. 1e-150 is far below any audible level and far below every component value.
+  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); }
+
   // out is mono, or the left channel when outR is given
   process(out, start = 0, end = out.length, outR) {
+    this._flush();
     const lex = this.fx.lex ? this.lex : null;
     for (let n = start; n < end; n++) {
       let y = 0;
