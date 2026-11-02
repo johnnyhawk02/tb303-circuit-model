@@ -37,7 +37,7 @@ body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-in
 button.primary, .seg button[aria-pressed=true], .seq .cell.on, .seq .hd.cur, .onoff[aria-pressed=true] { box-shadow: 2px 2px 0 var(--ghost); }
 body { font-family: var(--font-body); font-size: 14px; line-height: 1.5; margin: 0;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
-.main { max-width: 980px; margin: 0 auto; display: grid; gap: 36px; }
+.main { max-width: 980px; margin: 0 auto; display: grid; gap: 22px; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
 .label { font: 500 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
 .hint { color: var(--mute); font-size: 12px; }
@@ -76,7 +76,8 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .kn.small .val { opacity: 1; }
 
 /* front-page mods */
-.mods { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 18px 6px; padding-top: 22px; border-top: 1px solid var(--line); }
+.mods { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 30px 10px; padding-top: 8px; }
+.mods .md .knob { width: 52px; height: 52px; }
 .md { display: grid; justify-items: center; gap: 3px; text-align: center; min-width: 0; }
 .md .knob { width: 40px; height: 40px; }
 .md .mname { font: 700 12px var(--font-display); letter-spacing: .07em; text-transform: uppercase; margin-top: 2px; }
@@ -86,7 +87,7 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .md .val.changed { color: var(--fg); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 
 /* sequencer: piano roll */
-.sq { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 18px; }
+.sq { display: grid; gap: 12px; }
 .sq-bank { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .sq-bank .seg button { padding: 5px 10px; font: 600 12px var(--font-mono); min-width: 30px; }
 .sq-bank .slots button { min-width: 28px; padding: 5px 0; }
@@ -117,18 +118,41 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .seq .cell.on.cur { background: var(--mute); }
 
 /* presets and RAT strip */
-.strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 18px 28px; border-top: 1px solid var(--line); padding-top: 18px; align-items: start; }
-.strip > section { display: grid; gap: 8px; min-width: 0; }
+.mtabs { margin-bottom: -4px; }
+.pane[hidden] { display: none !important; }
+.pane { min-height: 440px; }
+.strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 40px; align-content: start; padding-top: 6px; }
+.strip > section { display: grid; gap: 10px; min-width: 0; align-content: start; }
 .strip h3 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
 .strip .presets { gap: 8px; }
-.strip .presets select { flex: 1 1 100%; min-width: 0; }
 .strip .presets input[type=text] { flex: 1 1 120px; width: auto; min-width: 0; }
 .strip .presets button { padding: 6px 10px; font-size: 12px; }
 .strip .hint:empty { display: none; }
-.strip .fx { gap: 10px 18px; flex-wrap: nowrap; }
-.strip .fxknobs { gap: 10px 16px; flex-wrap: nowrap; }
-@media (max-width: 900px) { .strip { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .strip .blk-rat { grid-column: 1 / -1; } }
+.strip .fx { gap: 16px 34px; }
+.strip .fxknobs { gap: 16px 34px; }
+#pane-rat .kn.small .knob { width: 68px; height: 68px; }
 @media (max-width: 560px) { .strip { grid-template-columns: minmax(0, 1fr); } }
+
+/* preset menu */
+.pm { position: relative; flex: 1 1 100%; display: flex; min-width: 0; }
+.strip .presets .pm-btn { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; font: 400 20px/1.1 var(--font-lcd); padding: 5px 10px; }
+.pm-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-btn .grp { color: var(--mute); flex: none; }
+.strip .presets .pm-step { padding: 0 10px; font-size: 11px; border-left-width: 0; }
+.pm-pop { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 280px; display: grid; grid-template-rows: auto minmax(0, 1fr);
+  max-height: min(62vh, 460px); border: 1.5px solid var(--fg); box-shadow: 4px 4px 0 var(--ghost);
+  background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
+.pm-pop[hidden] { display: none; }
+.strip .presets .pm-q { margin: 8px; width: auto; font: 400 20px/1 var(--font-lcd); padding: 4px 8px; }
+.pm-list { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
+.strip .presets .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid var(--line); padding: 6px 10px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; text-align: left; }
+.pm-g::before { content: "▸"; margin-right: 8px; }
+.pm-g[aria-expanded=true]::before { content: "▾"; }
+.pm-g .n { margin-left: auto; color: var(--mute); font-weight: 400; }
+.strip .presets .pm-i { display: block; width: 100%; border: 0; padding: 2px 12px 2px 28px; text-align: left; font: 400 19px/1.15 var(--font-lcd); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-i.act, .pm-i:hover, .pm-g.act { background: var(--soft); }
+.strip .presets .pm-i[aria-selected=true] { background: var(--fg); color: var(--bg); box-shadow: 2px 2px 0 var(--ghost); }
+.pm-none { padding: 10px 12px; color: var(--mute); }
 
 /* options sheet */
 dialog#options { width: min(1080px, 100vw); max-width: 100vw; height: 100%; max-height: 100%; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1.5px solid var(--fg); background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); color: var(--fg); text-shadow: 1.5px 1.5px 0 var(--ghost); }
@@ -177,7 +201,6 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 .notes p { margin: 0 0 10px; break-inside: avoid; }
 .notes strong { color: var(--fg); font-weight: 600; }
 
-@media (max-width: 900px) { .mods { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
   .sq-body { grid-template-columns: 1fr; }
   .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
@@ -185,7 +208,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
   .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .monitor { grid-template-columns: 1fr; }
 }
-@media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } .top h1 { font-size: 40px; } }
+@media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pane { min-height: 0; } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } .top h1 { font-size: 40px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -204,39 +227,14 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 
   <div class="panel" id="panel"></div>
 
-  <div class="mods" id="mods" aria-label="Common mods"></div>
-
-  <div class="strip">
-    <section class="blk-snd">
-      <h3>Sound</h3>
-      <div class="presets" id="snd-bar">
-        <select id="snd-preset" aria-label="Sound presets"></select>
-        <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound preset name">
-        <button type="button" id="snd-save">Save</button>
-        <button type="button" id="snd-del">Delete</button>
-        <span class="hint" id="snd-msg" role="status"></span>
-      </div>
-    </section>
-    <section class="blk-pat">
-      <h3>Pattern</h3>
-      <div class="presets" id="pat-bar">
-        <select id="pat-preset" aria-label="Pattern presets"></select>
-        <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern preset name">
-        <button type="button" id="pat-save">Save</button>
-        <button type="button" id="pat-del">Delete</button>
-        <span class="hint" id="pat-msg" role="status"></span>
-      </div>
-    </section>
-    <section class="blk-rat">
-      <h3>ProCo RAT</h3>
-      <div class="fx" id="fx-rat">
-        <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
-        <div class="fxknobs" id="fx-rat-knobs"></div>
-      </div>
-    </section>
+  <div class="tabs mtabs" id="mtabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" data-pane="seq">Sequencer</button>
+    <button type="button" role="tab" data-pane="mods">Mods</button>
+    <button type="button" role="tab" data-pane="rat">RAT</button>
+    <button type="button" role="tab" data-pane="presets">Presets</button>
   </div>
 
-  <section class="sq" aria-label="Sequencer">
+  <section class="sq pane" id="pane-seq" role="tabpanel" aria-label="Sequencer">
     <div class="sq-bank">
       <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
       <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
@@ -254,6 +252,41 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
     </div>
   </section>
+
+  <div class="pane" id="pane-mods" role="tabpanel" aria-label="Mods" hidden><div class="mods" id="mods" aria-label="Common mods"></div></div>
+
+  <div class="pane strip" id="pane-rat" role="tabpanel" aria-label="RAT" hidden>
+    <section class="blk-rat">
+      <h3>ProCo RAT</h3>
+      <div class="fx" id="fx-rat">
+        <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
+        <div class="fxknobs" id="fx-rat-knobs"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="pane strip" id="pane-presets" role="tabpanel" aria-label="Presets" hidden>
+    <section class="blk-snd">
+      <h3>Sound</h3>
+      <div class="presets" id="snd-bar">
+        <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
+        <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound preset name">
+        <button type="button" id="snd-save">Save</button>
+        <button type="button" id="snd-del">Delete</button>
+        <span class="hint" id="snd-msg" role="status"></span>
+      </div>
+    </section>
+    <section class="blk-pat">
+      <h3>Pattern</h3>
+      <div class="presets" id="pat-bar">
+        <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
+        <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern preset name">
+        <button type="button" id="pat-save">Save</button>
+        <button type="button" id="pat-del">Delete</button>
+        <span class="hint" id="pat-msg" role="status"></span>
+      </div>
+    </section>
+  </div>
 </div>
 
 <dialog id="options" aria-labelledby="opt-title">
@@ -1008,6 +1041,7 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
       + (names.length ? '<optgroup label="Saved">' + names.map(n => opt('u', n)).join('') + '</optgroup>' : '');
     sel.value = selected || '';
     delBtn.disabled = !sel.value.startsWith('u:'); armed = ''; delBtn.textContent = 'Delete';
+    sel.dispatchEvent(new Event('sync'));
   };
   bar.save = () => store.set(storeKey, bar.user);
   sel.addEventListener('change', () => {
@@ -1035,8 +1069,70 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
   bar.render('');
   return bar;
 }
+// ---------- preset menu: our own picker over the hidden <select>, grouped, searchable, with prev/next ----------
+function presetMenu(host) {
+  const sel = document.getElementById(host.dataset.for);
+  host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span><span class="grp"></span></button>`
+    + `<button type="button" class="pm-step" data-d="-1" aria-label="Previous preset">◀</button><button type="button" class="pm-step" data-d="1" aria-label="Next preset">▶</button>`
+    + `<div class="pm-pop" hidden><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets"><div class="pm-list" role="listbox" aria-label="${sel.getAttribute('aria-label')}"></div></div>`;
+  const btn = host.querySelector('.pm-btn'), pop = host.querySelector('.pm-pop'), q = host.querySelector('.pm-q'), list = host.querySelector('.pm-list');
+  const open = new Set(); let act = -1;
+  const groups = () => [...sel.querySelectorAll('optgroup')].map(g => ({ label: g.label, items: [...g.querySelectorAll('option')] }));
+  const allOpts = () => [...sel.querySelectorAll('optgroup option')];
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  function sync() {
+    const o = sel.selectedOptions[0];
+    btn.querySelector('.cur').textContent = o && o.value ? o.textContent : 'Choose…';
+    btn.querySelector('.grp').textContent = o && o.value ? o.parentElement.label.replace(/^ABL3 /, '') : '';
+  }
+  function draw() {
+    const term = q.value.trim().toLowerCase(); let h = '';
+    for (const g of groups()) {
+      const items = term ? g.items.filter(o => (g.label + ' ' + o.textContent).toLowerCase().includes(term)) : g.items;
+      if (!items.length) continue;
+      const exp = !!term || open.has(g.label);
+      h += `<button type="button" class="pm-g" data-g="${esc(g.label)}" aria-expanded="${exp}">${esc(g.label)}<span class="n">${items.length}</span></button>`;
+      if (exp) h += items.map(o => `<button type="button" class="pm-i" role="option" data-v="${esc(o.value)}" aria-selected="${o.value === sel.value}">${esc(o.textContent)}</button>`).join('');
+    }
+    list.innerHTML = h || '<div class="pm-none">Nothing matches.</div>';
+    act = -1;
+  }
+  function show() {
+    const o = sel.selectedOptions[0];
+    open.clear(); open.add('Built-in'); open.add('Saved'); if (o && o.value) open.add(o.parentElement.label);
+    q.value = ''; draw(); pop.hidden = false; pop.style.maxHeight = Math.max(240, Math.min(460, innerHeight - btn.getBoundingClientRect().bottom - 16)) + 'px'; btn.setAttribute('aria-expanded', 'true'); q.focus();
+    list.querySelector('[aria-selected=true]')?.scrollIntoView({ block: 'center' });
+  }
+  function hide(refocus) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (refocus) btn.focus(); }
+  function choose(v) { sel.value = v; sel.dispatchEvent(new Event('change')); sync(); }
+  btn.onclick = () => (pop.hidden ? show() : hide());
+  host.querySelectorAll('.pm-step').forEach(b => b.onclick = () => {
+    const os = allOpts(); if (!os.length) return;
+    const d = +b.dataset.d, i = os.findIndex(o => o.value === sel.value);
+    choose(os[i < 0 ? (d > 0 ? 0 : os.length - 1) : (i + d + os.length) % os.length].value);
+  });
+  list.addEventListener('click', (e) => {
+    const g = e.target.closest('.pm-g');
+    if (g) { open.has(g.dataset.g) ? open.delete(g.dataset.g) : open.add(g.dataset.g); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
+    const it = e.target.closest('.pm-i'); if (it) { choose(it.dataset.v); hide(true); }
+  });
+  q.addEventListener('input', draw);
+  pop.addEventListener('keydown', (e) => {
+    const items = [...list.querySelectorAll('.pm-i, .pm-g')];
+    if (e.key === 'Escape') { e.preventDefault(); hide(true); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); if (!items.length) return;
+      act = Math.max(0, Math.min(items.length - 1, act + (e.key === 'ArrowDown' ? 1 : -1)));
+      items.forEach((el, i) => el.classList.toggle('act', i === act)); items[act].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && act >= 0 && items[act]) { e.preventDefault(); items[act].click(); }
+  });
+  document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !host.contains(e.target)) hide(); });
+  sel.addEventListener('sync', sync); sel.addEventListener('change', sync);
+  sync();
+}
 const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
 const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);
+for (const el of document.querySelectorAll('.pm')) presetMenu(el);
 
 document.getElementById('preset-export').onclick = () => {
   const data = JSON.stringify({ app: 'tb303-circuit-model', version: 2,
@@ -1096,6 +1192,22 @@ if (navigator.requestMIDIAccess) {
     hook(); acc.onstatechange = hook;
   }, () => { midiStatus.textContent = 'MIDI access was refused or is not available here.'; });
 } else document.getElementById('midi-status').textContent = 'This browser has no Web MIDI. Chrome and Edge have it.';
+
+// ---------- main tabs ----------
+const mtabs = document.getElementById('mtabs');
+function showPane(name, focus) {
+  if (!document.getElementById('pane-' + name)) name = 'seq';
+  for (const b of mtabs.querySelectorAll('[role=tab]')) { const on = b.dataset.pane === name; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); }
+  for (const p of document.querySelectorAll('.main > .pane')) p.hidden = p.id !== 'pane-' + name;
+  store.set('mainTab', name);
+}
+mtabs.addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) showPane(b.dataset.pane, true); });
+mtabs.addEventListener('keydown', (e) => {
+  const d = { ArrowLeft: -1, ArrowRight: 1 }[e.key]; if (!d) return;
+  const tabs = [...mtabs.querySelectorAll('[role=tab]')], i = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+  showPane(tabs[(i + d + tabs.length) % tabs.length].dataset.pane, true); e.preventDefault();
+});
+showPane(store.get('mainTab', 'seq'));
 
 renderFx(); renderSeq(); renderBank(); renderParts(); renderFrontMods(); readouts();
 })();
