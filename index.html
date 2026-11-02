@@ -49,6 +49,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 button.primary { background: var(--fg); color: var(--bg); }
 button.primary:hover { background: var(--fg); opacity: .85; }
 select, input[type=text], input[type=number] { font: 13px var(--font-body); color: var(--fg); background: transparent; border: 1.5px solid var(--fg); padding: 6px 8px; border-radius: 0; }
+select option { background: var(--bg); color: var(--fg); }
 input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px 8px; }
 
 /* top bar */
@@ -114,6 +115,20 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .seq .cell.on { background: var(--fg); }
 .seq .cell.ghost { box-shadow: inset 0 0 0 1.5px var(--mute); }
 .seq .cell.on.cur { background: var(--mute); }
+
+/* presets and RAT strip */
+.strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 18px 28px; border-top: 1px solid var(--line); padding-top: 18px; align-items: start; }
+.strip > section { display: grid; gap: 8px; min-width: 0; }
+.strip h3 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.strip .presets { gap: 8px; }
+.strip .presets select { flex: 1 1 100%; min-width: 0; }
+.strip .presets input[type=text] { flex: 1 1 120px; width: auto; min-width: 0; }
+.strip .presets button { padding: 6px 10px; font-size: 12px; }
+.strip .hint:empty { display: none; }
+.strip .fx { gap: 10px 18px; flex-wrap: nowrap; }
+.strip .fxknobs { gap: 10px 16px; flex-wrap: nowrap; }
+@media (max-width: 900px) { .strip { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .strip .blk-rat { grid-column: 1 / -1; } }
+@media (max-width: 560px) { .strip { grid-template-columns: minmax(0, 1fr); } }
 
 /* options sheet */
 dialog#options { width: min(1080px, 100vw); max-width: 100vw; height: 100%; max-height: 100%; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1.5px solid var(--fg); background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); color: var(--fg); text-shadow: 1.5px 1.5px 0 var(--ghost); }
@@ -191,6 +206,36 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 
   <div class="mods" id="mods" aria-label="Common mods"></div>
 
+  <div class="strip">
+    <section class="blk-snd">
+      <h3>Sound</h3>
+      <div class="presets" id="snd-bar">
+        <select id="snd-preset" aria-label="Sound presets"></select>
+        <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound preset name">
+        <button type="button" id="snd-save">Save</button>
+        <button type="button" id="snd-del">Delete</button>
+        <span class="hint" id="snd-msg" role="status"></span>
+      </div>
+    </section>
+    <section class="blk-pat">
+      <h3>Pattern</h3>
+      <div class="presets" id="pat-bar">
+        <select id="pat-preset" aria-label="Pattern presets"></select>
+        <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern preset name">
+        <button type="button" id="pat-save">Save</button>
+        <button type="button" id="pat-del">Delete</button>
+        <span class="hint" id="pat-msg" role="status"></span>
+      </div>
+    </section>
+    <section class="blk-rat">
+      <h3>ProCo RAT</h3>
+      <div class="fx" id="fx-rat">
+        <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
+        <div class="fxknobs" id="fx-rat-knobs"></div>
+      </div>
+    </section>
+  </div>
+
   <section class="sq" aria-label="Sequencer">
     <div class="sq-bank">
       <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
@@ -218,39 +263,16 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
   </div>
   <div class="opt-body">
     <section>
-      <h3>Sound</h3>
-      <div class="presets" id="snd-bar">
-        <select id="snd-preset" aria-label="Sound presets"></select>
-        <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound preset name">
-        <button type="button" id="snd-save">Save</button>
-        <button type="button" id="snd-del">Delete</button>
-        <span class="sep" aria-hidden="true"></span>
+      <h3>Settings file</h3>
+      <div class="presets">
         <button type="button" id="preset-export">Export all</button>
         <button type="button" id="preset-import">Import</button>
         <input type="file" id="preset-file" accept=".json,application/json" hidden>
-        <span class="hint" id="snd-msg">Knobs, parts, waveform and effects. Loading one leaves the pattern alone.</span>
+        <span class="hint">Your sound and pattern presets, the current sound and pattern, as one JSON file.</span>
       </div>
     </section>
 
-    <section>
-      <h3>Pattern</h3>
-      <div class="presets" id="pat-bar">
-        <select id="pat-preset" aria-label="Pattern presets"></select>
-        <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern preset name">
-        <button type="button" id="pat-save">Save</button>
-        <button type="button" id="pat-del">Delete</button>
-        <span class="sep" aria-hidden="true"></span>
-        <span class="hint" id="pat-msg">Loads into the selected bank slot, with its tempo. Loading one leaves the sound alone. Phoscyon patterns keep the current tempo.</span>
-      </div>
-    </section>
 
-    <section>
-      <h3>ProCo RAT</h3>
-      <div class="fx" id="fx-rat">
-        <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
-        <div class="fxknobs" id="fx-rat-knobs"></div>
-      </div>
-    </section>
 
     <section>
       <h3>Circuit</h3>
@@ -2136,7 +2158,7 @@ function loadStore(key) { const v = store.get(key, {}); return v && typeof v ===
 function presetBar(pre, storeKey, builtins, snap, apply) {
   const sel = document.getElementById(pre + '-preset'), nameEl = document.getElementById(pre + '-name');
   const delBtn = document.getElementById(pre + '-del'), msg = document.getElementById(pre + '-msg');
-  const bar = { user: loadStore(storeKey), say: (t) => { msg.textContent = t; } };
+  const bar = { user: loadStore(storeKey), say: (t) => { msg.textContent = t; clearTimeout(bar.t); bar.t = setTimeout(() => { msg.textContent = ''; }, 4000); } };
   let armed = '';
   const esc = (n) => n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   bar.render = (selected) => {
