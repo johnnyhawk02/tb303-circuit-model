@@ -54,14 +54,27 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 
 /* top bar */
 .top { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; }
-.top { gap: 14px 30px; }
+.top { gap: 12px 26px; position: sticky; top: 0; z-index: 30; margin: -28px -16px 0; padding: 18px 16px 14px; border-bottom: 1px solid var(--line);
+  background: var(--grime), var(--grain), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
+.top .hp { position: relative; flex: 1 1 200px; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 10px; }
+.hp .pm { min-width: 0; }
+.hp .pm-btn { min-width: 0; }
+.pm .pm-btn { font-size: 19px; padding: 4px 8px; }
+.pm-foot { display: none; }
+.pm-pop .pm-foot { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-top: 1.5px solid var(--fg); }
+.pm-foot input[type=text] { flex: 1 1 140px; min-width: 0; width: auto; font-size: 12px; padding: 5px 8px; }
+.pm-foot button { padding: 5px 10px; font-size: 12px; }
+.pm-foot .hint { flex-basis: 100%; }
+.pm-foot .hint:empty { display: none; }
+#pat-bar .pm-pop { left: auto; right: 0; }
+.pm-pop { min-width: 340px; grid-template-rows: auto minmax(0, 1fr) auto; }
 .icon { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; }
 .icon svg { width: 26px; height: 26px; fill: var(--fg); }
 .play .sq, .play[aria-pressed=true] .tri { display: none; }
 .play[aria-pressed=true] .sq { display: inline; }
 .play[aria-pressed=true] { background: var(--fg); box-shadow: 2px 2px 0 var(--ghost); }
 .play[aria-pressed=true] svg { fill: var(--bg); }
-.gear { margin-left: auto; border-color: transparent; }
+.gear { border-color: transparent; }
 .gear svg { width: 30px; height: 30px; }
 .bpm { display: flex; align-items: center; gap: 10px; }
 .bpm .knob { width: 52px; height: 52px; }
@@ -171,23 +184,23 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 
 /* preset menu */
 .pm { position: relative; flex: 1 1 100%; display: flex; min-width: 0; }
-.strip .presets .pm-btn { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; font: 400 20px/1.1 var(--font-lcd); padding: 5px 10px; }
+.pm .pm-btn { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; font: 400 20px/1.1 var(--font-lcd); padding: 5px 10px; }
 .pm-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pm-btn .grp { color: var(--mute); flex: none; }
-.strip .presets .pm-step { padding: 0 10px; font-size: 11px; border-left-width: 0; }
+.pm .pm-step { padding: 0 10px; font-size: 11px; border-left-width: 0; }
 .pm-pop { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 280px; display: grid; grid-template-rows: auto minmax(0, 1fr);
   max-height: min(62vh, 460px); border: 1.5px solid var(--fg); box-shadow: 4px 4px 0 var(--ghost);
   background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
 .pm-pop[hidden] { display: none; }
-.strip .presets .pm-q { margin: 8px; width: auto; font: 400 20px/1 var(--font-lcd); padding: 4px 8px; }
+.pm .pm-q { margin: 8px; width: auto; font: 400 20px/1 var(--font-lcd); padding: 4px 8px; }
 .pm-list { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
-.strip .presets .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid var(--line); padding: 6px 10px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; text-align: left; }
+.pm .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid var(--line); padding: 6px 10px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; text-align: left; }
 .pm-g::before { content: "▸"; margin-right: 8px; }
 .pm-g[aria-expanded=true]::before { content: "▾"; }
 .pm-g .n { margin-left: auto; color: var(--mute); font-weight: 400; }
-.strip .presets .pm-i { display: block; width: 100%; border: 0; padding: 2px 12px 2px 28px; text-align: left; font: 400 19px/1.15 var(--font-lcd); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm .pm-i { display: block; width: 100%; border: 0; padding: 2px 12px 2px 28px; text-align: left; font: 400 19px/1.15 var(--font-lcd); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pm-i.act, .pm-i:hover, .pm-g.act { background: var(--soft); }
-.strip .presets .pm-i[aria-selected=true] { background: var(--fg); color: var(--bg); box-shadow: 2px 2px 0 var(--ghost); }
+.pm .pm-i[aria-selected=true] { background: var(--fg); color: var(--bg); box-shadow: 2px 2px 0 var(--ghost); }
 .pm-none { padding: 10px 12px; color: var(--mute); }
 
 /* options sheet */
@@ -252,6 +265,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
   .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .monitor { grid-template-columns: 1fr; }
 }
+@media (max-width: 760px) { .top .hp { order: 5; flex-basis: 100%; } .top .hp .label { min-width: 7ch; } .gear { margin-left: auto; } .pm-pop { min-width: 0; } }
 @media (max-width: 520px) { .wsw .label { font-size: 10px; } .top { gap: 12px 16px; } }
 @media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pane { min-height: 0; } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -270,6 +284,26 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
       <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
       <span class="label" aria-hidden="true">Square</span>
     </div>
+    <div class="hp presets" id="snd-bar">
+      <span class="label">Sound</span>
+      <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
+      <div class="pm-foot">
+        <input id="snd-name" type="text" placeholder="Save current sound as…" maxlength="40" aria-label="Sound preset name">
+        <button type="button" id="snd-save">Save</button>
+        <button type="button" id="snd-del">Delete</button>
+        <span class="hint" id="snd-msg" role="status"></span>
+      </div>
+    </div>
+    <div class="hp presets" id="pat-bar">
+      <span class="label">Pattern</span>
+      <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
+      <div class="pm-foot">
+        <input id="pat-name" type="text" placeholder="Save current pattern as…" maxlength="40" aria-label="Pattern preset name">
+        <button type="button" id="pat-save">Save</button>
+        <button type="button" id="pat-del">Delete</button>
+        <span class="hint" id="pat-msg" role="status"></span>
+      </div>
+    </div>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
     <span class="status" id="status" role="status">Stopped</span>
   </header>
@@ -281,7 +315,6 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
     <button type="button" role="tab" data-pane="mods">Mods</button>
     <button type="button" role="tab" data-pane="rat">RAT</button>
     <button type="button" role="tab" data-pane="lex">224</button>
-    <button type="button" role="tab" data-pane="presets">Presets</button>
   </div>
 
   <section class="sq pane" id="pane-seq" role="tabpanel" aria-label="Sequencer">
@@ -326,29 +359,6 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
       <div class="lex-progs" id="lex-progs" role="radiogroup" aria-label="Program"></div>
       <div class="fx" id="fx-lex"><div class="fxknobs" id="fx-lex-knobs"></div></div>
       <p class="hint lex-note" id="lex-note"></p>
-    </section>
-  </div>
-
-  <div class="pane strip" id="pane-presets" role="tabpanel" aria-label="Presets" hidden>
-    <section class="blk-snd">
-      <h3>Sound</h3>
-      <div class="presets" id="snd-bar">
-        <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
-        <input id="snd-name" type="text" placeholder="Name this sound" maxlength="40" aria-label="Sound preset name">
-        <button type="button" id="snd-save">Save</button>
-        <button type="button" id="snd-del">Delete</button>
-        <span class="hint" id="snd-msg" role="status"></span>
-      </div>
-    </section>
-    <section class="blk-pat">
-      <h3>Pattern</h3>
-      <div class="presets" id="pat-bar">
-        <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
-        <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern preset name">
-        <button type="button" id="pat-save">Save</button>
-        <button type="button" id="pat-del">Delete</button>
-        <span class="hint" id="pat-msg" role="status"></span>
-      </div>
     </section>
   </div>
 </div>
@@ -1266,6 +1276,7 @@ function presetMenu(host) {
   host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span><span class="grp"></span></button>`
     + `<button type="button" class="pm-step" data-d="-1" aria-label="Previous preset">◀</button><button type="button" class="pm-step" data-d="1" aria-label="Next preset">▶</button>`
     + `<div class="pm-pop" hidden><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets"><div class="pm-list" role="listbox" aria-label="${sel.getAttribute('aria-label')}"></div></div>`;
+  host.querySelector('.pm-pop').appendChild(host.parentElement.querySelector('.pm-foot'));
   const btn = host.querySelector('.pm-btn'), pop = host.querySelector('.pm-pop'), q = host.querySelector('.pm-q'), list = host.querySelector('.pm-list');
   const open = new Set(); let act = -1;
   const groups = () => [...sel.querySelectorAll('optgroup')].map(g => ({ label: g.label, items: [...g.querySelectorAll('option')] }));
