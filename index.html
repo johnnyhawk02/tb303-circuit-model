@@ -2664,14 +2664,14 @@ function renderSeq() {
     const last = r === OCT_ROWS.length - 1 ? ' gap' : '';
     h += `<div class="rh${last}">${o > 0 ? '+' : '−'}${Math.abs(o)}</div>` + P.map((s, i) => {
       const on = splitCode(s.code).o === o;
-      return `<button type="button" class="cell${on ? (s.gate ? ' on' : ' ghost') : ''}${bar(i)}${last}" id="so${o}_${i}" data-col="${i}" data-t="o" data-v="${o}" aria-pressed="${on}" aria-label="Step ${i + 1} octave ${o > 0 ? '+' : '−'}${Math.abs(o)}"></button>`;
+      return `<button type="button" class="cell${on && s.gate ? ' on' : ''}${bar(i)}${last}" id="so${o}_${i}" data-col="${i}" data-t="o" data-v="${o}" aria-pressed="${on}" aria-label="Step ${i + 1} octave ${o > 0 ? '+' : '−'}${Math.abs(o)}"></button>`;
     }).join('');
   });
   KEY_ROWS.forEach((k, r) => {
     const cls = (BLACK.has(k) ? ' blk' : '') + (r === KEY_ROWS.length - 1 ? ' gap' : '');
     h += `<div class="rh${cls}">${NOTE[k]}</div>` + P.map((s, i) => {
       const on = splitCode(s.code).k === k;
-      return `<button type="button" class="cell${cls}${on ? (s.gate ? ' on' : ' ghost') : ''}${bar(i)}" id="sk${k}_${i}" data-col="${i}" data-t="k" data-v="${k}" aria-pressed="${on && s.gate}" aria-label="Step ${i + 1} ${NOTE[k]}${on && !s.gate ? ' (rest)' : ''}"></button>`;
+      return `<button type="button" class="cell${cls}${on && s.gate ? ' on' : ''}${bar(i)}" id="sk${k}_${i}" data-col="${i}" data-t="k" data-v="${k}" aria-pressed="${on && s.gate}" aria-label="Step ${i + 1} ${NOTE[k]}${on && !s.gate ? ' (rest)' : ''}"></button>`;
     }).join('');
   });
   for (const [key, lab] of [['slide', 'SLIDE'], ['accent', 'ACC']]) {
