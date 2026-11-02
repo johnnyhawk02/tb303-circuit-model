@@ -1,3 +1,15 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#262626">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="303">
 <title>303 Circuit Model</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -471,7 +483,7 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
         <span class="hint" id="pat-msg" role="status"></span>
       </div>
     </div>
-    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="parts">Randomise component values</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
+    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="parts">Randomise component values</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
     <span class="status" id="status" role="status">Stopped</span>
@@ -2543,7 +2555,20 @@ fnMenu.addEventListener('keydown', (e) => {
 });
 const undoStack = [];
 function pushUndo() { undoStack.push({ k: slotKey(sel.g, sel.n), pattern: state.pattern.map(st => ({ ...st })) }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false; }
+// ---------- install as an app ----------
+let installEvt = null;
+const standalone = () => matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
+addEventListener('appinstalled', () => { installEvt = null; document.getElementById('fn-install').hidden = true; sqSay('Installed. Open 303 from your home screen or app list.'); });
+if (standalone()) document.getElementById('fn-install').hidden = true;
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 const FUNCTIONS = {
+  async install() {
+    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome !== 'accepted') sqSay('Install cancelled.'); installEvt = null; return; }
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) sqSay('On iPhone or iPad: tap Share, then Add to Home Screen.');
+    else if (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)) sqSay('In Safari on a Mac: File › Add to Dock.');
+    else sqSay('Use your browser menu: Install 303 Circuit Model, or Add to Home screen.');
+  },
   // a variation, not a new pattern: about a quarter of the steps change, notes stay among the pitches the pattern already uses
   alter() {
     pushUndo();
