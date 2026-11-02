@@ -121,6 +121,14 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .sq-bank .slots button { min-width: 28px; padding: 5px 0; }
 .sq-bank .slots button.used:not([aria-pressed=true]) { text-decoration: underline; text-underline-offset: 3px; }
 .sq-ed { display: flex; gap: 6px; margin-left: auto; }
+.fn { position: relative; }
+.fn-menu { position: absolute; z-index: 40; top: calc(100% + 4px); right: 0; min-width: 220px; display: grid; padding: 4px 0; border: 1.5px solid var(--fg); box-shadow: 4px 4px 0 var(--ghost);
+  background: var(--grime), var(--grain), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
+.fn-menu[hidden] { display: none; }
+.sq-ed .fn-menu button { border: 0; text-align: left; padding: 6px 12px; font: 400 19px/1.1 var(--font-lcd); white-space: nowrap; }
+.sq-ed .fn-menu button:hover, .sq-ed .fn-menu button:focus-visible { background: var(--fg); color: var(--bg); outline: 0; }
+.sq-msg { font: 400 18px/1 var(--font-lcd); }
+.sq-msg:empty { display: none; }
 .sq-bank .slots button { position: relative; }
 .sq-bank .slots button[data-ch]:not([data-ch=""])::after { content: attr(data-ch); position: absolute; top: -9px; right: -3px; font: 400 14px/1 var(--font-lcd); padding: 0 2px; background: var(--fg); color: var(--bg); }
 .sq-bank .slots button.playing { outline: 2px solid var(--fg); outline-offset: -4px; }
@@ -322,7 +330,8 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
       <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
       <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
       <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
-      <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new random preset">Refill</button></div>
+      <span class="hint sq-msg" id="sq-msg" role="status"></span>
+      <div class="sq-ed"><div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions ▾</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button></div></div><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new random preset">Refill</button></div>
     </div>
     <div class="sq-body">
       <div class="sq-side">
@@ -2332,6 +2341,32 @@ function toggleChain(b) {
   if (chain.length === 1 && chain[0] === slotKey(sel.g, sel.n) && pos >= 0) chain = [];
   store.set('chain', chain); sendPattern(); renderChain();
 }
+// ---------- functions menu ----------
+const fnBtn = document.getElementById('fn-btn'), fnMenu = document.getElementById('fn-menu'), sqMsg = document.getElementById('sq-msg');
+let sqMsgT = 0;
+function sqSay(t) { sqMsg.textContent = t; clearTimeout(sqMsgT); sqMsgT = setTimeout(() => { sqMsg.textContent = ''; }, 5000); }
+function fnOpen(on) { fnMenu.hidden = !on; fnBtn.setAttribute('aria-expanded', on); if (on) fnMenu.querySelector('button').focus(); }
+fnBtn.onclick = () => fnOpen(fnMenu.hidden);
+document.addEventListener('pointerdown', (e) => { if (!fnMenu.hidden && !e.target.closest('.fn')) fnOpen(false); });
+fnMenu.addEventListener('keydown', (e) => {
+  const items = [...fnMenu.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { fnOpen(false); fnBtn.focus(); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
+});
+const FUNCTIONS = {
+  // join every chained pattern into one and put it on the Copy/Paste clipboard (and the system clipboard as JSON)
+  join() {
+    storeSlot();
+    const keys = chain.length >= 2 ? chain : [slotKey(sel.g, sel.n)];
+    const all = keys.flatMap(k => slotPattern(k)), cut = all.length > 64;
+    clip = { shuffle: state.shuffle, gate: state.gate, pattern: all.slice(0, 64) };
+    store.set('clip', clip); renderBank();
+    try { navigator.clipboard?.writeText(JSON.stringify({ app: 'tb303-circuit-model', pattern: clip.pattern })).catch(() => {}); } catch {}
+    sqSay(chain.length < 2 ? `No chain, copied ${keys[0]} (${all.length} steps). Paste it into a slot.`
+      : `Joined ${keys.join(' › ')}: ${Math.min(64, all.length)} steps copied${cut ? `, the last ${all.length - 64} cut off at the 64-step limit` : ''}. Paste it into a slot.`);
+  },
+};
+fnMenu.addEventListener('click', (e) => { const b = e.target.closest('[data-fn]'); if (!b) return; fnOpen(false); FUNCTIONS[b.dataset.fn](); });
 document.getElementById('chain-clear').onclick = () => { chain = []; store.set('chain', chain); playingSlot = ''; sendPattern(); renderChain(); };
 // the slot that was selected last holds the current pattern; seed it the first time
 if (!banks[slotKey(sel.g, sel.n)]) storeSlot();
