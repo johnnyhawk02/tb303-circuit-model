@@ -424,7 +424,7 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
 .dclk-fade { display: flex; align-items: center; gap: 8px; font: 600 11px var(--font-body); color: var(--mute); }
 .dclk-fade input { width: 120px; accent-color: var(--hi); }
 .dclk-fade output { color: var(--hi); min-width: 4.5em; font-weight: 500; }
-dialog#options { height: fit-content; min-height: min(460px, calc(100dvh - 32px)); max-height: min(760px, calc(100dvh - 32px)); }
+dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-height: none; } /* fixed size: switching tabs never resizes it */
 
 @media (max-width: 760px) {
   .opt-head { flex-wrap: wrap; padding-left: 16px; } .opt-head h2 { padding-bottom: 0; flex: 1; } .otabs { order: 3; flex-basis: 100%; } .xbtn { margin-bottom: 0; }
