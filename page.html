@@ -1199,11 +1199,14 @@ const FUNCTIONS = {
     const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
     sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
   },
-  // nudge every adjustable part around its stock value (15% of its knob travel either way), and keep only sets that still make a sound
+  // nudge every adjustable part around its stock value (15% of its knob travel either way, CV parts only 0.5%), and keep only sets that still make a sound
   parts() {
     undoStack.push({ parts: { ...state.parts } }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false;
     const keys = Object.keys(COMPONENTS).filter(k => !COMPONENTS[k].fixed);
-    const pick = () => Object.fromEntries(keys.map(k => [k, fromSlider(k, Math.min(SL, Math.max(0, toSlider(k, COMPONENTS[k].v) + (Math.random() * 2 - 1) * 0.15 * SL)))]));
+    // CV (pitch DAC) parts only get a 0.5% tolerance, like matched 1% resistors: more than that puts the scale out of tune
+    const nudge = (k) => COMPONENTS[k].block === 'CV' ? COMPONENTS[k].v * (1 + (Math.random() * 2 - 1) * 0.005)
+      : fromSlider(k, Math.min(SL, Math.max(0, toSlider(k, COMPONENTS[k].v) + (Math.random() * 2 - 1) * 0.15 * SL)));
+    const pick = () => Object.fromEntries(keys.map(k => [k, nudge(k)]));
     let set = null;
     for (let tries = 0; tries < 8 && !set; tries++) {
       const cand = pick(), v = new TB303Voice(22050);
