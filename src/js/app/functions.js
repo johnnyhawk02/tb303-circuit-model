@@ -25,6 +25,7 @@ function tolerance(k) {
   if (d.fixed || d.block === '224') return 0;
   if (d.block === 'CV') return 0.005;          // matched 1% parts in the pitch DAC; more than this puts the scale out of tune
   if (k === 'F_TUNE' || k === 'CV_TUNE') return 0.003; // set by the tuning trimmers at the factory, so only a few cents out
+  if (/^TM/.test(k)) return 0;                // trimmers are set at the factory
   if (/^VR/.test(k)) return 0.2;               // pots are ±20%
   if (d.unit === 'Ω') return 0.05;             // carbon film, ±5%
   if (d.unit === 'F') return d.v >= 1e-6 ? 0.2 : 0.1; // electrolytics ±20%, film and ceramic ±10%

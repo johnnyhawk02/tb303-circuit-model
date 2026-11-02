@@ -75,7 +75,7 @@ tabsEl.addEventListener('keydown', (e) => {
 function renderBoardSoon() { const bp = document.getElementById('pane-board'); if (!bp || bp.hidden || bp._raf) return; bp._raf = requestAnimationFrame(() => { bp._raf = 0; renderBoard(); }); }
 function applyPart(k, val) {
   state.parts[k] = val;
-  if (k === 'I_REF') queueMicrotask(drawTrim);
+  if (k === 'TM3') queueMicrotask(drawTrim);
   for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
@@ -87,7 +87,7 @@ const partT = (k) => toSlider(k, state.parts[k]) / SL;
 // real parts: resistors move in E24 steps and capacitors in E12, the values you can buy; Shift gives in-between values
 const E24 = [1.0,1.1,1.2,1.3,1.5,1.6,1.8,2.0,2.2,2.4,2.7,3.0,3.3,3.6,3.9,4.3,4.7,5.1,5.6,6.2,6.8,7.5,8.2,9.1];
 const E12 = [1.0,1.2,1.5,1.8,2.2,2.7,3.3,3.9,4.7,5.6,6.8,8.2];
-const realSeries = (k) => { const d = COMPONENTS[k]; return ['schematic', 'td3', 'rat'].includes(d.source) && !d.fixed ? (d.unit === 'Ω' ? E24 : d.unit === 'F' ? E12 : null) : null; };
+const realSeries = (k) => { const d = COMPONENTS[k]; return ['schematic', 'td3', 'rat'].includes(d.source) && !d.fixed && !/^TM/.test(k) ? (d.unit === 'Ω' ? E24 : d.unit === 'F' ? E12 : null) : null; };
 function seriesValues(k) {
   const E = realSeries(k), [lo, hi] = partRange(k), out = [];
   for (let dec = Math.floor(Math.log10(lo)) - 1; dec <= Math.ceil(Math.log10(hi)); dec++)
@@ -113,8 +113,8 @@ const FRONT_MODS = [
   ['C35', 'Slide time', 'how long glides take'],
   ['R138', 'Short decay', 'fastest and accent decay'],
   ['R52', 'Note length', 'how long the VCA rings'],
-  ['C_ACC', 'Accent sweep', 'how accents build up'],
-  ['R72', 'Env depth', 'size of the filter sweep'],
+  ['C13', 'Accent sweep', 'how accents build up'],
+  ['R63', 'Env depth', 'size of the filter sweep'],
   ['V_CUT', 'Cutoff range', 'how far the cutoff reaches'],
   ['A_Q21', 'Reso limit', 'up to self-oscillation'],
   ['R_IN', 'Drive', 'push the filter harder'],

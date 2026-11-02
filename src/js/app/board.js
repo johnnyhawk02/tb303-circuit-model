@@ -23,7 +23,7 @@ function partSVG(k, cx, cy) {
   const lead = (x1, x2) => `<line class="lead" x1="${x1}" y1="${cy}" x2="${x2}" y2="${cy}"/>`;
   const pads = `<circle class="pad" cx="${cx - 34}" cy="${cy}" r="4"/><circle class="pad" cx="${cx + 34}" cy="${cy}" r="4"/>`;
   let body;
-  if (/^VR/.test(k)) {
+  if (/^(VR|TM)/.test(k)) {
     const t = POT_KNOB[k] ? state.knobs[POT_KNOB[k]] : toSlider(k, v) / SL, a = (KNOB_A0 + KNOB_SWEEP * t) * Math.PI / 180;
     body = `${pads}${lead(cx - 34, cx + 34)}<rect class="pot" x="${cx - 17}" y="${cy - 17}" width="34" height="34" rx="3"/><circle class="shaft" cx="${cx}" cy="${cy}" r="11"/>`
       + `<line class="slot" x1="${cx}" y1="${cy}" x2="${(cx + Math.sin(a) * 10).toFixed(1)}" y2="${(cy - Math.cos(a) * 10).toFixed(1)}"/>`;
