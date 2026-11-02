@@ -864,19 +864,20 @@ function parse(str) {
 
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
+const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
 function knobSVG() {
   // Live-style dial: thick value arc over a dark track, and a dark pointer that runs out through the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path class="trk" d="M14.32 49.68 A25 25 0 1 1 49.68 49.68" fill="none" stroke="var(--line)" stroke-width="3.6"/>
+    <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none" stroke="var(--line)" stroke-width="3.6"/>
     <path class="arc" d="" fill="none" stroke="var(--fg)" stroke-width="3.6"/>
     <line class="ptr" x1="32" y1="32" x2="32" y2="4.5" stroke="var(--bg)" stroke-width="3" stroke-linecap="round"/>
   </svg>`;
 }
 function arcPath(p) {
-  const a0 = -135, a = a0 + 270 * p, r = 25, cx = 32, cy = 32;
+  const a0 = KNOB_A0, a = a0 + KNOB_SWEEP * p, r = 25, cx = 32, cy = 32;
   const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
   const [x0, y0] = pt(a0), [x1, y1] = pt(a);
-  return p < 0.002 ? '' : `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${270 * p > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  return p < 0.002 ? '' : `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${KNOB_SWEEP * p > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 function knobText(id, p) {
   const c = state.parts;
@@ -936,7 +937,7 @@ for (const k of KNOBS) {
 function drawKnob(id) {
   const p = state.knobs[id], k = knobEls[id];
   k.arc.setAttribute('d', arcPath(p));
-  k.ptr.setAttribute('transform', `rotate(${-135 + 270 * p} 32 32)`);
+  k.ptr.setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
   k.el.setAttribute('aria-valuenow', Math.round(p * 100));
   k.val.textContent = knobText(id, p);
   if (id.startsWith('lex')) drawLex();
@@ -1278,7 +1279,7 @@ function drawPartKnob(k) {
   const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL;
   for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
     el.querySelector('.arc').setAttribute('d', arcPath(t));
-    el.querySelector('.ptr').setAttribute('transform', `rotate(${-135 + 270 * t} 32 32)`);
+    el.querySelector('.ptr').setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * t} 32 32)`);
     el.setAttribute('aria-valuenow', Math.round(t * 100));
   }
 }
@@ -1504,7 +1505,7 @@ bpmKnob.innerHTML = knobSVG();
 function drawBpm() {
   const p = (state.bpm - 60) / 140;
   bpmKnob.querySelector('.arc').setAttribute('d', arcPath(p));
-  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${-135 + 270 * p} 32 32)`);
+  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
   bpmKnob.setAttribute('aria-valuenow', state.bpm); bpmVal.textContent = state.bpm;
 }
 function setBpm(v) {
