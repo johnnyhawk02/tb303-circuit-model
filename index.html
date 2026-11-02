@@ -332,7 +332,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
       <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
       <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
       <span class="hint sq-msg" id="sq-msg" role="status"></span>
-      <div class="sq-ed"><div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions ▾</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new random preset">Refill</button></div>
+      <div class="sq-ed"><div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions ▾</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="parts">Randomise component values</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new random preset">Refill</button></div>
     </div>
     <div class="sq-body">
       <div class="sq-side">
@@ -2377,8 +2377,30 @@ const FUNCTIONS = {
     const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
     sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
   },
+  // nudge every adjustable part around its stock value (15% of its knob travel either way), and keep only sets that still make a sound
+  parts() {
+    undoStack.push({ parts: { ...state.parts } }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false;
+    const keys = Object.keys(COMPONENTS).filter(k => !COMPONENTS[k].fixed);
+    const pick = () => Object.fromEntries(keys.map(k => [k, fromSlider(k, Math.min(SL, Math.max(0, toSlider(k, COMPONENTS[k].v) + (Math.random() * 2 - 1) * 0.15 * SL)))]));
+    let set = null;
+    for (let tries = 0; tries < 8 && !set; tries++) {
+      const cand = pick(), v = new TB303Voice(22050);
+      for (const k in cand) v.setComponent(k, cand[k]);
+      for (const kn of KNOBS) v.setKnob(kn.id, state.knobs[kn.id]);
+      v.waveform = state.wave;
+      const buf = new Float32Array(11025); let e = 0, ok = true;
+      for (let n = 0; n < 4; n++) { v.noteOn(24 + 7 * (n & 1), n === 2, false); v.process(buf, n * 2756, n * 2756 + 1500); v.noteOff(); v.process(buf, n * 2756 + 1500, n * 2756 + 2756); }
+      for (const x of buf) { if (!isFinite(x)) ok = false; e += x * x; }
+      if (ok && Math.sqrt(e / buf.length) > 0.015) set = cand;
+    }
+    if (!set) { undoStack.pop(); document.getElementById('fn-undo').disabled = !undoStack.length; sqSay('Could not find a random set that still sounds. Try again.'); return; }
+    for (const k in set) state.parts[k] = set[k];
+    applySound({ ...soundSnap(), parts: Object.fromEntries(Object.entries(set)) });
+    sqSay(`Randomised ${keys.length} parts around their stock values. Options › Circuit shows them, and Functions › Undo puts them back.`);
+  },
   undo() {
     const u = undoStack.pop(); if (!u) return;
+    if (u.parts) { applySound({ ...soundSnap(), parts: u.parts }); document.getElementById('fn-undo').disabled = !undoStack.length; sqSay('Part values put back.'); return; }
     if (u.k !== slotKey(sel.g, sel.n)) loadSlot(u.k[0], +u.k.slice(1) - 1);
     state.pattern = u.pattern; tail = []; renderSeq(); pushPattern();
     document.getElementById('fn-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
