@@ -391,6 +391,19 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
       <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
       <span class="label" aria-hidden="true">Square</span>
     </div>
+    <div class="hp presets" id="prj-bar">
+      <span class="label">Project</span>
+      <select id="prj-preset" aria-label="Projects" hidden></select><div class="pm" data-for="prj-preset"></div>
+      <div class="pm-foot">
+        <input id="prj-name" type="text" placeholder="Save everything as…" maxlength="40" aria-label="Project name">
+        <button type="button" id="prj-save">Save</button>
+        <button type="button" id="prj-del">Delete</button>
+        <button type="button" id="prj-export">Export file</button>
+        <button type="button" id="prj-import">Import file</button>
+        <input type="file" id="prj-file" accept=".json,application/json" hidden>
+        <span class="hint" id="prj-msg" role="status"></span>
+      </div>
+    </div>
     <div class="hp presets" id="snd-bar">
       <span class="label">Sound</span>
       <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
@@ -3003,14 +3016,67 @@ function presetMenu(host) {
   sel.addEventListener('sync', sync); sel.addEventListener('change', sync);
   sync();
 }
+// ---------- projects: everything at once (sound, effects, tempo, all 48 bank slots, chain) ----------
+const SLOT_RE = /^[A-D]([1-9]|1[0-2])$/;
+function projectSnap() {
+  storeSlot();
+  return { sound: soundSnap(), bpm: state.bpm, sel: { ...sel }, chain: [...chain],
+    banks: Object.fromEntries(Object.entries(banks).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
+}
+function applyProject(x) {
+  if (!x || typeof x !== 'object') return;
+  if (x.sound) applySound(x.sound); else applySound({});
+  if (typeof x.bpm === 'number') { state.bpm = Math.min(200, Math.max(60, Math.round(x.bpm))); drawBpm(); send({ type: 'bpm', value: state.bpm }); }
+  if (x.banks && typeof x.banks === 'object') {
+    for (const k of Object.keys(banks)) delete banks[k];
+    for (const [k, v] of Object.entries(x.banks)) {
+      if (!SLOT_RE.test(k)) continue;
+      const c = cleanSettings(v); if (!c.pattern) continue;
+      banks[k] = { shuffle: c.shuffle ?? 0, gate: c.gate ?? 0.5, pattern: c.pattern, ...(v.auto ? { auto: true, name: String(v.name || '') } : {}) };
+    }
+    store.set('banks', banks);
+  }
+  if (x.sel && 'ABCD'.includes(x.sel.g) && x.sel.n >= 0 && x.sel.n < 12) sel = { g: x.sel.g, n: x.sel.n | 0 };
+  store.set('bankSel', sel);
+  chain = Array.isArray(x.chain) ? x.chain.filter(k => SLOT_RE.test(k)) : [];
+  store.set('chain', chain); playingSlot = '';
+  const c = cleanSettings(banks[slotKey(sel.g, sel.n)]);
+  state.pattern = c.pattern || blankPattern(); state.shuffle = c.shuffle ?? 0; state.gate = c.gate ?? 0.5;
+  tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank(); saveSession();
+}
+const PROJECT_BUILTIN = { 'Init (stock sound, empty banks)': { sound: {}, bpm: 128, banks: {}, chain: [] } };
 const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
 const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);
+const prjBar = presetBar('prj', 'projectPresets', PROJECT_BUILTIN, projectSnap, applyProject);
+const download = (name, obj) => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+document.getElementById('prj-export').onclick = () => {
+  const nm = (document.getElementById('prj-name').value.trim() || 'tb303-project').replace(/[^\w .-]+/g, '_');
+  download(nm + '.json', { app: 'tb303-circuit-model', kind: 'project', version: 1, project: projectSnap() });
+  prjBar.say(`Exported ${nm}.json.`);
+};
+const prjFile = document.getElementById('prj-file');
+document.getElementById('prj-import').onclick = () => prjFile.click();
+prjFile.addEventListener('change', async () => {
+  const f = prjFile.files[0]; prjFile.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()), x = j?.project || j?.current?.project;
+    if (!x || typeof x !== 'object') throw 0;
+    applyProject(x);
+    const nm = f.name.replace(/\.json$/i, '').trim().slice(0, 40) || 'Imported';
+    prjBar.user[nm] = projectSnap(); prjBar.save(); prjBar.render('u:' + nm);
+    prjBar.say(`Loaded and saved as ${nm}.`);
+  } catch { prjBar.say('That file is not a project export from this page.'); }
+});
 for (const el of document.querySelectorAll('.pm')) presetMenu(el);
 
 document.getElementById('preset-export').onclick = () => {
   const data = JSON.stringify({ app: 'tb303-circuit-model', version: 2,
     current: { sound: soundSnap(), pattern: patternSnap() },
-    soundPresets: soundBar.user, patternPresets: patBar.user }, null, 2);
+    soundPresets: soundBar.user, patternPresets: patBar.user, projectPresets: prjBar.user }, null, 2);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
   a.download = 'tb303-settings.json'; document.body.appendChild(a); a.click(); a.remove();
@@ -3028,6 +3094,7 @@ fileEl.addEventListener('change', async () => {
     const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
     add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave, fx: c.fx }));
     add(j.patternPresets, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
+    if (j.projectPresets && typeof j.projectPresets === 'object') { for (const [n, x] of Object.entries(j.projectPresets)) { const nm = n.trim().slice(0, 40); if (nm && x && typeof x === 'object') prjBar.user[nm] = x; } prjBar.save(); prjBar.render(''); }
     if (j.presets) { // version 1 files: combined presets
       add(j.presets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
       const withPat = Object.fromEntries(Object.entries(j.presets).filter(([, x]) => Array.isArray(x?.pattern)));
