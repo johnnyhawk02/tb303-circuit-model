@@ -384,6 +384,12 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
 .lex-note { font-size: 11px; color: var(--mute); }
 .mods { gap: 18px 10px; }
 .stp output.unit { color: var(--mute); font-size: 10px; }
+.dclk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid #1a1a1a; }
+.dclk-txt { display: grid; gap: 2px; flex: 1 1 280px; min-width: 0; font-size: 12px; }
+.dclk-txt .hint { font-size: 11px; color: var(--mute); }
+.dclk-fade { display: flex; align-items: center; gap: 8px; font: 600 11px var(--font-body); color: var(--mute); }
+.dclk-fade input { width: 120px; accent-color: var(--hi); }
+.dclk-fade output { color: var(--hi); min-width: 4.5em; font-weight: 500; }
 dialog#options { height: fit-content; min-height: min(460px, calc(100dvh - 32px)); max-height: min(760px, calc(100dvh - 32px)); }
 
 @media (max-width: 760px) {
@@ -603,6 +609,11 @@ dialog#options { height: fit-content; min-height: min(460px, calc(100dvh - 32px)
       <div class="detail" id="pdetail" aria-live="polite">Hover or focus a part to see what it does.</div>
     </section>
     <section class="osec" id="osec-monitor" role="tabpanel" aria-label="Monitor" hidden>
+      <div class="dclk">
+        <button type="button" class="onoff" id="dc-on" aria-pressed="true">On</button>
+        <div class="dclk-txt"><strong>De-click</strong><span class="hint">Eases the level over a few ms around each retrigger, where the real 303 clicks. Adds 3 ms of latency. Off is the original sound.</span></div>
+        <label class="dclk-fade">Fade <input type="range" id="dc-ms" min="0.5" max="3" step="0.25" value="1.5" aria-label="De-click fade time"> <output id="dc-ms-v">1.5 ms</output></label>
+      </div>
       <div class="monitor">
         <canvas id="scope" width="1200" height="300" aria-label="Oscilloscope view of the output"></canvas>
         <dl class="readouts" id="readouts"></dl>
@@ -641,7 +652,7 @@ dialog#options { height: fit-content; min-height: min(460px, calc(100dvh - 32px)
 class TB303Processor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.v = new TB303Voice(sampleRate); this.slew = new ParamSlew(this.v, sampleRate);
+    this.v = new TB303Voice(sampleRate); this.slew = new ParamSlew(this.v, sampleRate); this.dc = new DeClick(this.v, sampleRate);
     this.playing = false; this.bpm = 128; this.pattern = [];
     this.step = -1; this.ctr = 0; this.gateOffAt = -1; this.shuffle = 0; this.gate = 0.5;
     this.port.onmessage = (e) => this.onMsg(e.data);
@@ -652,6 +663,7 @@ class TB303Processor extends AudioWorkletProcessor {
     else if (m.type === 'component') this.slew.set('c', m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value;
     else if (m.type === 'fx') v.setFx(m.name, m.value);
+    else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
     else if (m.type === 'pattern') this.pattern = m.value;
     else if (m.type === 'bpm') this.bpm = m.value;
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
@@ -682,7 +694,7 @@ class TB303Processor extends AudioWorkletProcessor {
         if (this.gateOffAt > elapsed) run = Math.min(run, this.gateOffAt - elapsed);
         else if (this.gateOffAt === elapsed) { this.v.noteOff(); this.gateOffAt = -1; }
       }
-      this.v.process(out, i, i + run, outR);
+      this.dc.process(out, i, i + run, outR);
       i += run; if (this.playing) this.ctr -= run;
     }
     for (let c = 2; c < outputs[0].length; c++) outputs[0][c].set(out);
@@ -794,6 +806,17 @@ const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 
 let ctx = null, node = null, analyser = null, fallback = null;
 const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+// de-click is a playback preference, kept apart from sounds and projects
+const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
+function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
+function renderDeclick() {
+  const b = document.getElementById('dc-on'), r = document.getElementById('dc-ms');
+  b.setAttribute('aria-pressed', declick.on); b.textContent = declick.on ? 'On' : 'Off';
+  r.value = declick.ms; r.disabled = !declick.on; document.getElementById('dc-ms-v').textContent = declick.ms + ' ms';
+}
+document.getElementById('dc-on').onclick = () => { declick.on = !declick.on; store.set('declick', declick); renderDeclick(); sendDeclick(); };
+document.getElementById('dc-ms').oninput = (e) => { declick.ms = +e.target.value; store.set('declick', declick); renderDeclick(); sendDeclick(); };
+renderDeclick();
 
 // ---------- engineering notation ----------
 const PFX = [[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
@@ -1384,15 +1407,16 @@ async function initAudio() {
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
   send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
+  sendDeclick();
   drawScope();
 }
 function makeFallback() {
   const v = new TB303Voice(ctx.sampleRate), sp = ctx.createScriptProcessor(1024, 0, 2);
-  const slew = new ParamSlew(v, ctx.sampleRate);
+  const slew = new ParamSlew(v, ctx.sampleRate), dc = new DeClick(v, ctx.sampleRate);
   const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1, shuffle: 0, gate: 0.5 };
   f.msg = (m) => {
     if (m.type === 'knob') slew.set('k', m.name, m.value); else if (m.type === 'component') slew.set('c', m.name, m.value);
-    else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'fx') v.setFx(m.name, m.value); else if (m.type === 'pattern') f.pattern = m.value;
+    else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'fx') v.setFx(m.name, m.value); else if (m.type === 'declick') { dc.setOn(!!m.on); dc.setFade(m.ms); } else if (m.type === 'pattern') f.pattern = m.value;
     else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'groove') { f.shuffle = m.shuffle; f.gate = m.gate; } else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
   };
   sp.onaudioprocess = (e) => {
@@ -1409,7 +1433,7 @@ function makeFallback() {
         if (f.len - f.ctr === f.off) v.noteOff();
         f.ctr--;
       }
-      v.process(out, i, i + 1, outR);
+      dc.process(out, i, i + 1, outR);
     }
   };
   return f;

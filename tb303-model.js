@@ -795,4 +795,50 @@ class ParamSlew {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+// De-click: an output stage outside the circuit. The real 303 clicks where the VCA opens in about
+// 0.1 ms (accented notes skip the soft attack) and where a retrigger lands on a ringing tail. The
+// sequencer knows exactly when each retrigger happens, so the output is delayed by a few ms and the
+// level eases to zero and back over `fadeMs` around each retrigger. Between retriggers the signal
+// passes through untouched. Slides (no retrigger) are left alone. Note-offs are optional: the VCA
+// already releases over about 5 ms there, so they are skipped unless `offs` is set.
+class DeClick {
+  constructor(voice, fs, { on = true, fadeMs = 1.5, lookMs = 3, offs = false } = {}) {
+    this.v = voice; this.fs = fs; this.D = Math.max(1, Math.round(lookMs * 1e-3 * fs));
+    this.bufL = new Float32Array(this.D); this.w = 0;
+    this.t = 0; this.ev = []; this.offs = offs; this.on = on; this.setFade(fadeMs);
+    const on0 = voice.noteOn.bind(voice), off0 = voice.noteOff.bind(voice);
+    voice.noteOn = (code, accent, slide) => { if (!(voice.gate && slide)) this.mark(); on0(code, accent, slide); };
+    voice.noteOff = () => { if (voice.gate && this.offs) this.mark(); off0(); };
+  }
+  setFade(ms) { this.F = Math.max(1, Math.min(this.D, Math.round(ms * 1e-3 * this.fs))); }
+  setOn(on) { if (on === this.on) return; this.on = on; this.bufL.fill(0); this.ev.length = 0; }
+  mark() { if (this.on) this.ev.push(this.t); }
+  process(out, start = 0, end = out.length, outR) {
+    const v = this.v;
+    if (!this.on) { v.process(out, start, end, outR); this.t += end - start; return; }
+    // run the voice dry and do the 224 here, after the fade, so a retrigger never dips the reverb tail
+    const lex = v.fx.lex ? v.lex : null;
+    v.fx.lex = false; v.process(out, start, end); if (lex) v.fx.lex = true;
+    const D = this.D, F = this.F, L = this.bufL, ev = this.ev;
+    for (let n = start; n < end; n++, this.t++) {
+      let y = L[this.w]; L[this.w] = out[n]; this.w = this.w + 1 === D ? 0 : this.w + 1;
+      // yl/yr belong to time t - D; ease the level around any retrigger within F of it
+      const tt = this.t - D;
+      while (ev.length && ev[0] <= tt - F) ev.shift();
+      if (ev.length) {
+        let g = 1;
+        for (let i = 0; i < ev.length; i++) {
+          const d = Math.abs(tt - ev[i]); if (d < F) { const s = 0.5 - 0.5 * Math.cos(Math.PI * d / F); if (s < g) g = s; }
+        }
+        y *= g;
+      }
+      if (lex) {
+        lex.run(y); const w = lex.wet;
+        out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
+        if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
+      } else { out[n] = y; if (outR) outR[n] = y; }
+    }
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, DeClick, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
