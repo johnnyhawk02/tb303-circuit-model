@@ -69,17 +69,36 @@ input[type=number] { width: 68px; font-family: var(--font-mono); }
 .md:hover .val, .md:focus-within .val, .md .val.changed { opacity: 1; }
 .md .val.changed { color: var(--fg); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 
-/* sequencer */
-.seqwrap { overflow-x: auto; }
-.seq { display: grid; grid-template-columns: 44px repeat(var(--steps, 16), minmax(44px, 1fr)); width: max-content; min-width: 100%; font-family: var(--font-mono); font-size: 12px; border-top: 1.5px solid var(--fg); }
-.seq > div { border-bottom: 1px solid var(--line); padding: 5px 3px; display: flex; justify-content: center; align-items: center; min-height: 34px; }
-.seq > .rowh { justify-content: flex-start; color: var(--mute); font-size: 11px; letter-spacing: .08em; }
-.seq .stepn { color: var(--mute); }
-.seq .stepn.on { color: var(--bg); background: var(--fg); }
-.seq select { font: 12px var(--font-mono); background: transparent; color: var(--fg); border: 0; width: 100%; text-align: center; padding: 2px 0; }
-.seq select option { background: var(--bg); color: var(--fg); }
-.tog { width: 26px; height: 22px; padding: 0; border: 1.5px solid var(--line); font: 500 11px var(--font-mono); color: var(--mute); background: var(--bg); }
-.tog[aria-pressed=true] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+/* sequencer: piano roll */
+.sq { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 18px; }
+.sq-bank { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.sq-bank .seg button { padding: 5px 10px; font: 600 12px var(--font-mono); min-width: 30px; }
+.sq-bank .slots button { min-width: 28px; padding: 5px 0; }
+.sq-bank .slots button.used:not([aria-pressed=true]) { text-decoration: underline; text-underline-offset: 3px; }
+.sq-ed { display: flex; gap: 6px; margin-left: auto; }
+.sq-ed button { padding: 5px 10px; font-size: 12px; }
+.sq-body { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 16px; align-items: start; }
+.sq-side { display: grid; gap: 8px; }
+.stp { display: grid; grid-template-columns: 1fr 24px 42px 24px; gap: 0 2px; align-items: center; }
+.stp button { padding: 0; height: 24px; font-size: 10px; border-width: 1.5px; }
+.stp output { text-align: center; font: 500 12px var(--font-mono); font-variant-numeric: tabular-nums; }
+.sq-side .rnd { margin-top: 4px; padding: 6px 0; font-size: 12px; }
+.seqwrap { overflow-x: auto; scrollbar-width: thin; }
+.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(26px, 1fr)); grid-auto-rows: 19px; width: max-content; min-width: 100%;
+  font: 500 10.5px var(--font-mono); border-top: 1.5px solid var(--fg); border-bottom: 1.5px solid var(--fg); user-select: none; }
+.seq > * { border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0; background: var(--bg); color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
+.seq .rh { justify-content: flex-start; padding-left: 4px; border-right: 1.5px solid var(--fg); letter-spacing: .04em; }
+.seq .bar { border-right-color: var(--mute); }
+.seq .blk { background: var(--soft); }
+.seq .hd { color: var(--mute); }
+.seq .hd.cur { background: var(--fg); color: var(--bg); }
+.seq .gap { border-bottom: 1.5px solid var(--fg); }
+.seq button { cursor: pointer; }
+.seq button:focus-visible { outline: 2px solid var(--fg); outline-offset: -3px; }
+.seq .cell.cur:not(.on):not(.ghost) { background: color-mix(in srgb, var(--fg) 9%, var(--bg)); }
+.seq .cell.on { background: var(--fg); }
+.seq .cell.ghost { box-shadow: inset 0 0 0 1.5px var(--mute); }
+.seq .cell.on.cur { background: var(--mute); }
 
 /* options sheet */
 dialog#options { width: min(1080px, 100vw); max-width: 100vw; height: 100%; max-height: 100%; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1.5px solid var(--fg); background: var(--bg); color: var(--fg); }
@@ -130,6 +149,9 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 
 @media (max-width: 900px) { .mods { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
+  .sq-body { grid-template-columns: 1fr; }
+  .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
+  .sq-ed { margin-left: 0; }
   .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .monitor { grid-template-columns: 1fr; }
 }
@@ -154,7 +176,24 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 
   <div class="mods" id="mods" aria-label="Common mods"></div>
 
-  <div class="seqwrap"><div class="seq" id="seq"></div></div>
+  <section class="sq" aria-label="Sequencer">
+    <div class="sq-bank">
+      <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
+      <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
+      <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button></div>
+    </div>
+    <div class="sq-body">
+      <div class="sq-side">
+        <div class="stp"><span class="label">Length</span><button type="button" data-a="len" data-d="-1" aria-label="Length down">◀</button><output id="o-len">16</output><button type="button" data-a="len" data-d="1" aria-label="Length up">▶</button></div>
+        <div class="stp"><span class="label">Shuffle</span><button type="button" data-a="shuf" data-d="-1" aria-label="Shuffle down">◀</button><output id="o-shuf">0%</output><button type="button" data-a="shuf" data-d="1" aria-label="Shuffle up">▶</button></div>
+        <div class="stp"><span class="label">Step len</span><button type="button" data-a="gate" data-d="-1" aria-label="Step len down">◀</button><output id="o-gate">50%</output><button type="button" data-a="gate" data-d="1" aria-label="Step len up">▶</button></div>
+        <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift"></output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
+        <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr">0</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
+        <button type="button" class="rnd" id="rand">Random</button>
+      </div>
+      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
+    </div>
+  </section>
 </div>
 
 <dialog id="options" aria-labelledby="opt-title">
@@ -186,8 +225,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
         <button type="button" id="pat-save">Save</button>
         <button type="button" id="pat-del">Delete</button>
         <span class="sep" aria-hidden="true"></span>
-        <button type="button" id="rand">Random pattern</button>
-        <span class="hint" id="pat-msg">Pattern and tempo. Loading one leaves the sound alone. Phoscyon patterns keep the current tempo.</span>
+        <span class="hint" id="pat-msg">Loads into the selected bank slot, with its tempo. Loading one leaves the sound alone. Phoscyon patterns keep the current tempo.</span>
       </div>
     </section>
 
@@ -242,7 +280,7 @@ class TB303Processor extends AudioWorkletProcessor {
     super();
     this.v = new TB303Voice(sampleRate);
     this.playing = false; this.bpm = 128; this.pattern = [];
-    this.step = -1; this.ctr = 0; this.gateOffAt = -1;
+    this.step = -1; this.ctr = 0; this.gateOffAt = -1; this.shuffle = 0; this.gate = 0.5;
     this.port.onmessage = (e) => this.onMsg(e.data);
   }
   onMsg(m) {
@@ -253,16 +291,17 @@ class TB303Processor extends AudioWorkletProcessor {
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'pattern') this.pattern = m.value;
     else if (m.type === 'bpm') this.bpm = m.value;
+    else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
     else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
   }
   startStep() {
     const P = this.pattern, n = P.length; if (!n) return;
     this.step = (this.step + 1) % n;
     const s = P[this.step], prev = P[(this.step - 1 + n) % n];
-    const len = Math.round(sampleRate * 60 / this.bpm / 4);
+    const len = Math.round(sampleRate * 60 / this.bpm / 4 * (1 + (this.step & 1 ? -this.shuffle : this.shuffle)));
     if (s.gate) {
       this.v.noteOn(s.code, s.accent, prev.gate && prev.slide);
-      this.gateOffAt = s.slide ? -1 : Math.round(len * 0.5);
+      this.gateOffAt = s.slide ? -1 : Math.max(1, Math.round(len * this.gate));
     } else { this.v.noteOff(); this.gateOffAt = -1; }
     this.port.postMessage({ type: 'step', step: this.step });
     return len;
@@ -316,7 +355,7 @@ const store = {
 };
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
-  wave: 'saw', bpm: 128, fx: { rat: false },
+  wave: 'saw', bpm: 128, fx: { rat: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
 };
@@ -353,19 +392,22 @@ function cleanSettings(x) {
   if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
-    code: Math.min(57, Math.max(9, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
+    code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
+  if (typeof x.shuffle === 'number' && x.shuffle >= 0 && x.shuffle <= 0.6) out.shuffle = x.shuffle;
+  if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
   return out;
 }
 function snapshot() {
   const parts = {};
   for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
-  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, pattern: state.pattern.map(st => ({ ...st })) };
+  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
   if (sess.fx) state.fx = { rat: !!sess.fx.rat };
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
+  if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
 }
 let saveTimer = 0;
 function saveSession() { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('session', snapshot()), 300); }
@@ -471,36 +513,133 @@ function readouts() {
   document.getElementById('readouts').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
 }
 
-// ---------- sequencer grid ----------
+// ---------- sequencer: piano roll ----------
+// a note is drawn as a key row (C..B) plus an octave lane; code = 24 + key + 12 * octave
 const seq = document.getElementById('seq');
+const KEY_ROWS = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0], OCT_ROWS = [2, 1, -1, -2];
+const BLACK = new Set([1, 3, 6, 8, 10]);
+const splitCode = (c) => { const o = Math.floor((c - 24) / 12); return { o, k: c - 24 - 12 * o }; };
+const clampCode = (c) => Math.min(59, Math.max(0, c));
+let seqCols = [], tail = []; // tail keeps steps removed by shortening, so lengthening brings them back
 function renderSeq() {
-  const P = state.pattern;
-  let h = '<div class="rowh">STEP</div>' + P.map((_, i) => `<div class="stepn" id="sn${i}">${i + 1}</div>`).join('');
-  h += '<div class="rowh">NOTE</div>' + P.map((s, i) => {
-    let o = ''; for (let c = 9; c <= 57; c++) o += `<option value="${c}"${c === s.code ? ' selected' : ''}>${codeName(c)}</option>`;
-    return `<div><select id="note${i}" data-i="${i}" aria-label="Step ${i + 1} note">${o}</select></div>`;
-  }).join('');
-  for (const [key, lab, cls] of [['gate', 'G', ''], ['accent', 'A', 'acc'], ['slide', 'S', '']]) {
-    h += `<div class="rowh">${key.toUpperCase()}</div>` + P.map((s, i) =>
-      `<div><button type="button" class="tog ${cls}" id="${key}${i}" data-k="${key}" data-i="${i}" aria-pressed="${s[key]}" aria-label="Step ${i + 1} ${key}">${lab}</button></div>`).join('');
+  const P = state.pattern, n = P.length, focusId = document.activeElement?.closest?.('#seq') ? document.activeElement.id : '';
+  seqCols = P.map(() => []);
+  const bar = (i) => (i % 4 === 3 && i < n - 1 ? ' bar' : '');
+  let h = '<div class="rh">STEP</div>' + P.map((_, i) => `<div class="hd${bar(i)}" data-col="${i}">${i + 1}</div>`).join('');
+  OCT_ROWS.forEach((o, r) => {
+    const last = r === OCT_ROWS.length - 1 ? ' gap' : '';
+    h += `<div class="rh${last}">${o > 0 ? '+' : '−'}${Math.abs(o)}</div>` + P.map((s, i) => {
+      const on = splitCode(s.code).o === o;
+      return `<button type="button" class="cell${on ? (s.gate ? ' on' : ' ghost') : ''}${bar(i)}${last}" id="so${o}_${i}" data-col="${i}" data-t="o" data-v="${o}" aria-pressed="${on}" aria-label="Step ${i + 1} octave ${o > 0 ? '+' : '−'}${Math.abs(o)}"></button>`;
+    }).join('');
+  });
+  KEY_ROWS.forEach((k, r) => {
+    const cls = (BLACK.has(k) ? ' blk' : '') + (r === KEY_ROWS.length - 1 ? ' gap' : '');
+    h += `<div class="rh${cls}">${NOTE[k]}</div>` + P.map((s, i) => {
+      const on = splitCode(s.code).k === k;
+      return `<button type="button" class="cell${cls}${on ? (s.gate ? ' on' : ' ghost') : ''}${bar(i)}" id="sk${k}_${i}" data-col="${i}" data-t="k" data-v="${k}" aria-pressed="${on && s.gate}" aria-label="Step ${i + 1} ${NOTE[k]}${on && !s.gate ? ' (rest)' : ''}"></button>`;
+    }).join('');
+  });
+  for (const [key, lab] of [['slide', 'SLIDE'], ['accent', 'ACC']]) {
+    h += `<div class="rh">${lab}</div>` + P.map((s, i) =>
+      `<button type="button" class="cell${s[key] ? ' on' : ''}${bar(i)}" id="s${key}_${i}" data-col="${i}" data-t="${key}" aria-pressed="${s[key]}" aria-label="Step ${i + 1} ${key}"></button>`).join('');
   }
-  seq.innerHTML = h; seq.style.setProperty('--steps', P.length);
+  seq.innerHTML = h; seq.style.setProperty('--steps', n);
+  for (const el of seq.querySelectorAll('[data-col]')) seqCols[+el.dataset.col].push(el);
+  for (const el of seqCols[lastStep] || []) el.classList.add('cur');
+  if (focusId) document.getElementById(focusId)?.focus();
+  renderSide();
 }
-seq.addEventListener('change', (e) => { const i = +e.target.dataset.i; state.pattern[i].code = +e.target.value; pushPattern(); });
 seq.addEventListener('click', (e) => {
-  const b = e.target.closest('.tog'); if (!b) return;
-  const s = state.pattern[+b.dataset.i]; s[b.dataset.k] = !s[b.dataset.k];
-  b.setAttribute('aria-pressed', s[b.dataset.k]); pushPattern();
+  const b = e.target.closest('button[data-t]'); if (!b) return;
+  const s = state.pattern[+b.dataset.col], v = +b.dataset.v, { o, k } = splitCode(s.code);
+  if (b.dataset.t === 'k') { if (k === v && s.gate) s.gate = false; else { s.code = clampCode(24 + v + 12 * o); s.gate = true; } }
+  else if (b.dataset.t === 'o') s.code = clampCode(24 + k + 12 * (o === v ? 0 : v));
+  else s[b.dataset.t] = !s[b.dataset.t];
+  renderSeq(); pushPattern();
 });
-function pushPattern() { store.set('pattern', state.pattern); send({ type: 'pattern', value: state.pattern }); saveSession(); }
+// arrow keys move around the grid
+seq.addEventListener('keydown', (e) => {
+  const b = e.target.closest('button[data-t]'); if (!b) return;
+  const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if (!d) return;
+  const cells = [...seq.querySelectorAll('button[data-t]')], n = state.pattern.length, idx = cells.indexOf(b);
+  const r = Math.floor(idx / n), c = idx % n, rows = cells.length / n;
+  const t = cells[Math.min(rows - 1, Math.max(0, r + d[1])) * n + Math.min(n - 1, Math.max(0, c + d[0]))];
+  if (t) { e.preventDefault(); t.focus(); }
+});
+
+// ---------- side controls ----------
+const SHUF_MAX = 0.6;
+function renderSide() {
+  document.getElementById('o-len').textContent = state.pattern.length;
+  document.getElementById('o-shuf').textContent = Math.round(state.shuffle * 100) + '%';
+  document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
+  const codes = state.pattern.map(s => s.code), lo = Math.min(...codes), hi = Math.max(...codes);
+  document.getElementById('o-tr').textContent = '';
+  for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
+}
+function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
+const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
+document.querySelector('.sq-side').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const d = +b.dataset.d, P = state.pattern;
+  switch (b.dataset.a) {
+    case 'len':
+      if (d < 0 && P.length > 1) tail.unshift(P.pop());
+      else if (d > 0 && P.length < 64) P.push(tail.shift() || restStep(P[P.length - 1].code));
+      break;
+    case 'shuf': state.shuffle = Math.min(SHUF_MAX, Math.max(0, Math.round((state.shuffle + d * 0.05) * 100) / 100)); sendGroove(); break;
+    case 'gate': state.gate = Math.min(0.95, Math.max(0.1, Math.round((state.gate + d * 0.05) * 100) / 100)); sendGroove(); break;
+    case 'shift': if (d > 0) P.unshift(P.pop()); else P.push(P.shift()); break;
+    case 'tr': if (P.every(s => s.code + d >= 0 && s.code + d <= 59)) for (const s of P) s.code += d; break;
+  }
+  renderSeq(); pushPattern();
+});
 document.getElementById('rand').onclick = () => {
   const scale = [0, 3, 5, 7, 10, 12, 15], root = 21;
-  state.pattern = Array.from({ length: 16 }, (_, i) => ({
+  state.pattern = Array.from({ length: state.pattern.length }, (_, i) => ({
     code: root + scale[Math.floor(Math.random() * scale.length)] + (Math.random() < 0.15 ? 12 : 0) - (Math.random() < 0.1 ? 12 : 0),
     gate: i % 4 === 0 || Math.random() < 0.75, accent: Math.random() < 0.28, slide: Math.random() < 0.22,
   }));
-  renderSeq(); pushPattern();
+  tail = []; renderSeq(); pushPattern();
 };
+
+// ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
+const banks = store.get('banks', null) || {};
+let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
+if (!'ABCD'.includes(sel.g) || !(sel.n >= 0 && sel.n < 12)) sel = { g: 'A', n: 0 };
+const slotKey = (g, n) => g + (n + 1);
+let clip = store.get('clip', null);
+function blankPattern(len = 16) { return Array.from({ length: len }, () => restStep(24)); }
+function storeSlot() { banks[slotKey(sel.g, sel.n)] = { shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; store.set('banks', banks); }
+function renderBank() {
+  for (const b of document.querySelectorAll('#bk-g button')) b.setAttribute('aria-pressed', b.dataset.g === sel.g);
+  for (const b of document.querySelectorAll('#bk-n button')) {
+    const n = +b.dataset.n, x = banks[slotKey(sel.g, n)];
+    b.setAttribute('aria-pressed', n === sel.n);
+    b.classList.toggle('used', !!x?.pattern?.some(s => s.gate));
+    b.setAttribute('aria-label', `Pattern ${sel.g}${n + 1}`);
+  }
+  document.getElementById('p-paste').disabled = !clip;
+}
+function loadSlot(g, n) {
+  storeSlot(); sel = { g, n }; store.set('bankSel', sel);
+  const c = cleanSettings(banks[slotKey(g, n)]);
+  state.pattern = c.pattern || blankPattern(); state.shuffle = c.shuffle ?? 0; state.gate = c.gate ?? 0.5;
+  tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank();
+}
+document.getElementById('bk-g').onclick = (e) => { const b = e.target.closest('button'); if (b) loadSlot(b.dataset.g, sel.n); };
+document.getElementById('bk-n').onclick = (e) => { const b = e.target.closest('button'); if (b) loadSlot(sel.g, +b.dataset.n); };
+document.getElementById('p-copy').onclick = () => { clip = { shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; store.set('clip', clip); renderBank(); };
+document.getElementById('p-paste').onclick = () => {
+  const c = cleanSettings(clip); if (!c.pattern) return;
+  state.pattern = c.pattern; state.shuffle = c.shuffle ?? state.shuffle; state.gate = c.gate ?? state.gate;
+  tail = []; sendGroove(); renderSeq(); pushPattern();
+};
+document.getElementById('p-clear').onclick = () => { state.pattern = blankPattern(state.pattern.length); tail = []; renderSeq(); pushPattern(); };
+function pushPattern() { store.set('pattern', state.pattern); send({ type: 'pattern', value: state.pattern }); storeSlot(); renderBank(); saveSession(); }
+// the slot that was selected last holds the current pattern; seed it the first time
+if (!banks[slotKey(sel.g, sel.n)]) storeSlot();
 
 // ---------- parts list ----------
 const partsEl = document.getElementById('parts');
@@ -677,17 +816,17 @@ async function initAudio() {
   document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); send({ type: 'pattern', value: state.pattern });
+  send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); send({ type: 'pattern', value: state.pattern }); sendGroove();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   drawScope();
 }
 function makeFallback() {
   const v = new TB303Voice(ctx.sampleRate), sp = ctx.createScriptProcessor(1024, 0, 1);
-  const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1 };
+  const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1, shuffle: 0, gate: 0.5 };
   f.msg = (m) => {
     if (m.type === 'knob') v.setKnob(m.name, m.value); else if (m.type === 'component') v.setComponent(m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'fx') v.setFx(m.name, m.value); else if (m.type === 'pattern') f.pattern = m.value;
-    else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
+    else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'groove') { f.shuffle = m.shuffle; f.gate = m.gate; } else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
   };
   sp.onaudioprocess = (e) => {
     const out = e.outputBuffer.getChannelData(0);
@@ -695,8 +834,8 @@ function makeFallback() {
       if (f.playing) {
         if (f.ctr <= 0) {
           const P = f.pattern; f.step = (f.step + 1) % P.length; const s = P[f.step], pr = P[(f.step + P.length - 1) % P.length];
-          f.len = Math.round(ctx.sampleRate * 60 / f.bpm / 4); f.ctr = f.len;
-          if (s.gate) { v.noteOn(s.code, s.accent, pr.gate && pr.slide); f.off = s.slide ? -1 : f.len >> 1; } else { v.noteOff(); f.off = -1; }
+          f.len = Math.round(ctx.sampleRate * 60 / f.bpm / 4 * (1 + (f.step & 1 ? -f.shuffle : f.shuffle))); f.ctr = f.len;
+          if (s.gate) { v.noteOn(s.code, s.accent, pr.gate && pr.slide); f.off = s.slide ? -1 : Math.max(1, Math.round(f.len * f.gate)); } else { v.noteOff(); f.off = -1; }
           markStep(f.step);
         }
         if (f.len - f.ctr === f.off) v.noteOff();
@@ -710,8 +849,8 @@ function makeFallback() {
 let lastStep = -1;
 function markStep(i) {
   requestAnimationFrame(() => {
-    if (lastStep >= 0) document.getElementById('sn' + lastStep)?.classList.remove('on');
-    if (i >= 0) document.getElementById('sn' + i)?.classList.add('on'); lastStep = i;
+    for (const el of seqCols[lastStep] || []) el.classList.remove('cur');
+    for (const el of seqCols[i] || []) el.classList.add('cur'); lastStep = i;
   });
 }
 playBtn.onclick = async () => {
@@ -777,7 +916,7 @@ for (const n of ['rat']) document.getElementById('fx-' + n + '-on').onclick = ()
 
 // ---------- presets ----------
 function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave, fx: x.fx }; }
-function patternSnap() { return { bpm: state.bpm, pattern: state.pattern.map(st => ({ ...st })) }; }
+function patternSnap() { return { bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; }
 function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
@@ -796,8 +935,9 @@ function applySound(x) {
 function applyPattern(x) {
   const c = cleanSettings(x);
   if (c.bpm) { state.bpm = c.bpm; bpmEl.value = state.bpm; send({ type: 'bpm', value: state.bpm }); }
-  if (c.pattern) { state.pattern = c.pattern; renderSeq(); pushPattern(); }
-  saveSession();
+  if (c.shuffle != null) state.shuffle = c.shuffle; if (c.gate != null) state.gate = c.gate;
+  if (c.pattern) { state.pattern = c.pattern; tail = []; }
+  renderSeq(); pushPattern();
 }
 function loadStore(key) { const v = store.get(key, {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
 // one-time migration from the single combined preset list
@@ -875,11 +1015,11 @@ fileEl.addEventListener('change', async () => {
     let ns = 0, np = 0;
     const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
     add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave, fx: c.fx }));
-    add(j.patternPresets, patBar, c => ({ bpm: c.bpm, pattern: c.pattern }));
+    add(j.patternPresets, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
     if (j.presets) { // version 1 files: combined presets
       add(j.presets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
       const withPat = Object.fromEntries(Object.entries(j.presets).filter(([, x]) => Array.isArray(x?.pattern)));
-      add(withPat, patBar, c => ({ bpm: c.bpm, pattern: c.pattern }));
+      add(withPat, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
     }
     soundBar.save(); patBar.save(); soundBar.render(''); patBar.render('');
     const cur = j.current;
@@ -895,6 +1035,6 @@ preview.waveform = state.wave; bpmEl.value = state.bpm;
 document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
 document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
 for (const n in state.fx) preview.setFx(n, state.fx[n]);
-renderFx(); renderSeq(); renderParts(); renderFrontMods(); readouts();
+renderFx(); renderSeq(); renderBank(); renderParts(); renderFrontMods(); readouts();
 })();
 </script>
