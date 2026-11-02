@@ -2,12 +2,13 @@
 
 A JavaScript simulation of the TB-303 bass voice, modelled at component level from the Roland main board schematic (Feb 1982). Values that sheet doesn't show clearly were taken from the Behringer TD-3 schematic.
 
-Open `index.html` in a browser to play it. It has a 16-step pattern, the front panel knobs, a scope, and a parts list you can edit while it plays.
+Open `index.html` in a browser to play it. It has a step sequencer with pattern presets, the front panel knobs, a scope, and a parts list you can edit while it plays.
 
 ## Files
 - `tb303-model.js`: the voice (`TB303Voice`) and its parts table (`COMPONENTS`). It has no dependencies and runs in Node, in a browser, or in an AudioWorklet.
 - `page.html`: the page template. `node build.js` injects the model and writes `index.html`.
 - `test.js`: sanity checks (DAC voltages, 110 Hz at the A key, filter range, decay times) and renders `demo.wav`.
+- `patterns.json`: the ABL3 and Phoscyon factory patterns behind the pattern presets. `tools/import-patterns.js` makes it from the plug-ins' files, and `node build.js` puts it in the page.
 - `calib.js`: works out the ladder's self-oscillation gain (k = 17) and its resonance-frequency factor.
 
 ## What's modelled

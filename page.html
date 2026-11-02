@@ -85,7 +85,7 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
 
 /* sequencer */
 .seqwrap { overflow-x: auto; }
-.seq { display: grid; grid-template-columns: 64px repeat(16, minmax(46px, 1fr)); gap: 0; min-width: 820px; font-family: var(--font-mono); font-size: 12px; }
+.seq { display: grid; grid-template-columns: 64px repeat(var(--steps, 16), minmax(46px, 1fr)); gap: 0; width: max-content; min-width: 100%; font-family: var(--font-mono); font-size: 12px; }
 .seq > div { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 5px 4px; display: flex; justify-content: center; align-items: center; min-height: 34px; }
 .seq > .rowh { justify-content: flex-start; color: var(--ink-2); font-size: 11px; letter-spacing: .08em; }
 .seq .stepn { color: var(--ink-2); }
@@ -225,7 +225,7 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
       <input id="pat-name" type="text" placeholder="Name this pattern" maxlength="40" aria-label="Pattern presets name">
       <button type="button" id="pat-save">Save</button>
       <button type="button" id="pat-del">Delete</button>
-      <span class="hint" id="pat-msg">Pattern and tempo. Loading one leaves the sound alone.</span>
+      <span class="hint" id="pat-msg">Pattern and tempo. Loading one leaves the sound alone. Phoscyon patterns keep the current tempo.</span>
     </div>
     <div class="seqwrap" style="margin-top:14px"><div class="seq" id="seq"></div></div>
     <div class="seqbar">
@@ -370,6 +370,10 @@ const PATTERN_BUILTIN = {
   'Slow squelch': { bpm: 108, pattern: P([[21,1,1,1],[28,0,1,1],[33,0,0,1],[21,0,0,0],[21,0,1,1],[24,1,1,1],[26,0,0,1],[21,0,0,0],
     [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
 };
+// the ABL3 and Phoscyon factory patterns, from patterns.json; a step is code * 8 + gate + 2 * accent + 4 * slide
+const PATTERN_BANK = /*__PATTERNS__*/{};
+for (const [g, ps] of Object.entries(PATTERN_BANK)) for (const [n, [bpm, steps]] of Object.entries(ps))
+  PATTERN_BUILTIN[`${g} / ${n}`] = { ...(bpm ? { bpm } : {}), pattern: steps.map(v => ({ code: v >> 3, gate: !!(v & 1), accent: !!(v & 2), slide: !!(v & 4) })) };
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
@@ -379,7 +383,7 @@ function cleanSettings(x) {
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
   if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
-  if (Array.isArray(x.pattern) && x.pattern.length === 16) out.pattern = x.pattern.map(st => ({
+  if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(57, Math.max(9, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
   return out;
 }
@@ -509,7 +513,7 @@ function renderSeq() {
     h += `<div class="rowh">${key.toUpperCase()}</div>` + P.map((s, i) =>
       `<div><button type="button" class="tog ${cls}" id="${key}${i}" data-k="${key}" data-i="${i}" aria-pressed="${s[key]}" aria-label="Step ${i + 1} ${key}">${lab}</button></div>`).join('');
   }
-  seq.innerHTML = h;
+  seq.innerHTML = h; seq.style.setProperty('--steps', P.length);
 }
 seq.addEventListener('change', (e) => { const i = +e.target.dataset.i; state.pattern[i].code = +e.target.value; pushPattern(); });
 seq.addEventListener('click', (e) => {
@@ -782,10 +786,12 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
   let armed = '';
   const esc = (n) => n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   bar.render = (selected) => {
-    const opt = (g, n) => `<option value="${g}:${esc(n)}">${esc(n)}</option>`;
+    const opt = (g, n) => `<option value="${g}:${esc(n)}">${esc(n.split(' / ').pop())}</option>`;
     const names = Object.keys(bar.user).sort((a, b) => a.localeCompare(b));
+    const groups = {};
+    for (const n of Object.keys(builtins)) (groups[n.includes(' / ') ? n.split(' / ')[0] : 'Built-in'] ||= []).push(n);
     sel.innerHTML = '<option value="">Choose…</option>'
-      + '<optgroup label="Built-in">' + Object.keys(builtins).map(n => opt('b', n)).join('') + '</optgroup>'
+      + Object.entries(groups).map(([g, ns]) => `<optgroup label="${esc(g)}">` + ns.map(n => opt('b', n)).join('') + '</optgroup>').join('')
       + (names.length ? '<optgroup label="Saved">' + names.map(n => opt('u', n)).join('') + '</optgroup>' : '');
     sel.value = selected || '';
     delBtn.disabled = !sel.value.startsWith('u:'); armed = ''; delBtn.textContent = 'Delete';
