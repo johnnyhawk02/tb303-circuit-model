@@ -126,7 +126,8 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
   background: var(--grime), var(--grain), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
 .fn-menu[hidden] { display: none; }
 .sq-ed .fn-menu button { border: 0; text-align: left; padding: 6px 12px; font: 400 19px/1.1 var(--font-lcd); white-space: nowrap; }
-.sq-ed .fn-menu button:hover, .sq-ed .fn-menu button:focus-visible { background: var(--fg); color: var(--bg); outline: 0; }
+.sq-ed .fn-menu button:disabled { opacity: .4; }
+.sq-ed .fn-menu button:not(:disabled):hover, .sq-ed .fn-menu button:focus-visible { background: var(--fg); color: var(--bg); outline: 0; }
 .sq-msg { font: 400 18px/1 var(--font-lcd); }
 .sq-msg:empty { display: none; }
 .sq-bank .slots button { position: relative; }
@@ -331,7 +332,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
       <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
       <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
       <span class="hint sq-msg" id="sq-msg" role="status"></span>
-      <div class="sq-ed"><div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions ▾</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button></div></div><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new random preset">Refill</button></div>
+      <div class="sq-ed"><div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions ▾</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new random preset">Refill</button></div>
     </div>
     <div class="sq-body">
       <div class="sq-side">
@@ -2349,11 +2350,39 @@ function fnOpen(on) { fnMenu.hidden = !on; fnBtn.setAttribute('aria-expanded', o
 fnBtn.onclick = () => fnOpen(fnMenu.hidden);
 document.addEventListener('pointerdown', (e) => { if (!fnMenu.hidden && !e.target.closest('.fn')) fnOpen(false); });
 fnMenu.addEventListener('keydown', (e) => {
-  const items = [...fnMenu.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+  const items = [...fnMenu.querySelectorAll('button:not(:disabled)')], i = items.indexOf(document.activeElement);
   if (e.key === 'Escape') { fnOpen(false); fnBtn.focus(); }
   else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
 });
+const undoStack = [];
+function pushUndo() { undoStack.push({ k: slotKey(sel.g, sel.n), pattern: state.pattern.map(st => ({ ...st })) }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false; }
 const FUNCTIONS = {
+  // a variation, not a new pattern: about a quarter of the steps change, notes stay among the pitches the pattern already uses
+  alter() {
+    pushUndo();
+    const P = state.pattern, n = P.length, pitches = [...new Set(P.filter(st => st.gate).map(st => st.code))];
+    if (!pitches.length) pitches.push(24);
+    const idx = [...Array(n).keys()].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(n / 4)));
+    const done = { note: 0, octave: 0, accent: 0, slide: 0, rest: 0, gate: 0 };
+    for (const i of idx) {
+      const st = P[i], r = Math.random();
+      if (r < 0.4 && pitches.length > 1) { const c = pitches.filter(c => c !== st.code); st.code = c[Math.floor(Math.random() * c.length)]; st.gate = true; done.note++; }
+      else if (r < 0.55) { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; done.octave++; }
+      else if (r < 0.7) { st.accent = !st.accent; done.accent++; }
+      else if (r < 0.85) { st.slide = !st.slide; done.slide++; }
+      else if (i > 0) { st.gate = !st.gate; st.gate ? done.gate++ : done.rest++; }
+      else { st.accent = !st.accent; done.accent++; }
+    }
+    renderSeq(); pushPattern();
+    const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
+    sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
+  },
+  undo() {
+    const u = undoStack.pop(); if (!u) return;
+    if (u.k !== slotKey(sel.g, sel.n)) loadSlot(u.k[0], +u.k.slice(1) - 1);
+    state.pattern = u.pattern; tail = []; renderSeq(); pushPattern();
+    document.getElementById('fn-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
+  },
   // join every chained pattern into one and put it on the Copy/Paste clipboard (and the system clipboard as JSON)
   join() {
     storeSlot();
