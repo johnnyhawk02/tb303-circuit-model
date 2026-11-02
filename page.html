@@ -978,7 +978,7 @@ function renderSeq() {
   const P = state.pattern, n = P.length, focusId = document.activeElement?.closest?.('#seq') ? document.activeElement.id : '';
   seqCols = P.map(() => []);
   const bar = (i) => (i % 4 === 3 && i < n - 1 ? ' bar' : '');
-  let h = '<div class="rh">STEP</div>' + P.map((_, i) => `<div class="hd${bar(i)}" data-col="${i}">${i + 1}</div>`).join('');
+  let h = '<div class="rh">STEP</div>' + P.map((_, i) => `<div class="hd${bar(i)}" data-col="${i}">${i % 8 === 0 ? i + 1 : ''}</div>`).join('');
   OCT_ROWS.forEach((o, r) => {
     const last = r === OCT_ROWS.length - 1 ? ' gap' : '';
     h += `<div class="rh${last}">${o > 0 ? '+' : '−'}${Math.abs(o)}</div>` + P.map((s, i) => {
