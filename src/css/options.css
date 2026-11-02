@@ -1,5 +1,5 @@
 /* options sheet: a fixed-size dialog, so switching tabs never resizes it */
-dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: min(680px, calc(100dvh - 32px)); min-height: 0; max-height: none; margin: auto; padding: 0;
+dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: fit-content; min-height: 0; max-height: min(720px, calc(100dvh - 32px)); margin: clamp(16px, 9vh, 90px) auto auto; padding: 0;
   flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); border: 1px solid #111; border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); }
 dialog#options[open] { display: flex; }
 dialog#options::backdrop { background: rgb(0 0 0 / .5); }
@@ -8,7 +8,7 @@ dialog#options::backdrop { background: rgb(0 0 0 / .5); }
 .opt-head .otabs { border-bottom: 0; flex: 1; min-width: 0; }
 .otabs button { margin-bottom: -1px; }
 .xbtn { align-self: center; margin-bottom: 6px; border-color: transparent; }
-.opt-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 22px 28px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
+.opt-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 22px 28px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
 .osec { display: grid; gap: 16px; align-content: start; min-width: 0; }
 .osec[hidden] { display: none; }
 

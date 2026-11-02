@@ -1,5 +1,5 @@
 /* sequencer: banks and slots, side steppers, piano roll */
-.sq { display: grid; gap: 12px; }
+.sq { display: grid; gap: 14px; align-content: start; }
 .sq-bank { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .sq-bank .seg button { padding: 5px 10px; font: 600 12px var(--font-mono); min-width: 30px; }
 .sq-bank .slots button { min-width: 28px; padding: 5px 0; position: relative; }
@@ -21,7 +21,7 @@
 .stp output.unit { color: var(--mute); font-size: 10px; }
 .sq-side .rnd { margin-top: 4px; padding: 6px 0; font-size: 12px; }
 .seqwrap { overflow-x: auto; scrollbar-width: thin; }
-.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(26px, 1fr)); grid-auto-rows: 14px; width: max-content; min-width: 100%;
+.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(26px, 1fr)); grid-auto-rows: 16px; width: max-content; min-width: 100%;
   font: 500 10px var(--font-body); border: 1px solid #1a1a1a; background: var(--well); user-select: none; }
 .seq > * { border: 0; border-right: 1px solid #262626; border-bottom: 1px solid #262626; padding: 0; background: transparent; color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
 .seq .rh { justify-content: flex-start; padding-left: 4px; letter-spacing: .04em; background: #3a3a3a; color: var(--mute); border-right: 1px solid #1a1a1a; }
