@@ -98,7 +98,7 @@ function drawKnob(id) {
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;
-  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); readouts(); saveSession();
+  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); readouts(); if (id === 'cutoff') drawTrim(); saveSession();
 }
 
 // ---------- readouts ----------
