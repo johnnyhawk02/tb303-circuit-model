@@ -520,7 +520,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
       <div class="sq-side">
         <div class="stp"><span class="label">Length</span><button type="button" data-a="len" data-d="-1" aria-label="Length down">◀</button><output id="o-len">16</output><button type="button" data-a="len" data-d="1" aria-label="Length up">▶</button></div>
         <button type="button" class="dup" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Duplicate steps</button>
-        <div class="stp"><span class="label">Shuffle</span><button type="button" data-a="shuf" data-d="-1" aria-label="Shuffle down">◀</button><output id="o-shuf">0%</output><button type="button" data-a="shuf" data-d="1" aria-label="Shuffle up">▶</button></div>
+        <button type="button" class="dup" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle notes</button>
         <div class="stp"><span class="label">Step len</span><button type="button" data-a="gate" data-d="-1" aria-label="Step len down">◀</button><output id="o-gate">50%</output><button type="button" data-a="gate" data-d="1" aria-label="Step len up">▶</button></div>
         <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift" class="unit">step</output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
         <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr" class="unit">semi</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
@@ -1699,7 +1699,6 @@ function cleanSettings(x) {
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
-  if (typeof x.shuffle === 'number' && x.shuffle >= 0 && x.shuffle <= 0.6) out.shuffle = x.shuffle;
   if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
   return out;
 }
@@ -2724,10 +2723,8 @@ seq.addEventListener('keydown', (e) => {
 });
 
 // ---------- side controls ----------
-const SHUF_MAX = 0.6;
 function renderSide() {
   document.getElementById('o-len').textContent = state.pattern.length;
-  document.getElementById('o-shuf').textContent = Math.round(state.shuffle * 100) + '%';
   document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
   const codes = state.pattern.map(s => s.code), lo = Math.min(...codes), hi = Math.max(...codes);
     for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
@@ -2742,7 +2739,6 @@ document.querySelector('.sq-side').addEventListener('click', (e) => {
       if (d < 0 && P.length > 1) tail.unshift(P.pop());
       else if (d > 0) extendTo(P.length + 1);
       break;
-    case 'shuf': state.shuffle = Math.min(SHUF_MAX, Math.max(0, Math.round((state.shuffle + d * 0.05) * 100) / 100)); sendGroove(); break;
     case 'gate': state.gate = Math.min(0.95, Math.max(0.1, Math.round((state.gate + d * 0.05) * 100) / 100)); sendGroove(); break;
     case 'shift': if (d > 0) P.unshift(P.pop()); else P.push(P.shift()); break;
     case 'tr': if (P.every(s => s.code + d >= 0 && s.code + d <= 59)) for (const s of P) s.code += d; break;
@@ -2757,6 +2753,16 @@ document.getElementById('p-dup').onclick = () => {
   state.pattern = Array.from({ length: to }, (_, i) => ({ ...P[i % n] })); tail = [];
   renderSeq(); pushPattern();
   sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Functions › Undo puts it back.`);
+};
+// Shuffle notes: deal the steps out in a new random order (each note keeps its accent and slide); tap again for another
+document.getElementById('p-shuf').onclick = () => {
+  const P = state.pattern; if (P.length < 2) return;
+  pushUndo();
+  const before = JSON.stringify(P);
+  for (let tries = 0; tries < 8 && JSON.stringify(P) === before; tries++)
+    for (let i = P.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [P[i], P[j]] = [P[j], P[i]]; }
+  tail = []; renderSeq(); pushPattern();
+  sqSay(`Shuffled ${P.length} steps. Tap again for another order; Functions › Undo puts it back.`);
 };
 drawGen();
 document.querySelector('.sq-side').addEventListener('click', (e) => {

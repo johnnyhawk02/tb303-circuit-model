@@ -102,7 +102,6 @@ function cleanSettings(x) {
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
-  if (typeof x.shuffle === 'number' && x.shuffle >= 0 && x.shuffle <= 0.6) out.shuffle = x.shuffle;
   if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
   return out;
 }

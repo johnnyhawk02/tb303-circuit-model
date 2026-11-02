@@ -105,10 +105,8 @@ seq.addEventListener('keydown', (e) => {
 });
 
 // ---------- side controls ----------
-const SHUF_MAX = 0.6;
 function renderSide() {
   document.getElementById('o-len').textContent = state.pattern.length;
-  document.getElementById('o-shuf').textContent = Math.round(state.shuffle * 100) + '%';
   document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
   const codes = state.pattern.map(s => s.code), lo = Math.min(...codes), hi = Math.max(...codes);
     for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
@@ -123,7 +121,6 @@ document.querySelector('.sq-side').addEventListener('click', (e) => {
       if (d < 0 && P.length > 1) tail.unshift(P.pop());
       else if (d > 0) extendTo(P.length + 1);
       break;
-    case 'shuf': state.shuffle = Math.min(SHUF_MAX, Math.max(0, Math.round((state.shuffle + d * 0.05) * 100) / 100)); sendGroove(); break;
     case 'gate': state.gate = Math.min(0.95, Math.max(0.1, Math.round((state.gate + d * 0.05) * 100) / 100)); sendGroove(); break;
     case 'shift': if (d > 0) P.unshift(P.pop()); else P.push(P.shift()); break;
     case 'tr': if (P.every(s => s.code + d >= 0 && s.code + d <= 59)) for (const s of P) s.code += d; break;
@@ -138,6 +135,16 @@ document.getElementById('p-dup').onclick = () => {
   state.pattern = Array.from({ length: to }, (_, i) => ({ ...P[i % n] })); tail = [];
   renderSeq(); pushPattern();
   sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Functions › Undo puts it back.`);
+};
+// Shuffle notes: deal the steps out in a new random order (each note keeps its accent and slide); tap again for another
+document.getElementById('p-shuf').onclick = () => {
+  const P = state.pattern; if (P.length < 2) return;
+  pushUndo();
+  const before = JSON.stringify(P);
+  for (let tries = 0; tries < 8 && JSON.stringify(P) === before; tries++)
+    for (let i = P.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [P[i], P[j]] = [P[j], P[i]]; }
+  tail = []; renderSeq(); pushPattern();
+  sqSay(`Shuffled ${P.length} steps. Tap again for another order; Functions › Undo puts it back.`);
 };
 drawGen();
 document.querySelector('.sq-side').addEventListener('click', (e) => {
