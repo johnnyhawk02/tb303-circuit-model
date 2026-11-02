@@ -158,7 +158,7 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .stp output { text-align: center; font: 400 20px/1 var(--font-lcd); font-variant-numeric: tabular-nums; }
 .sq-side .rnd { margin-top: 4px; padding: 6px 0; font-size: 12px; }
 .seqwrap { overflow-x: auto; scrollbar-width: thin; }
-.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(26px, 1fr)); grid-auto-rows: 19px; width: max-content; min-width: 100%;
+.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(26px, 1fr)); grid-auto-rows: 14px; width: max-content; min-width: 100%;
   font: 500 10.5px var(--font-mono); border-top: 1.5px solid var(--fg); border-bottom: 1.5px solid var(--fg); user-select: none; }
 .seq > * { border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0; background: transparent; color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
 .seq .rh { justify-content: flex-start; padding-left: 4px; border-right: 1.5px solid var(--fg); letter-spacing: .04em; }
@@ -383,6 +383,7 @@ input[type=text] { background: var(--well); }
 .seq .cell.on.cur { background: #ffd27d; }
 .seq .cell.ghost { box-shadow: inset 0 0 0 1px var(--on); }
 .seq [data-t=slide].on, .seq [data-t=accent].on { background: var(--hi); }
+.seq button[data-t] { touch-action: none; }
 /* options */
 dialog#options { background: var(--bg); border: 1px solid #111; border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); text-shadow: none; }
 dialog#options::backdrop { background: rgb(0 0 0 / .5); }
@@ -478,7 +479,7 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
   .stp { grid-template-columns: 1fr 20px 34px 20px; }
   .stp .label { font-size: 9.5px; }
   .stp button { height: 20px; }
-  .seq { grid-auto-rows: 12px; grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
+  .seq { grid-auto-rows: 9px; grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
   .mods { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px 4px; }
   .mods .md .knob { width: 36px; height: 36px; }
   .md .mdesc { display: none; }
@@ -495,7 +496,7 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
   .top { min-height: 42px; }
   .top button:not(.switch), .pm .pm-btn { min-height: 30px; }
   .mtabs button { padding: 6px 14px; }
-  .seq { grid-auto-rows: clamp(11px, calc((100dvh - 126px) / 19.5), 19px); }
+  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); }
   .sq-body { grid-template-columns: 128px minmax(0, 1fr); }
   .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
   .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2581,13 +2582,43 @@ function renderSeq() {
   if (focusId) document.getElementById(focusId)?.focus();
   renderSide();
 }
-seq.addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-t]'); if (!b) return;
+// click (or keyboard) toggles one cell; press and drag paints: the first cell's new state is laid on every
+// step the stroke crosses. In the note rows the stroke follows the pointer up and down, so a line can be drawn.
+function applyCell(b) {
   const s = state.pattern[+b.dataset.col], v = +b.dataset.v, { o, k } = splitCode(s.code);
   if (b.dataset.t === 'k') { if (k === v && s.gate) s.gate = false; else { s.code = clampCode(24 + v + 12 * o); s.gate = true; } }
   else if (b.dataset.t === 'o') s.code = clampCode(24 + k + 12 * (o === v ? 0 : v));
   else s[b.dataset.t] = !s[b.dataset.t];
+}
+let paint = null, paintedClick = false;
+function paintCell(b) {
+  const col = +b.dataset.col, s = state.pattern[col]; if (!s) return false;
+  const t = b.dataset.t, v = +b.dataset.v, { o, k } = splitCode(s.code), before = s.code + ':' + s.gate + s.accent + s.slide;
+  if (paint.t === 'k') {
+    if (paint.on) { if (t === 'k') { s.code = clampCode(24 + v + 12 * o); s.gate = true; } else if (t === 'o') return false; else s.gate = true; }
+    else s.gate = false;
+  } else if (paint.t === 'o') { if (t !== 'o') return false; s.code = clampCode(24 + k + 12 * paint.oct); }
+  else { if (t !== paint.t) return false; s[t] = paint.on; }
+  return before !== s.code + ':' + s.gate + s.accent + s.slide;
+}
+seq.addEventListener('pointerdown', (e) => {
+  const b = e.target.closest('button[data-t]'); if (!b || e.button > 0) return;
+  e.preventDefault(); applyCell(b); paintedClick = true;
+  const s = state.pattern[+b.dataset.col], t = b.dataset.t;
+  paint = { t, id: e.pointerId, on: t === 'k' ? s.gate : t === 'o' ? true : s[t], oct: splitCode(s.code).o };
   renderSeq(); pushPattern();
+});
+addEventListener('pointermove', (e) => {
+  if (!paint || e.pointerId !== paint.id) return;
+  const b = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('#seq button[data-t]'); if (!b) return;
+  if (paintCell(b)) { renderSeq(); pushPattern(); }
+});
+const endPaint = (e) => { if (paint && e.pointerId === paint.id) paint = null; };
+addEventListener('pointerup', endPaint); addEventListener('pointercancel', endPaint);
+seq.addEventListener('click', (e) => {
+  if (paintedClick) { paintedClick = false; if (e.detail !== 0) return; } // the press already did it
+  const b = e.target.closest('button[data-t]'); if (!b) return;
+  applyCell(b); renderSeq(); pushPattern();
 });
 // arrow keys move around the grid
 seq.addEventListener('keydown', (e) => {
