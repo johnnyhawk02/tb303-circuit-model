@@ -626,7 +626,9 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
         <div class="stp"><span class="label">Step len</span><button type="button" data-a="gate" data-d="-1" aria-label="Step len down">◀</button><output id="o-gate">50%</output><button type="button" data-a="gate" data-d="1" aria-label="Step len up">▶</button></div>
         <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift" class="unit">step</output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
         <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr" class="unit">semi</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
-        <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled">Generate</button>
+        <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled, at the density and bars set below">Generate</button>
+        <div class="stp"><span class="label">Density</span><button type="button" data-g="dens" data-d="-1" aria-label="Density down">◀</button><output id="o-dens">Any</output><button type="button" data-g="dens" data-d="1" aria-label="Density up">▶</button></div>
+        <div class="stp"><span class="label">Bars</span><button type="button" data-g="bars" data-d="-1" aria-label="Bars down">◀</button><output id="o-bars">1</output><button type="button" data-g="bars" data-d="1" aria-label="Bars up">▶</button></div>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
     </div>
@@ -862,13 +864,39 @@ const GEN_MOVES = {
     for (let j = 0; j < sw; j++) { const x = rint(0, blocks.length - 1), y = rint(0, blocks.length - 1); [blocks[x], blocks[y]] = [blocks[y], blocks[x]]; }
     P.splice(0, n, ...blocks.flat()); return b > 1 ? `swapped ${sw} beat${sw > 1 ? 's' : ''}` : `swapped ${sw} step${sw > 1 ? 's' : ''}`; },
 };
-function generatePattern(len) {
-  const src = SOURCES[Math.floor(Math.random() * SOURCES.length)], sp = src.pattern;
-  const P = Array.from({ length: len }, (_, i) => ({ ...sp[i % sp.length] }));
-  const names = Object.keys(GEN_MOVES).sort(() => Math.random() - 0.5).slice(0, rint(1, 3));
-  const did = names.map(m => GEN_MOVES[m](P));
-  if (!P.some(st => st.gate)) P[0].gate = true;
-  return { pattern: P, src: src.name, did };
+const densOf = (P) => P.filter(st => st.gate).length / P.length;
+// density: null keeps the source's own; otherwise a fraction of steps that play. Sources near it are preferred, then notes are added or removed to hit it
+function generatePattern(len, dens = null) {
+  let pool = SOURCES;
+  if (dens != null) pool = [...SOURCES].sort((a, b) => Math.abs(densOf(a.pattern) - dens) - Math.abs(densOf(b.pattern) - dens)).slice(0, 60);
+  const src = pool[Math.floor(Math.random() * pool.length)], sp = src.pattern;
+  // build one bar (or the whole source if it is longer), move it, then later bars are the first one with one more move each
+  const barLen = Math.min(len, Math.max(16, sp.length));
+  const P = Array.from({ length: barLen }, (_, i) => ({ ...sp[i % sp.length] }));
+  const did = Object.keys(GEN_MOVES).sort(() => Math.random() - 0.5).slice(0, rint(1, 3)).map(m => GEN_MOVES[m](P));
+  const out = [...P];
+  while (out.length < len) {
+    const seg = P.map(st => ({ ...st })), mv = Object.keys(GEN_MOVES); GEN_MOVES[mv[rint(0, mv.length - 1)]](seg);
+    out.push(...seg.slice(0, len - out.length));
+  }
+  if (len > barLen) did.push(`bars 2–${Math.ceil(len / 16)} varied`);
+  if (dens != null) {
+    const want = Math.max(1, Math.round(dens * len)), pitches = out.filter(st => st.gate).map(st => st.code);
+    const idx = (g) => [...out.keys()].filter(i => out[i].gate === g).sort(() => Math.random() - 0.5);
+    let on = out.filter(st => st.gate).length;
+    // add notes on off-beats last, remove them from off-beats first, so the downbeats survive
+    const beat = (i) => (i % 4 === 0 ? 0 : i % 2 === 0 ? 1 : 2);
+    if (on < want) for (const i of idx(false).sort((a, b) => beat(a) - beat(b))) { if (on >= want) break; out[i].gate = true; out[i].code = pitches.length ? pitches[rint(0, pitches.length - 1)] : out[i].code; out[i].slide = false; on++; }
+    if (on > want) for (const i of idx(true).sort((a, b) => beat(b) - beat(a))) { if (on <= want) break; if (i === 0) continue; out[i].gate = false; out[i].accent = false; out[i].slide = false; on--; }
+  }
+  if (!out.some(st => st.gate)) out[0].gate = true;
+  return { pattern: out, src: src.name, did };
+}
+const GEN_DENS = [null, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
+const gen = { dens: 0, bars: 1, ...store.get('gen', {}) };
+function drawGen() {
+  document.getElementById('o-dens').textContent = GEN_DENS[gen.dens] == null ? 'Any' : Math.round(GEN_DENS[gen.dens] * 100) + '%';
+  document.getElementById('o-bars').textContent = gen.bars;
 }
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
 function cleanSettings(x) {
@@ -1149,9 +1177,17 @@ document.querySelector('.sq-side').addEventListener('click', (e) => {
   }
   renderSeq(); pushPattern();
 });
+drawGen();
+document.querySelector('.sq-side').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-g]'); if (!b) return;
+  const d = +b.dataset.d;
+  if (b.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, gen.dens + d));
+  else gen.bars = Math.min(4, Math.max(1, gen.bars + d));
+  store.set('gen', gen); drawGen();
+});
 document.getElementById('rand').onclick = () => {
   pushUndo();
-  const g = generatePattern(state.pattern.length);
+  const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
   state.pattern = g.pattern; tail = []; renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
   sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
@@ -1177,7 +1213,7 @@ function fillSlots(force) {
     const k = slotKey(g, i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
-    const gp = generatePattern(16);
+    const gp = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
     banks[k] = { shuffle: 0, gate: 0.5, pattern: gp.pattern, auto: true, name: gp.src }; n++;
   }
   store.set('banks', banks); return n;
