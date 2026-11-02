@@ -1,2 +1,4 @@
 demo.wav
 srv/
+.wrangler/
+dist/
