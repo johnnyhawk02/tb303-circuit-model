@@ -100,7 +100,9 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* front panel knobs */
-.panel { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 22px 10px; }
+.panel { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 22px 10px; }
+.wave-kn .switch { align-self: center; margin: 14px 0 12px; }
+.wave-kn { align-content: start; }
 .kn { display: grid; justify-items: center; gap: 6px; text-align: center; min-width: 0; }
 .kn .name { font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
 .kn .val { font: 500 11px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; min-height: 1.5em; opacity: 0; transition: opacity .15s; }
@@ -463,7 +465,8 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
   .pm-pop { max-height: calc(100dvh - 60px) !important; min-width: 260px; }
   .dev, .main > .pane { padding: 6px 8px 8px; }
   .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
-  .panel { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .panel { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+  .wave-kn .switch { margin: 6px 0 4px; }
   .kn { gap: 1px; } .kn .knob { width: 34px; height: 34px; }
   .kn .name { font-size: 10px; } .panel .kn .val { display: none; }
   .mtabs { margin: 2px 0 -7px; }
@@ -529,11 +532,6 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
     <div class="bpm">
       <div class="knob" id="bpm" tabindex="0" role="slider" aria-label="Tempo" aria-valuemin="60" aria-valuemax="200"></div>
       <div class="bpm-read"><output id="bpm-val">128</output><span class="label">BPM</span></div>
-    </div>
-    <div class="wsw">
-      <span class="label" aria-hidden="true">Saw</span>
-      <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
-      <span class="label" aria-hidden="true">Square</span>
     </div>
     <div class="hp presets" id="prj-bar">
       <span class="label">Project</span>
@@ -3146,8 +3144,12 @@ function setBpm(v) {
   });
   bpmKnob.addEventListener('dblclick', () => { const v = parseInt(prompt('Tempo (60–200 BPM)', state.bpm), 10); if (v) setBpm(v); });
 }
+// the waveform switch sits in the voice panel, after the knobs
+panel.insertAdjacentHTML('beforeend', `<div class="kn wave-kn"><span class="name">Waveform</span>
+  <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
+  <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
-function drawWave() { waveSw.setAttribute('aria-checked', state.wave === 'square'); }
+function drawWave() { waveSw.setAttribute('aria-checked', state.wave === 'square'); document.getElementById('wave-val').textContent = state.wave === 'square' ? 'Square' : 'Saw'; }
 waveSw.onclick = () => {
   const w = state.wave === 'square' ? 'saw' : 'square';
   state.wave = w; preview.waveform = w; drawWave(); send({ type: 'wave', value: w }); saveSession();
