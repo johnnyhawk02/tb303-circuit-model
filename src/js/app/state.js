@@ -35,31 +35,30 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('tb303.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem('tb303.' + k, JSON.stringify(v)); } catch {} },
 };
-// part names and meanings changed in parts version 3 (cleaner schematic): swap R63/R72, accent sweep R_ACC/C_ACC -> R46/C13,
-// square R_SQB/R_SQC -> R35/R36, R117 gone, V_CUT now the full VR3 span. Old saved sounds are rewritten once.
-const PARTS_V = 3;
-function migrateParts(p) {
+// v30-v31 briefly used the cleaner schematic's part names (parts version 3); sounds saved then are converted back once
+function unmigrateParts(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return p;
   const q = { ...p }, mv = (a, b) => { delete q[a]; if (a in p) q[b] = p[a]; };
   delete q.R63; delete q.R72; if ('R72' in p) q.R63 = p.R72; if ('R63' in p) q.R72 = p.R63;
-  mv('R_ACC', 'R46'); mv('C_ACC', 'C13'); mv('R_SQB', 'R35'); mv('R_SQC', 'R36'); delete q.R117;
-  if (typeof p.V_CUT === 'number') q.V_CUT = +(p.V_CUT * 10 / 3.3).toPrecision(3);
+  mv('R46', 'R_ACC'); mv('C13', 'C_ACC'); mv('R35', 'R_SQB'); mv('R36', 'R_SQC'); delete q.TM3; delete q.V_CUT0;
+  if (typeof p.V_CUT === 'number') q.V_CUT = +(p.V_CUT * 3.3 / 10).toPrecision(3);
+  if (typeof p.I_REF === 'number') q.I_REF = +(p.I_REF * 3.1 / 1.82).toPrecision(3);
   return q;
 }
-function migrateTree(o) {
-  if (Array.isArray(o)) o.forEach(migrateTree);
-  else if (o && typeof o === 'object') for (const k in o) { if (k === 'parts') o[k] = migrateParts(o[k]); else migrateTree(o[k]); }
+function unmigrateTree(o) {
+  if (Array.isArray(o)) o.forEach(unmigrateTree);
+  else if (o && typeof o === 'object') for (const k in o) { if (k === 'parts') o[k] = unmigrateParts(o[k]); else unmigrateTree(o[k]); }
   return o;
 }
-if (store.get('partsVersion', 0) < PARTS_V) {
+if (store.get('partsVersion', 0) === 3) {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i); if (!key.startsWith('tb303.')) continue;
       const raw = localStorage.getItem(key); if (!raw || !raw.includes('"parts"')) continue;
-      try { localStorage.setItem(key, JSON.stringify(migrateTree(JSON.parse(raw)))); } catch {}
+      try { localStorage.setItem(key, JSON.stringify(unmigrateTree(JSON.parse(raw)))); } catch {}
     }
   } catch {}
-  store.set('partsVersion', PARTS_V);
+  store.set('partsVersion', 2);
 }
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
@@ -71,7 +70,7 @@ const SOUND_BUILTIN = {
   'Stock 303': { knobs: {}, parts: {} },
   'Devil Fish style': {
     knobs: { resonance: 0.9, envmod: 0.7, decay: 0.2, accent: 0.9 },
-    parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C13: 0.47e-6, R_IN: 47e3, R63: 120e3, V_CUT: 13.6 },
+    parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C_ACC: 0.47e-6, R_IN: 47e3, R72: 120e3, V_CUT: 4.5 },
   },
   'Acid in the hall': {
     knobs: { cutoff: 0.28, resonance: 0.85, envmod: 0.65, decay: 0.25, lexprog: 0.25, lexmid: 0.36, lexbass: 0.4, lexpre: 0.3, lexmix: 0.45 },

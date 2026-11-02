@@ -56,7 +56,7 @@ prjFile.addEventListener('change', async () => {
 for (const el of document.querySelectorAll('.pm')) presetMenu(el);
 
 document.getElementById('preset-export').onclick = () => {
-  const data = JSON.stringify({ app: 'tb303-circuit-model', version: 3,
+  const data = JSON.stringify({ app: 'tb303-circuit-model', version: 2,
     current: { sound: soundSnap(), pattern: patternSnap() },
     soundPresets: soundBar.user, patternPresets: patBar.user, projectPresets: prjBar.user }, null, 2);
   const a = document.createElement('a');
@@ -72,7 +72,7 @@ fileEl.addEventListener('change', async () => {
   try {
     const j = JSON.parse(await f.text());
     if (!j || typeof j !== 'object') throw 0;
-    if (!(j.version >= 3)) migrateTree(j);
+    if (j.version === 3) unmigrateTree(j);
     let ns = 0, np = 0;
     const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
     add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave, fx: c.fx }));

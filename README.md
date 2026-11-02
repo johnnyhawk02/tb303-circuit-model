@@ -17,9 +17,9 @@ Open `index.html` in a browser to play it. It has a step sequencer with pattern 
 - **Pitch CV:** a 6-bit R-2R ladder (100k/200k) from 5.333 V, which gives 1/12 V per step.
 - **Slide:** an RC lag through R93 and C35.
 - **VCO:** an exponential current charges C33 from 5.5 V to 12 V, then resets. The reset is smoothed with a polyBLEP.
-- **Square:** the ramp is high-passed through C10 (R35) into the Q8 PNP switch, with R36 as its load.
+- **Square:** the ramp is high-passed through C10 into the Q8 PNP switch.
 - **VCF:** the 4-pole transistor/diode ladder with an 18n bottom cap and 33n caps above it, and a tanh law for each transistor pair. It is solved with an implicit trapezoidal step at 2× oversampling. Resonance feedback is high-passed by C15.
-- **Envelopes:** the filter envelope charges C62 and decays through R138 + VR6 (200 ms to 2.5 s). On accented notes VR6 is shorted and the envelope charges the accent sweep through D24, R46 47k and the second gang of the resonance pot into C13 (1µ). That gang's wiper feeds the filter through R72, so low resonance gives a sharp accent and high resonance a smoothed sweep that builds up over consecutive accents. TM3 (470k) sits in series with the cutoff pot and sets its range.
+- **Envelopes:** the filter envelope charges C62 and decays through R138 + VR6 (200 ms to 2.5 s). On accented notes VR6 is shorted and the accent sweep cap (1µ/47k) charges.
 - **VCA:** an OTA fed through C49/R88. The resonance pot wiper is also mixed in through C76/R100 to compensate for lost bass.
 
 Each part's `source` field is `schematic`, `td3` or `estimate`.

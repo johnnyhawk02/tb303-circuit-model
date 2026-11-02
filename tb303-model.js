@@ -12,12 +12,12 @@
  *   IC12 4066 + R93/C35 RC lag                          -> slide
  *   Q26 2SC1583 expo converter + C33 integrator,
  *   Q27/Q28 reset at 12 V                               -> saw 5.5..12 V
- *   C10/R34 + R35 into Q8 PNP switch, R36 load           -> square 5..8 V
+ *   C10/R_SQB high-pass + Q8 PNP switch                   -> square 5..8 V
  *   Q12 diff pair + Q13-Q23 transistor/diode ladder,
  *   C18 (18n) C19/C24/C26 (33n), Q10/Q11 expo current   -> 4-pole VCF
  *   Q21/Q19 output amp, VR4 + C15 feedback (resonance)
  *   Q38/Q40 env: C62 charged, decays via R138 + VR6     -> VCF envelope
- *   VR7 + D24/R46 + VR4 gang 2 + C13 ("sweep") -> R72   -> accent
+ *   VR7 + D27/R117 + accent cap ("sweep")               -> accent
  *   IC15 BA662A OTA, Q36 / C72 env                      -> VCA
  *
  * The voice runs at 2x oversampling. The VCF is integrated with an implicit
@@ -55,11 +55,11 @@ const COMPONENTS = {
 
   // --- Square shaper (Q8 2SA733)
   C10:    { v: 0.01e-6, unit: 'F', block: 'Square',source: 'schematic', note: 'coupling from saw' },
-  R35:    { v: 100e3,   unit: 'Ω', block: 'Square',source: 'schematic', note: 'saw to Q8 base; HPF with C10 sets pitch-dependent duty (TD-3 R191)' },
+  R_SQB:  { v: 100e3,   unit: 'Ω', block: 'Square',source: 'td3',       note: 'Q8 base bias; HPF with C10 sets pitch-dependent duty (TD-3 R191)' },
   SQ_LO:  { v: 5.0,     unit: 'V', block: 'Square',source: 'schematic', note: 'square low (scope trace)' },
   SQ_HI:  { v: 8.0,     unit: 'V', block: 'Square',source: 'schematic', note: 'square high (scope trace)' },
-  R36:    { v: 10e3,    unit: 'Ω', block: 'Square',source: 'schematic', note: 'Q8 collector load to 5.333 V (TD-3 R175)' },
-  R_SQE:  { v: 1e3,     unit: 'Ω', block: 'Square',source: 'estimate',  note: 'Q8 emitter degeneration (stands in for R45 22K / C11 1µ)' },
+  R_SQC:  { v: 10e3,    unit: 'Ω', block: 'Square',source: 'td3',       note: 'Q8 collector load (TD-3 R175)' },
+  R_SQE:  { v: 1e3,     unit: 'Ω', block: 'Square',source: 'estimate',  note: 'Q8 emitter degeneration' },
 
   // --- VCF ladder
   C18:    { v: 0.018e-6,unit: 'F', block: 'VCF',   source: 'schematic', note: 'bottom stage cap (.018)', mod: 'Bottom ladder cap. Changing it toward 33n alters how the resonance sits; a popular experiment, not a standard mod.' },
@@ -72,14 +72,12 @@ const COMPONENTS = {
   VR4:    { v: 50e3,    unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'RESONANCE 50K(B)', fixed: true },
   A_Q21:  { v: 16.5,    unit: '×', block: 'VCF',   source: 'estimate',  note: 'Q21/Q19 loop gain at VR4 max (k_crit = 17)', range: [0, 26, 'lin'], mod: 'Resonance range. The Devil Fish and many TD-3 mods raise feedback so the filter self-oscillates (k above 17 here).' },
   // expo converter Q10/Q11 summing node
-  R73:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'cutoff pot to Q10 base, in series with TM3' },
-  TM3:    { v: 207e3,   unit: 'Ω', block: 'VCF',   source: 'estimate',  note: 'FREQ trimmer 470K in series with R73: sets how hard the cutoff pot pulls on Q10 (factory position estimated)', range: [0, 470e3, 'lin'], mod: 'Filter frequency trimmer (TM3). Turning it down makes the cutoff knob reach higher and sweep wider; turning it up narrows and lowers the range.' },
-  R63:    { v: 220e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'env mod (VR5 wiper) to Q10 base', mod: 'Env mod depth. Lowering it is the usual more-envelope mod for bigger sweeps.' },
-  R72:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'accent sweep (VR4 gang 2 wiper) to Q10 base' },
+  R73:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'cutoff pot to Q10 base' },
+  R72:    { v: 220e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'env mod to Q10 base', mod: 'Env mod depth. Lowering it is the usual more-envelope mod for bigger sweeps.' },
+  R63:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'accent to Q10 base' },
   R71:    { v: 2.2e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'Q10 base to ground' },
-  V_CUT:  { v: 10,      unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span: 50K pot plus R47 10K across 12 V', range: [1.5, 18, 'lin'], mod: 'Cutoff knob range. Cutoff range mods (common on TD-3s) let the knob go lower and higher.' },
-  V_CUT0: { v: 2,       unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper at knob minimum (R47 10K end stop)', range: [0, 4, 'lin'] },
-  I_REF:  { v: 1.82e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'ladder current at 0 V on Q10 base', range: [0.91e-6, 3.64e-6, 'log'] },
+  V_CUT:  { v: 3.3,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span (R47 10K end stop)', range: [0.5, 6, 'lin'], mod: 'Cutoff knob range. Cutoff range mods (common on TD-3s) let the knob go lower and higher.' },
+  I_REF:  { v: 3.1e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'TM3 FREQ trim: ladder current at 0 V', range: [1.55e-6, 6.2e-6, 'log'], mod: 'Filter frequency trimmer (TM3). Sets where the cutoff sits for a given knob position, about one octave either way.' },
 
   // --- VCF envelope (Q38/Q40/Q39 2SK30)
   C62:    { v: 1e-6,    unit: 'F', block: 'Env',   source: 'schematic', note: 'envelope cap (1/35)', mod: 'Envelope cap. Scales every decay time together; a smaller cap gives snappier envelopes.' },
@@ -91,9 +89,10 @@ const COMPONENTS = {
 
   // --- Accent
   VR7:    { v: 50e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'ACCENT 50K(B)', fixed: true },
-  R46:    { v: 47e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'sweep charge resistor, D24 to VR4 gang 2 (TD-3 R39 47K)', mod: 'Accent sweep charge. Lower values make each accent hit harder and charge the sweep faster.' },
-  C13:    { v: 1e-6,    unit: 'F', block: 'Accent',source: 'schematic', note: 'accent sweep cap (1/50), across the far end of VR4 gang 2 (TD-3 C62 1µ)', mod: 'Accent sweep cap. The Devil Fish Sweep Speed control changes how fast this charges and bleeds, so stacked accents wah more or less.' },
-  V_D:    { v: 0.55,    unit: 'V', block: 'Accent',source: 'estimate',  note: 'D24 forward drop' },
+  R117:   { v: 22e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'charge resistor into sweep cap', mod: 'Accent charge resistor. Lower values give a harder, faster accent sweep.' },
+  C_ACC:  { v: 1e-6,    unit: 'F', block: 'Accent',source: 'schematic', note: 'accent sweep cap C13 (1/50); TD-3 C62 1µ', mod: 'Accent sweep cap. The Devil Fish Sweep Speed control changes how fast this charges and bleeds, so stacked accents wah more or less.' },
+  R_ACC:  { v: 47e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'sweep resistor R46 47K; TD-3 R39 47K', mod: 'Accent sweep bleed. Part of the Sweep Speed mod: higher values let consecutive accents build further.' },
+  V_D:    { v: 0.55,    unit: 'V', block: 'Accent',source: 'estimate',  note: 'D27/D28 forward drop' },
 
   // --- VCA (IC15 BA662A OTA)
   C67:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'td3',       note: 'VCA env cap (TD-3 C67 1/35)', mod: 'VCA envelope cap; scales VCA decay and attack together.' },
@@ -478,7 +477,7 @@ class TB303Voice {
     this.fbLp = 0;
     this.envVcf = 0; this.envAttack = 0;
     this.envVca = 0; this.vcaAttack = 0;
-    this.vAcc = 0; this.vC13 = 0;
+    this.vAcc = 0;
     this.hp14 = 0; this.hp14In = 0; this.hp38 = 0; this.hp38In = 0;
     this.hp49 = 0; this.hp49In = 0; this.hp76 = 0; this.hp76In = 0;
     this.dc = { z1: 0, z2: 0, z3: 0, z4: 0 };
@@ -498,9 +497,9 @@ class TB303Voice {
     this.swing = c.V_HI - c.V_LO;
     this.iVcoRef = c.F_TUNE * c.C33 * this.swing; // collector current at CV_TUNE
     this.tuneOct = (k.tuning - 0.5) * 2; // VR2 50K(B) linear, ±1 oct
-    // square shaper HPF (C10/R35) and Q8 gain
-    this.sqA = Math.exp(-1 / (c.C10 * c.R35 * this.fs));
-    this.sqGain = c.R36 / c.R_SQE;
+    // square shaper HPF (C10/R_SQB) and Q8 gain
+    this.sqA = Math.exp(-1 / (c.C10 * c.R_SQB * this.fs));
+    this.sqGain = c.R_SQC / c.R_SQE;
     this.sqLpA = Math.exp(-2 * Math.PI * 18000 / this.fs); // collector/Miller rounding
     // slide
     this.slideA = Math.exp(-1 / (c.R93 * c.C35 * this.fs));
@@ -510,11 +509,10 @@ class TB303Voice {
     this.kFb = c.A_Q21 * k.resonance; // VR4 linear (B) taper
     this.fbA = Math.exp(-1 / (c.C15 * c.R98 * this.fs)); // feedback HPF corner (~72 Hz)
     // Millman sum at Q10 base: G = 1/R
-    // cutoff via R73 + TM3 (trimmer in series), env mod via R63, accent sweep via R72
-    const g73 = 1 / (c.R73 + c.TM3), g72 = 1 / c.R72, g63 = 1 / c.R63, g71 = 1 / c.R71;
+    const g73 = 1 / c.R73, g72 = 1 / c.R72, g63 = 1 / c.R63, g71 = 1 / c.R71;
     const gs = g73 + g72 + g63 + g71;
-    this.wCut = g73 / gs; this.wEnv = g63 / gs; this.wAcc = g72 / gs;
-    this.vCutPot = c.V_CUT0 + c.V_CUT * k.cutoff;
+    this.wCut = g73 / gs; this.wEnv = g72 / gs; this.wAcc = g63 / gs;
+    this.vCutPot = c.V_CUT * k.cutoff;
     this.envModFrac = audioTaper(k.envmod);
     // envelopes
     const rDecay = c.R138 + c.VR6 * audioTaper(k.decay);
@@ -526,19 +524,9 @@ class TB303Voice {
     this.vcaDecA = Math.exp(-1 / (c.R52 * c.C67 * this.fs));
     this.vcaRelA = Math.exp(-1 / (c.R_VREL * c.C67 * this.fs));
     // accent sweep
-    // accent sweep: VR7 wiper -> D24 -> R46 -> VR4 gang 2 track -> C13. The gang's wiper feeds R72, so
-    // resonance picks the tap: low resonance takes the fast R46 end, high resonance the smoothed C13 end.
     this.accFrac = k.accent; // VR7 linear
-    {
-      const ra = Math.max(c.VR4 * k.resonance, 1), rb = Math.max(c.VR4 * (1 - k.resonance), 1);
-      const rs = c.R46 + c.VR7 * k.accent * (1 - k.accent); // plus VR7's own source resistance
-      const gl = 1 / (c.R72 + 1 / (g73 + g63 + g71)), gb = 1 / rb, dt = 1 / this.fs;
-      const tap = (gsrc) => { // linear network for diode on (gsrc > 0) or off: vW = a*Vs + b*vC, C13 settles exponentially
-        const sum = gsrc + gb + gl, gC = gb * (gsrc + gl) / sum;
-        return { a: gsrc / sum, b: gb / sum, tgt: gsrc / (gsrc + gl), k: Math.exp(-dt * gC / c.C13) };
-      };
-      this.accOn = tap(1 / (rs + ra)); this.accOff = tap(0);
-    }
+    this.accChgK = 1 / (c.R117 * c.C_ACC * this.fs);
+    this.accDisA = Math.exp(-1 / (c.R_ACC * c.C_ACC * this.fs));
     // couplings
     this.hp14A = Math.exp(-1 / (c.C14 * c.R85 * this.fs));
     this.hp49A = Math.exp(-1 / (c.C49 * c.R88 * this.fs));
@@ -714,7 +702,7 @@ class TB303Voice {
 
     let wave;
     if (this.waveform === 'square') {
-      // C10/R35 high-pass into Q8 base, PNP switch with emitter degeneration
+      // C10/R_SQB high-pass into Q8 base, PNP switch with emitter degeneration
       this.sqHp = this.sqA * (this.sqHp + saw - this.sqPrevIn);
       this.sqPrevIn = saw;
       const sw = c.SQ_HI - c.SQ_LO;
@@ -743,12 +731,11 @@ class TB303Voice {
         if (this.envVca > 0.99) this.vcaAttack = 0;
       } else this.envVca *= this.vcaDecA;
     } else this.envVca *= this.vcaRelA;
-    // accent sweep: accented VCF env * VR7 through D24/R46 into the VR4 gang 2 / C13 network
-    const vs = (this.accentNote ? this.envVcf * this.accFrac : 0) - c.V_D;
-    const t = vs > this.accOff.b * this.vC13 ? this.accOn : this.accOff; // D24 conducts?
-    this.vAcc = t.a * vs + t.b * this.vC13; // gang wiper, into R72
-    const tgt = t === this.accOn ? t.tgt * vs : 0;
-    this.vC13 = tgt + t.k * (this.vC13 - tgt);
+    // accent sweep: VCF env * VR7 through D27/R117 into C_ACC, bled by R_ACC
+    const vAccIn = this.accentNote ? this.envVcf * this.accFrac : 0;
+    const drive = vAccIn - c.V_D - this.vAcc;
+    if (drive > 0) this.vAcc += drive * this.accChgK;
+    this.vAcc *= this.accDisA;
 
     // --- VCF control: Millman sum at Q10 base, expo current
     const vEnvMod = this.accentNote ? 0 : this.envVcf * this.envModFrac;
@@ -766,7 +753,7 @@ class TB303Voice {
     const vr = vo * this.knobs.resonance;
     this.hp76 = this.hp76A * (this.hp76 + vr - this.hp76In); this.hp76In = vr;
     const vin = (this.hp49 / c.R88 + this.hp76 / c.R100) / this.vinDen;
-    const Iabc = Math.max(this.envVca * c.V_VCA - 0.6, 0) / c.R105 + Math.max(this.vC13 - 0.6, 0) / (c.R25 + c.R26);
+    const Iabc = Math.max(this.envVca * c.V_VCA - 0.6, 0) / c.R105 + Math.max(this.vAcc - 0.6, 0) / (c.R25 + c.R26);
     const iout = Iabc * Math.tanh(vin / (2 * VT));
     const vout = iout * c.R_OTA;
     this.hp38 = this.hp38A * (this.hp38 + vout - this.hp38In); this.hp38In = vout;
