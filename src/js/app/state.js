@@ -20,6 +20,9 @@ const KNOBS = [
   { id: 'lexme',     name: 'Mode enh',  ref: 'off, 16–1',  def: 0.5,  fx: 'lex' },
   { id: 'lexpitch',  name: 'Pitch',     ref: '1–16',       def: 0.2,  fx: 'lex' },
   { id: 'lexmix',    name: 'Return',    ref: 'wet level',  def: 0.5,  fx: 'lex' },
+  { id: 'duck',      name: 'Duck',      ref: '0–30 dB',    def: 0.5,  fx: 'duck' },
+  { id: 'duckthr',   name: 'Threshold', ref: '-40–0 dB',   def: 0.35, fx: 'duck' },
+  { id: 'duckrel',   name: 'Release',   ref: '20 ms–1 s',  def: 0.5,  fx: 'duck' },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33

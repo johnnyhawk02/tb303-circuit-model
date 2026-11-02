@@ -456,9 +456,11 @@ class TB303Voice {
 
     // front panel (0..1)
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
-      lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5 };
+      lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
+      duck: 0.5, duckthr: 0.35, duckrel: 0.5 };
     this.fx = { rat: false, lex: false };
     this.lex = new Lexicon224(sampleRate);
+    this.duckEnv = 0; this.duckG = 1;
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
 
@@ -489,6 +491,7 @@ class TB303Voice {
 
   _derive() {
     const c = this.c, k = this.knobs;
+    this._deriveDuck(k);
     // VCO: expo converter calibrated (TM4/TM5) to F_TUNE at CV_TUNE, 1 V/oct.
     // Ramp slope dV/dt = I/C33, frequency = I / (C33 * (V_HI - V_LO)).
     this.swing = c.V_HI - c.V_LO;
@@ -759,6 +762,27 @@ class TB303Voice {
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }
 
+  // Sidechain ducker on the 224 return (outside the circuit). The dry synth is the key: a peak follower
+  // (1 ms attack, Release 20 ms to 1 s) and a 1:inf limiter law turn the wet down by however far the key
+  // is over Threshold (-40 to 0 dBFS), but never by more than Amount (0 to 30 dB; 0 is off).
+  _deriveDuck(k) {
+    const fs = this.fsOut;
+    this.duckFloor = Math.pow(10, -30 * k.duck / 20);
+    this.duckThr = Math.pow(10, (-40 + 40 * k.duckthr) / 20);
+    this.duckAtt = Math.exp(-1 / (0.001 * fs));
+    this.duckRel = Math.exp(-1 / (0.02 * Math.pow(50, k.duckrel) * fs));
+  }
+  // the 224 after the dry signal y: wet return ducked by y, summed, then the output soft clip
+  _lexOut(lex, y, out, outR, n) {
+    const a = Math.abs(y), e = this.duckEnv;
+    this.duckEnv = a + (e - a) * (a > e ? this.duckAtt : this.duckRel);
+    this.duckG = this.duckEnv > this.duckThr ? Math.max(this.duckFloor, this.duckThr / this.duckEnv) : 1;
+    lex.run(y);
+    const w = lex.wet * this.duckG;
+    out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
+    if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
+  }
+
   _decimate(x) {
     for (const s of this.decim) {
       const y = s.b0 * x + s.b1 * s.x1 + s.b2 * s.x2 - s.a1 * s.y1 - s.a2 * s.y2;
@@ -779,12 +803,8 @@ class TB303Voice {
     for (let n = start; n < end; n++) {
       let y = 0;
       for (let o = 0; o < this.os; o++) y = this._decimate(this._tick());
-      if (lex) {
-        lex.run(y);
-        const w = lex.wet;
-        out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
-        if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
-      } else { out[n] = y; if (outR) outR[n] = y; }
+      if (lex) this._lexOut(lex, y, out, outR, n);
+      else { out[n] = y; if (outR) outR[n] = y; }
     }
   }
 
@@ -859,11 +879,8 @@ class DeClick {
         }
         y *= g;
       }
-      if (lex) {
-        lex.run(y); const w = lex.wet;
-        out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
-        if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
-      } else { out[n] = y; if (outR) outR[n] = y; }
+      if (lex) v._lexOut(lex, y, out, outR, n);
+      else { out[n] = y; if (outR) outR[n] = y; }
     }
   }
 }

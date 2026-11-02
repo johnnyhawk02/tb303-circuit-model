@@ -57,6 +57,7 @@ function renderFx() {
     b.setAttribute('aria-pressed', state.fx[n]); b.textContent = state.fx[n] ? 'On' : 'Off';
     document.getElementById('fx-' + n).classList.toggle('on', state.fx[n]);
   }
+  document.getElementById('fx-duck').classList.toggle('on', state.fx.lex); // the ducker only acts on the 224 return
 }
 for (const n of ['rat', 'lex']) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });

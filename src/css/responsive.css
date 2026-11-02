@@ -8,6 +8,9 @@
   .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
   .sq-ed { margin-left: 0; }
   .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fxpane { grid-template-columns: minmax(0, 1fr); }
+  .fxb { padding: 12px 0 0; border-left: 0; border-top: 1px solid #2c2c2c; }
+  .fxb:first-child { padding-top: 0; border-top: 0; }
   .opt-head { flex-wrap: wrap; padding-left: 16px; }
   .opt-head h2 { padding-bottom: 0; flex: 1; }
   .otabs { order: 3; flex-basis: 100%; }
@@ -89,9 +92,14 @@
 
   .mods { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px 4px; }
   .md .mdesc { display: none; }
-  .fxknobs { gap: 10px 6px; }
-  .blk-lex { gap: 8px; }
-  .lex-progs button b { font-size: 12px; }
+  .fxpane { --knob: 30px; --kn-w: 58px; gap: 8px 0; }
+  .fxb { gap: 4px; padding: 0 12px; }
+  .blk-lex { padding: 6px 0 0; gap: 6px; }
+  .fxh { min-height: 22px; }
+  .fxsub { display: none; }
+  .fxknobs { gap: 4px 4px; }
+  .lex-progs button { padding: 2px; font-size: 9.5px; }
+  .lex-progs button b { font-size: 11px; }
   .lex-note { display: none; }
   dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
 }

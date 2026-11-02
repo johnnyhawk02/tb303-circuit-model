@@ -193,19 +193,23 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .md .mname { margin-top: 2px; }
 .md .mdesc { order: 2; font-size: 10.5px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
 
-/* effects: RAT and Lexicon 224 */
-.fx { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; }
-.fxknobs { display: flex; flex-wrap: wrap; gap: 14px 10px; }
+/* effects: one pane, the RAT and the ducker side by side over the 224; dials a size down from the voice */
+.fxpane { --knob: 40px; --kn-w: 64px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; align-content: start; }
+#pane-fx:not(:has(.onoff[aria-pressed=true]))::after { background: #666; }
+.fxb { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 0 20px; border-left: 1px solid #2c2c2c; }
+.fxb:first-child { padding-left: 0; border-left: 0; }
+.fxb .fxknobs, .fxb .lex-progs { transition: opacity .15s; }
+.fxb:not(.on) .fxknobs, .fxb:not(.on) .lex-progs { opacity: .5; }
+.fxh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 26px; }
+.fxname { font: 600 12px var(--font-body); color: var(--fg); }
+.fxsub { font-size: 11px; color: var(--mute); }
+.fxknobs { display: flex; flex-wrap: wrap; gap: 10px 6px; }
 .fxknobs .kn { width: var(--kn-w); }
-.blk-rat { display: grid; gap: 10px; min-width: 0; align-content: start; }
-#pane-rat:not(:has(.onoff[aria-pressed=true]))::after { background: #666; }
-#fx-rat { display: grid; gap: 14px; justify-items: start; }
-.blk-lex { display: grid; gap: 14px; }
-.lex-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.blk-lex { grid-column: 1 / -1; padding: 12px 0 0; border-left: 0; border-top: 1px solid #2c2c2c; gap: 10px; }
 .lex-lcd { font: 600 13px var(--font-body); letter-spacing: .04em; color: var(--hi); }
 .lex-progs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
-.lex-progs button { padding: 5px 4px; font: 500 10.5px/1.2 var(--font-body); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lex-progs button b { display: block; font: 600 14px/1.2 var(--font-body); }
+.lex-progs button { padding: 4px; font: 500 10.5px/1.2 var(--font-body); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lex-progs button b { display: block; font: 600 13px/1.2 var(--font-body); }
 .lex-progs button[aria-checked=true] { background: var(--on); color: #161616; }
 .lex-note { max-width: 70ch; font-size: 11px; color: var(--mute); }
 
@@ -338,6 +342,9 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
   .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
   .sq-ed { margin-left: 0; }
   .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fxpane { grid-template-columns: minmax(0, 1fr); }
+  .fxb { padding: 12px 0 0; border-left: 0; border-top: 1px solid #2c2c2c; }
+  .fxb:first-child { padding-top: 0; border-top: 0; }
   .opt-head { flex-wrap: wrap; padding-left: 16px; }
   .opt-head h2 { padding-bottom: 0; flex: 1; }
   .otabs { order: 3; flex-basis: 100%; }
@@ -419,9 +426,14 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
 
   .mods { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px 4px; }
   .md .mdesc { display: none; }
-  .fxknobs { gap: 10px 6px; }
-  .blk-lex { gap: 8px; }
-  .lex-progs button b { font-size: 12px; }
+  .fxpane { --knob: 30px; --kn-w: 58px; gap: 8px 0; }
+  .fxb { gap: 4px; padding: 0 12px; }
+  .blk-lex { padding: 6px 0 0; gap: 6px; }
+  .fxh { min-height: 22px; }
+  .fxsub { display: none; }
+  .fxknobs { gap: 4px 4px; }
+  .lex-progs button { padding: 2px; font-size: 9.5px; }
+  .lex-progs button b { font-size: 11px; }
   .lex-note { display: none; }
   dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
 }
@@ -481,8 +493,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
   <div class="tabs mtabs" id="mtabs" role="tablist" aria-label="Sections">
     <button type="button" role="tab" data-pane="seq">Sequencer</button>
     <button type="button" role="tab" data-pane="mods">Mods</button>
-    <button type="button" role="tab" data-pane="rat">RAT</button>
-    <button type="button" role="tab" data-pane="lex">224</button>
+    <button type="button" role="tab" data-pane="fx">FX</button>
     <button type="button" role="tab" data-pane="board">Board</button>
   </div>
 
@@ -514,23 +525,23 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
   </div>
   <div class="pane" data-title="Mods" id="pane-mods" role="tabpanel" aria-label="Mods" hidden><div class="mods" id="mods" aria-label="Common mods"></div></div>
 
-  <div class="pane strip" data-title="ProCo RAT" id="pane-rat" role="tabpanel" aria-label="RAT" hidden>
-    <section class="blk-rat">
-      <div class="fx" id="fx-rat">
-        <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
-        <div class="fxknobs" id="fx-rat-knobs"></div>
-      </div>
+  <div class="pane fxpane" data-title="Effects" id="pane-fx" role="tabpanel" aria-label="Effects" hidden>
+    <section class="fxb" id="fx-rat" aria-label="ProCo RAT">
+      <div class="fxh"><button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button><span class="fxname">ProCo RAT</span></div>
+      <div class="fxknobs" id="fx-rat-knobs"></div>
     </section>
-  </div>
-
-  <div class="pane" data-title="Lexicon 224" id="pane-lex" role="tabpanel" aria-label="Lexicon 224" hidden>
-    <section class="blk-lex">
-      <div class="lex-head">
+    <section class="fxb" id="fx-duck" aria-label="Ducker" title="Turns the 224 return down while the synth plays, keyed from the dry synth: by however far it is over Threshold, up to the Duck amount">
+      <div class="fxh"><span class="fxname">Ducker</span><span class="fxsub">224 return, keyed by the synth</span></div>
+      <div class="fxknobs" id="fx-duck-knobs"></div>
+    </section>
+    <section class="fxb blk-lex" id="fx-lex" aria-label="Lexicon 224">
+      <div class="fxh lex-head">
         <button type="button" class="onoff" id="fx-lex-on" aria-pressed="false">Off</button>
+        <span class="fxname">Lexicon 224</span>
         <span class="lex-lcd" id="lex-lcd" aria-live="polite"></span>
       </div>
       <div class="lex-progs" id="lex-progs" role="radiogroup" aria-label="Program"></div>
-      <div class="fx" id="fx-lex"><div class="fxknobs" id="fx-lex-knobs"></div></div>
+      <div class="fxknobs" id="fx-lex-knobs"></div>
       <p class="hint lex-note" id="lex-note"></p>
     </section>
   </div>
@@ -1050,9 +1061,11 @@ class TB303Voice {
 
     // front panel (0..1)
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
-      lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5 };
+      lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
+      duck: 0.5, duckthr: 0.35, duckrel: 0.5 };
     this.fx = { rat: false, lex: false };
     this.lex = new Lexicon224(sampleRate);
+    this.duckEnv = 0; this.duckG = 1;
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
 
@@ -1083,6 +1096,7 @@ class TB303Voice {
 
   _derive() {
     const c = this.c, k = this.knobs;
+    this._deriveDuck(k);
     // VCO: expo converter calibrated (TM4/TM5) to F_TUNE at CV_TUNE, 1 V/oct.
     // Ramp slope dV/dt = I/C33, frequency = I / (C33 * (V_HI - V_LO)).
     this.swing = c.V_HI - c.V_LO;
@@ -1353,6 +1367,27 @@ class TB303Voice {
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }
 
+  // Sidechain ducker on the 224 return (outside the circuit). The dry synth is the key: a peak follower
+  // (1 ms attack, Release 20 ms to 1 s) and a 1:inf limiter law turn the wet down by however far the key
+  // is over Threshold (-40 to 0 dBFS), but never by more than Amount (0 to 30 dB; 0 is off).
+  _deriveDuck(k) {
+    const fs = this.fsOut;
+    this.duckFloor = Math.pow(10, -30 * k.duck / 20);
+    this.duckThr = Math.pow(10, (-40 + 40 * k.duckthr) / 20);
+    this.duckAtt = Math.exp(-1 / (0.001 * fs));
+    this.duckRel = Math.exp(-1 / (0.02 * Math.pow(50, k.duckrel) * fs));
+  }
+  // the 224 after the dry signal y: wet return ducked by y, summed, then the output soft clip
+  _lexOut(lex, y, out, outR, n) {
+    const a = Math.abs(y), e = this.duckEnv;
+    this.duckEnv = a + (e - a) * (a > e ? this.duckAtt : this.duckRel);
+    this.duckG = this.duckEnv > this.duckThr ? Math.max(this.duckFloor, this.duckThr / this.duckEnv) : 1;
+    lex.run(y);
+    const w = lex.wet * this.duckG;
+    out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
+    if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
+  }
+
   _decimate(x) {
     for (const s of this.decim) {
       const y = s.b0 * x + s.b1 * s.x1 + s.b2 * s.x2 - s.a1 * s.y1 - s.a2 * s.y2;
@@ -1373,12 +1408,8 @@ class TB303Voice {
     for (let n = start; n < end; n++) {
       let y = 0;
       for (let o = 0; o < this.os; o++) y = this._decimate(this._tick());
-      if (lex) {
-        lex.run(y);
-        const w = lex.wet;
-        out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
-        if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
-      } else { out[n] = y; if (outR) outR[n] = y; }
+      if (lex) this._lexOut(lex, y, out, outR, n);
+      else { out[n] = y; if (outR) outR[n] = y; }
     }
   }
 
@@ -1453,11 +1484,8 @@ class DeClick {
         }
         y *= g;
       }
-      if (lex) {
-        lex.run(y); const w = lex.wet;
-        out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
-        if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
-      } else { out[n] = y; if (outR) outR[n] = y; }
+      if (lex) v._lexOut(lex, y, out, outR, n);
+      else { out[n] = y; if (outR) outR[n] = y; }
     }
   }
 }
@@ -1559,6 +1587,9 @@ const KNOBS = [
   { id: 'lexme',     name: 'Mode enh',  ref: 'off, 16–1',  def: 0.5,  fx: 'lex' },
   { id: 'lexpitch',  name: 'Pitch',     ref: '1–16',       def: 0.2,  fx: 'lex' },
   { id: 'lexmix',    name: 'Return',    ref: 'wet level',  def: 0.5,  fx: 'lex' },
+  { id: 'duck',      name: 'Duck',      ref: '0–30 dB',    def: 0.5,  fx: 'duck' },
+  { id: 'duckthr',   name: 'Threshold', ref: '-40–0 dB',   def: 0.35, fx: 'duck' },
+  { id: 'duckrel',   name: 'Release',   ref: '20 ms–1 s',  def: 0.5,  fx: 'duck' },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33
@@ -2432,6 +2463,9 @@ function knobText(id, p) {
     case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
     case 'dist': return 'gain ×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
     case 'filter': return fmt(Math.round(1 / (2 * Math.PI * (c.RAT_RF + 100e3 * p) * c.RAT_CFLT)), 'Hz');
+    case 'duck': return p < 0.005 ? 'off' : 'up to ' + Math.round(30 * p) + ' dB';
+    case 'duckthr': return Math.round(-40 + 40 * p) + ' dB';
+    case 'duckrel': { const ms = 20 * Math.pow(50, p); return ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(2) + ' s'; }
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
       return Math.round(p * 100) + '%';
@@ -3216,6 +3250,7 @@ function renderFx() {
     b.setAttribute('aria-pressed', state.fx[n]); b.textContent = state.fx[n] ? 'On' : 'Off';
     document.getElementById('fx-' + n).classList.toggle('on', state.fx[n]);
   }
+  document.getElementById('fx-duck').classList.toggle('on', state.fx.lex); // the ducker only acts on the 224 return
 }
 for (const n of ['rat', 'lex']) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
@@ -3682,6 +3717,7 @@ boardInfo.addEventListener('click', (e) => {
 // ---------- main tabs ----------
 const mtabs = document.getElementById('mtabs');
 function showPane(name, focus) {
+  if (name === 'rat' || name === 'lex') name = 'fx'; // the RAT and 224 tabs became one
   if (!document.getElementById('pane-' + name)) name = 'seq';
   for (const b of mtabs.querySelectorAll('[role=tab]')) { const on = b.dataset.pane === name; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); }
   for (const p of document.querySelectorAll('.main > .pane')) p.hidden = p.id !== 'pane-' + name; renderBoardSoon();

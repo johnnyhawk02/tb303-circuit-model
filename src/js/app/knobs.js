@@ -24,6 +24,9 @@ function knobText(id, p) {
     case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
     case 'dist': return 'gain ×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
     case 'filter': return fmt(Math.round(1 / (2 * Math.PI * (c.RAT_RF + 100e3 * p) * c.RAT_CFLT)), 'Hz');
+    case 'duck': return p < 0.005 ? 'off' : 'up to ' + Math.round(30 * p) + ' dB';
+    case 'duckthr': return Math.round(-40 + 40 * p) + ' dB';
+    case 'duckrel': { const ms = 20 * Math.pow(50, p); return ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(2) + ' s'; }
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
       return Math.round(p * 100) + '%';
