@@ -2576,6 +2576,13 @@ playBtn.onclick = async () => {
   if (!playing) markStep(-1);
 };
 // tempo dial: drag, wheel or arrows, 60-200 BPM; double-click to type a value
+// spacebar plays and stops, except while typing in a text field
+const typing = (t) => t.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]');
+document.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
+  e.preventDefault(); playBtn.click();
+}, true);
+document.addEventListener('keyup', (e) => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
 const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById('bpm-val');
 bpmKnob.innerHTML = knobSVG();
 function drawBpm() {
