@@ -295,6 +295,8 @@ input[type=text] { background: var(--well); }
 .play[aria-pressed=true] { background: var(--on); }
 .play[aria-pressed=true] svg { fill: #161616; }
 .gear { background: transparent; border-color: transparent; }
+.ver { font: 500 10.5px var(--font-body); color: var(--mute); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
+.ver + .gear { margin-left: 0; }
 .gear svg { width: 20px; height: 20px; }
 .bpm .knob { width: 30px; height: 30px; }
 .bpm-read { display: flex; align-items: baseline; gap: 6px; }
@@ -564,6 +566,7 @@ dialog#options { height: fit-content; min-height: min(460px, calc(100dvh - 32px)
     </div>
     <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="parts">Randomise component values</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
+    <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
     <span class="status" id="status" role="status">Stopped</span>
   </header>
@@ -2374,6 +2377,8 @@ function saveSession() { clearTimeout(saveTimer); saveTimer = setTimeout(() => s
 const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 
 let ctx = null, node = null, analyser = null, fallback = null;
+// the deploy stamps the version; a local build shows 'dev'
+{ const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
 const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
 // de-click is a playback preference, kept apart from sounds and projects
 const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));

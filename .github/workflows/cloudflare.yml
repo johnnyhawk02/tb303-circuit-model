@@ -15,6 +15,10 @@ jobs:
       - uses: actions/checkout@v4
       # Only the app itself goes live, so the source stays private with the repo.
       - run: mkdir dist && cp -R index.html sw.js manifest.webmanifest icons dist/
+      # stamp the version shown in the top bar: v<deploy number>, with commit and time in its tooltip
+      - run: |
+          sed -i "s/__BUILD_VERSION__/v${{ github.run_number }}/; s/__BUILD_SHA__/${GITHUB_SHA::7}/; s/__BUILD_DATE__/$(date -u '+%Y-%m-%d %H:%M UTC')/" dist/index.html
+          grep -c "v${{ github.run_number }}" dist/index.html
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
