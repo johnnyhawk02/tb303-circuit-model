@@ -1503,6 +1503,18 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault(); playBtn.click();
 }, true);
 document.addEventListener('keyup', (e) => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
+// Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste the current pattern slot (text fields and selected text keep their normal copy/paste)
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.repeat || typing(e.target) || document.getElementById('options').open) return;
+  const k = e.key.toLowerCase();
+  if (k === 'c') {
+    if (String(getSelection() || '')) return;
+    e.preventDefault(); document.getElementById('p-copy').click(); sqSay(`Copied ${sel.g}${sel.n + 1}.`);
+  } else if (k === 'v') {
+    if (!clip) return;
+    e.preventDefault(); pushUndo(); document.getElementById('p-paste').click(); sqSay(`Pasted into ${sel.g}${sel.n + 1}. Functions › Undo puts it back.`);
+  }
+});
 const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById('bpm-val');
 bpmKnob.innerHTML = knobSVG();
 function drawBpm() {
