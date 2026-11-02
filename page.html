@@ -375,9 +375,56 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
 @media (max-width: 760px) { .top .hp { order: 5; flex-basis: 100%; } .top .hp .label { min-width: 7ch; } .gear { margin-left: auto; } .pm-pop { min-width: 0; } }
 @media (max-width: 520px) { .wsw .label { font-size: 10px; } .top { gap: 12px 16px; } }
 @media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pane { min-height: 0; } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* phones and small tablets: landscape only */
+.rotate { display: none; }
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 900px) {
+  .rotate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; align-content: center; gap: 16px; padding: 24px; text-align: center; background: var(--page); color: var(--fg); }
+  .rotate svg { width: 72px; height: 72px; stroke: var(--on); fill: none; stroke-width: 2; animation: tilt 2.4s ease-in-out infinite; }
+  .rotate p { margin: 0; font: 600 15px var(--font-body); }
+  .rotate small { color: var(--mute); font-size: 12px; }
+  .main, dialog#options { display: none !important; }
+  body { overflow: hidden; }
+}
+@keyframes tilt { 0%, 30% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+@media (orientation: landscape) and (max-height: 520px) {
+  body { padding: 0 max(8px, env(safe-area-inset-right, 0px)) 16px max(8px, env(safe-area-inset-left, 0px)); }
+  .main { gap: 6px; }
+  .top { margin: 0 -8px; padding: 6px 8px; gap: 6px 8px; flex-wrap: nowrap; }
+  .top .hp { order: 0; flex: 1 1 0; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+  .top .hp .label, .wsw .label, .bpm-read .label { display: none; }
+  .pm .pm-step { display: none; }
+  .pm .pm-btn .grp { display: none; }
+  .top .fn > button { padding: 5px 7px; }
+  .gear { margin-left: 0; }
+  .pm-pop { max-height: calc(100dvh - 60px) !important; min-width: 260px; }
+  .dev, .main > .pane { padding: 6px 8px 8px; }
+  .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
+  .panel { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .kn { gap: 1px; } .kn .knob { width: 34px; height: 34px; }
+  .kn .name { font-size: 10px; } .panel .kn .val { display: none; }
+  .mtabs { margin: 2px 0 -7px; }
+  .mtabs button { padding: 4px 10px; }
+  .pane { min-height: 0; }
+  .sq { gap: 6px; }
+  .sq-bank { gap: 6px; }
+  .sq-bank .seg button { padding: 3px 6px; min-width: 22px; }
+  .sq-ed { margin-left: auto; }
+  .sq-ed button { padding: 3px 7px; }
+  .sq-body { grid-template-columns: 120px minmax(0, 1fr); gap: 8px; }
+  .sq-side { grid-template-columns: 1fr; gap: 4px; }
+  .stp { grid-template-columns: 1fr 20px 34px 20px; }
+  .stp .label { font-size: 9.5px; }
+  .stp button { height: 20px; }
+  .seq { grid-auto-rows: 12px; grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
+  .mods { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px 4px; }
+  .mods .md .knob { width: 36px; height: 36px; }
+  .md .mdesc { display: none; }
+  dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
+}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
+<div class="rotate" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn your device sideways</p><small>This instrument is laid out for landscape.</small></div>
 <div class="main">
   <header class="top">
     <h1 class="status">303 circuit model</h1>
@@ -1312,7 +1359,13 @@ function markStep(i) {
     for (const el of seqCols[i] || []) el.classList.add('cur'); lastStep = i;
   });
 }
+let triedLock = false;
+async function lockLandscape() {
+  if (triedLock || !matchMedia('(pointer: coarse)').matches) return; triedLock = true;
+  try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); await screen.orientation?.lock?.('landscape'); } catch {}
+}
 playBtn.onclick = async () => {
+  lockLandscape();
   if (!ctx) { try { await initAudio(); } catch (e) { status.textContent = 'Audio could not start in this browser'; return; } }
   if (ctx.state === 'suspended') await ctx.resume();
   playing = !playing;
