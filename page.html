@@ -64,7 +64,7 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .pm-foot .hint { flex-basis: 100%; }
 .pm-foot .hint:empty { display: none; }
 #pat-bar .pm-pop { left: auto; right: 0; }
-.pm-pop { min-width: 340px; grid-template-rows: auto minmax(0, 1fr) auto; }
+.pm-pop { min-width: 340px; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
 .icon { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; }
 .icon svg { width: 26px; height: 26px; fill: var(--fg); }
 .play .sq, .play[aria-pressed=true] .tri { display: none; }
@@ -296,7 +296,7 @@ input[type=text] { background: var(--well); }
 .pm .pm-btn .cur { color: var(--fg); }
 .pm .pm-step { font-size: 9px; padding: 0 8px; }
 .pm-pop, .fn-menu, .sq-msg { background: #333; border: 1px solid #111; box-shadow: 0 6px 20px rgb(0 0 0 / .5); border-radius: 3px; }
-.pm .pm-q { font: 12px var(--font-body); padding: 5px 8px; }
+.pm .pm-q { font: 12px var(--font-body); padding: 5px 8px; justify-self: stretch; box-sizing: border-box; width: calc(100% - 16px); }
 .pm .pm-g { font: 600 10.5px var(--font-body); letter-spacing: .03em; text-transform: none; background: transparent; border-top-color: #222; }
 .pm .pm-i { font: 12px/1.6 var(--font-body); background: transparent; padding-left: 26px; }
 .pm .pm-i[aria-selected=true] { background: var(--on); color: #161616; }
@@ -362,6 +362,29 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
 #pane-rat h3 { display: none; }
 #pane-rat:not(:has(.onoff[aria-pressed=true]))::after { background: #666; }
 .strip h3, .osec h3 { font: 600 11px var(--font-body); letter-spacing: .02em; text-transform: none; color: var(--mute); }
+/* consistency pass: one knob size, one label style, one control row, on every page */
+:root { --knob: 48px; --knob-part: 40px; --kn-w: 78px; }
+.kn .knob, .kn.small .knob, #pane-rat .kn.small .knob, #fx-lex .kn.small .knob, .mods .md .knob, .md .knob { width: var(--knob); height: var(--knob); }
+.pk .knob { width: var(--knob-part); height: var(--knob-part); }
+.kn, .md, .pk { gap: 4px; }
+.kn .name, .md .mname, .pk .ref { font: 600 11px/1.2 var(--font-body); }
+.kn .val, .md .val, .pk .val { font: 500 10.5px/1.2 var(--font-body); min-height: 0; }
+.fxknobs, #fx-lex .fxknobs, .strip .fxknobs { display: flex; flex-wrap: wrap; gap: 14px 10px; }
+.fxknobs .kn { width: var(--kn-w); }
+.strip { display: block; }
+#fx-rat { display: grid; gap: 14px; justify-items: start; }
+#pane-lex { padding-top: 34px; }
+.lex-head { gap: 12px; }
+.lex-head h3 { display: none; }
+.lex-lcd { font: 600 13px var(--font-body); letter-spacing: .04em; color: var(--hi); }
+.onoff { min-width: 52px; }
+.lex-progs { gap: 4px; }
+.lex-progs button { font: 500 10.5px/1.2 var(--font-body); padding: 5px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.lex-progs button b { font: 600 14px/1.2 var(--font-body); }
+.lex-note { font-size: 11px; color: var(--mute); }
+.mods { gap: 18px 10px; }
+.stp output.unit { color: var(--mute); font-size: 10px; }
+dialog#options { height: fit-content; min-height: min(460px, calc(100dvh - 32px)); max-height: min(760px, calc(100dvh - 32px)); }
 
 @media (max-width: 760px) {
   .opt-head { flex-wrap: wrap; padding-left: 16px; } .opt-head h2 { padding-bottom: 0; flex: 1; } .otabs { order: 3; flex-basis: 100%; } .xbtn { margin-bottom: 0; }
@@ -436,6 +459,20 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
   .sq-body { grid-template-columns: 128px minmax(0, 1fr); }
   .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
   .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* same knob size on every page; extra height goes to the pane row, not the tabs */
+  :root { --knob: 36px; --knob-part: 34px; --kn-w: 60px; }
+  .main { grid-template-rows: auto auto minmax(0, 1fr); min-height: calc(100dvh - max(6px, env(safe-area-inset-bottom, 0px))); }
+  .main > .pane { align-self: stretch; }
+  .fxknobs, #fx-lex .fxknobs, .strip .fxknobs { gap: 10px 6px; }
+  .kn .name, .md .mname, .pk .ref { font-size: 10px; }
+  .kn .val, .md .val, .pk .val { font-size: 9.5px; }
+  #pane-lex { padding-top: 6px; }
+  .blk-lex { gap: 8px; }
+  .lex-progs button b { font-size: 12px; }
+  .lex-note { display: none; }
+  .pm-pop { min-width: 0; width: 340px; }
+  .pm-pop .pm-foot { flex-wrap: nowrap; box-sizing: border-box; width: 100%; } .pm-pop .pm-foot input { min-width: 0; width: auto; flex: 1 1 0; } .pm-pop .pm-foot button { flex: none; padding: 4px 10px; }
+  dialog#options { height: calc(100dvh - 16px); max-height: none; min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -514,8 +551,8 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
         <div class="stp"><span class="label">Length</span><button type="button" data-a="len" data-d="-1" aria-label="Length down">◀</button><output id="o-len">16</output><button type="button" data-a="len" data-d="1" aria-label="Length up">▶</button></div>
         <div class="stp"><span class="label">Shuffle</span><button type="button" data-a="shuf" data-d="-1" aria-label="Shuffle down">◀</button><output id="o-shuf">0%</output><button type="button" data-a="shuf" data-d="1" aria-label="Shuffle up">▶</button></div>
         <div class="stp"><span class="label">Step len</span><button type="button" data-a="gate" data-d="-1" aria-label="Step len down">◀</button><output id="o-gate">50%</output><button type="button" data-a="gate" data-d="1" aria-label="Step len up">▶</button></div>
-        <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift"></output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
-        <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr">0</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
+        <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift" class="unit">step</output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
+        <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr" class="unit">semi</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
         <button type="button" class="rnd" id="rand">Random</button>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
@@ -940,8 +977,7 @@ function renderSide() {
   document.getElementById('o-shuf').textContent = Math.round(state.shuffle * 100) + '%';
   document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
   const codes = state.pattern.map(s => s.code), lo = Math.min(...codes), hi = Math.max(...codes);
-  document.getElementById('o-tr').textContent = '';
-  for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
+    for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
 }
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
