@@ -759,4 +759,31 @@ class TB303Voice {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+// Knob and part changes glide to their new value (one-pole, ~15 ms) instead of jumping, so turning a
+// control, MIDI CC steps or a preset load do not zipper the sound. This sits outside the circuit:
+// it only decides what value the voice sees each 32-sample tick. Discrete controls switch at once.
+class ParamSlew {
+  constructor(voice, fs, tau = 0.015) { this.v = voice; this.fs = fs; this.tau = tau; this.t = new Map(); }
+  static instant(kind, name) { return name === 'lexprog' || name.startsWith('LEX_'); }
+  set(kind, name, value) {
+    const v = this.v;
+    if (ParamSlew.instant(kind, name) || !isFinite(value)) { this.t.delete(kind + name); kind === 'k' ? v.setKnob(name, value) : v.setComponent(name, value); return; }
+    const cur = kind === 'k' ? v.knobs[name] : v.c[name];
+    if (cur === undefined) return;
+    this.t.set(kind + name, { kind, name, value, log: kind === 'c' && value > 0 && cur > 0 });
+  }
+  get active() { return this.t.size > 0; }
+  tick(n) {
+    if (!this.t.size) return;
+    const v = this.v, a = 1 - Math.exp(-n / (this.tau * this.fs));
+    for (const [key, e] of this.t) {
+      const obj = e.kind === 'k' ? v.knobs : v.c, cur = obj[e.name];
+      let nx = e.log ? Math.exp(Math.log(cur) + (Math.log(e.value) - Math.log(cur)) * a) : cur + (e.value - cur) * a;
+      if (Math.abs(nx - e.value) <= 1e-4 * Math.max(1e-9, Math.abs(e.value)) || (!e.log && Math.abs(nx - e.value) < 1e-5)) { nx = e.value; this.t.delete(key); }
+      obj[e.name] = nx;
+    }
+    v._derive();
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };

@@ -541,15 +541,15 @@ canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px;
 class TB303Processor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.v = new TB303Voice(sampleRate);
+    this.v = new TB303Voice(sampleRate); this.slew = new ParamSlew(this.v, sampleRate);
     this.playing = false; this.bpm = 128; this.pattern = [];
     this.step = -1; this.ctr = 0; this.gateOffAt = -1; this.shuffle = 0; this.gate = 0.5;
     this.port.onmessage = (e) => this.onMsg(e.data);
   }
   onMsg(m) {
     const v = this.v;
-    if (m.type === 'knob') v.setKnob(m.name, m.value);
-    else if (m.type === 'component') v.setComponent(m.name, m.value);
+    if (m.type === 'knob') this.slew.set('k', m.name, m.value);
+    else if (m.type === 'component') this.slew.set('c', m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value;
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'pattern') this.pattern = m.value;
@@ -575,6 +575,7 @@ class TB303Processor extends AudioWorkletProcessor {
     while (i < out.length) {
       if (this.playing && this.ctr <= 0) { this.stepLen = this.startStep() || 1; this.ctr = this.stepLen; }
       let run = out.length - i;
+      if (this.slew.active) { run = Math.min(run, 32); this.slew.tick(run); }
       if (this.playing) {
         run = Math.min(run, this.ctr);
         const elapsed = this.stepLen - this.ctr;
@@ -1275,15 +1276,17 @@ async function initAudio() {
 }
 function makeFallback() {
   const v = new TB303Voice(ctx.sampleRate), sp = ctx.createScriptProcessor(1024, 0, 2);
+  const slew = new ParamSlew(v, ctx.sampleRate);
   const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1, shuffle: 0, gate: 0.5 };
   f.msg = (m) => {
-    if (m.type === 'knob') v.setKnob(m.name, m.value); else if (m.type === 'component') v.setComponent(m.name, m.value);
+    if (m.type === 'knob') slew.set('k', m.name, m.value); else if (m.type === 'component') slew.set('c', m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'fx') v.setFx(m.name, m.value); else if (m.type === 'pattern') f.pattern = m.value;
     else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'groove') { f.shuffle = m.shuffle; f.gate = m.gate; } else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
   };
   sp.onaudioprocess = (e) => {
     const out = e.outputBuffer.getChannelData(0), outR = e.outputBuffer.getChannelData(1);
     for (let i = 0; i < out.length; i++) {
+      if ((i & 31) === 0) slew.tick(32);
       if (f.playing) {
         if (f.ctr <= 0) {
           const P = f.pattern; f.step = (f.step + 1) % P.length; const s = P[f.step], pr = P[(f.step + P.length - 1) % P.length];
