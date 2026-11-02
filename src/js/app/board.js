@@ -19,7 +19,7 @@ function bands(k, v) {
 }
 const CELL_W = 88, CELL_H = 76, PAD = 14, HEAD = 22;
 function partSVG(k, cx, cy) {
-  const d = COMPONENTS[k], v = state.parts[k], chg = Math.abs(v / d.v - 1) > 1e-6;
+  const d = COMPONENTS[k], v = state.parts[k], chg = partChanged(k, v);
   const lead = (x1, x2) => `<line class="lead" x1="${x1}" y1="${cy}" x2="${x2}" y2="${cy}"/>`;
   const pads = `<circle class="pad" cx="${cx - 34}" cy="${cy}" r="4"/><circle class="pad" cx="${cx + 34}" cy="${cy}" r="4"/>`;
   let body;
@@ -81,7 +81,7 @@ function renderBoard() {
   const cur = boardInfo.dataset.k; if (cur) boardEl.querySelector(`.part[data-k="${cur}"]`)?.classList.add('sel');
 }
 function boardSay(k) {
-  const d = COMPONENTS[k], v = state.parts[k], t = tolerance(k), chg = Math.abs(v / d.v - 1) > 1e-6;
+  const d = COMPONENTS[k], v = state.parts[k], t = tolerance(k), chg = partChanged(k, v);
   const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   boardInfo.dataset.k = k;
   boardInfo.innerHTML = `<b>${k}</b> <span class="bv${chg ? ' changed' : ''}">${esc(fmt(v, d.unit))}</span> · ${esc(d.note)}. Stock ${esc(fmt(d.v, d.unit))}${t ? `, ±${+(t * 100).toFixed(1)}%` : ''}.`

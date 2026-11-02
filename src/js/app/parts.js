@@ -19,7 +19,7 @@ function fromSlider(k, x) {
 const SRC_TEXT = { schematic: 'from the 1982 sheet', td3: 'read from the TD-3 sheet', rat: 'standard RAT value', lex: 'from Lexicon documentation', estimate: 'estimate' };
 function partRow(k) {
   const d = COMPONENTS[k], v = state.parts[k];
-  const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
+  const changed = partChanged(k, v) ? ' changed' : '';
   const t = d.fixed ? 0.5 : toSlider(k, v) / SL;
   return `<div class="pk${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}" data-k="${k}">
     <div class="knob" data-k="${k}" ${d.fixed ? '' : 'tabindex="0" role="slider"'} aria-label="${k}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t * 100)}">${knobSVG()}</div>
@@ -46,7 +46,7 @@ const TABS = ['Mods', ...BLOCKS];
 let partsTab = store.get('partsTab', 'Mods'); if (!TABS.includes(partsTab)) partsTab = 'Mods';
 const tabsEl = document.getElementById('ptabs');
 function tabKeys(t) { return Object.keys(COMPONENTS).filter(k => t === 'Mods' ? COMPONENTS[k].mod : COMPONENTS[k].block === t); }
-function changedIn(t) { return tabKeys(t).filter(k => Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6).length; }
+function changedIn(t) { return tabKeys(t).filter(k => partChanged(k)).length; }
 function renderTabs() {
   tabsEl.innerHTML = TABS.map(t => {
     const n = changedIn(t);
@@ -76,7 +76,7 @@ function renderBoardSoon() { const bp = document.getElementById('pane-board'); i
 function applyPart(k, val) {
   state.parts[k] = val;
   if (k === 'I_REF') queueMicrotask(drawTrim);
-  for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
+  for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', partChanged(k, val)); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
   for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx(); renderBoardSoon();
@@ -119,12 +119,13 @@ const FRONT_MODS = [
   ['A_Q21', 'Reso limit', 'up to self-oscillation'],
   ['R_IN', 'Drive', 'push the filter harder'],
   ['C18', 'Ladder cap', 'resonance character'],
+  ['WOW', 'Accent wow', 'swell on accents at high reso'],
 ].filter(([k]) => k in COMPONENTS);
 const modsEl = document.getElementById('mods');
 function renderFrontMods() {
   modsEl.innerHTML = FRONT_MODS.map(([k, name, desc]) => {
     const d = COMPONENTS[k], v = state.parts[k];
-    const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
+    const changed = partChanged(k, v) ? ' changed' : '';
     return `<div class="md" data-k="${k}" title="${k}: ${d.mod.replace(/"/g, '&quot;')}">
       <div class="knob" data-k="${k}" tabindex="0" role="slider" aria-label="${name} (${k})" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
       <span class="mname">${name}</span><span class="mdesc">${desc}</span>

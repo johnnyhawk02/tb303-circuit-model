@@ -93,6 +93,7 @@ const COMPONENTS = {
   C_ACC:  { v: 1e-6,    unit: 'F', block: 'Accent',source: 'schematic', note: 'accent sweep cap C13 (1/50); TD-3 C62 1µ', mod: 'Accent sweep cap. The Devil Fish Sweep Speed control changes how fast this charges and bleeds, so stacked accents wah more or less.' },
   R_ACC:  { v: 47e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'sweep resistor R46 47K; TD-3 R39 47K', mod: 'Accent sweep bleed. Part of the Sweep Speed mod: higher values let consecutive accents build further.' },
   V_D:    { v: 0.55,    unit: 'V', block: 'Accent',source: 'estimate',  note: 'D27/D28 forward drop' },
+  WOW:    { v: 0,       unit: '×', block: 'Accent',source: 'estimate',  note: 'blend toward the schematic accent sweep: D24 / R_ACC / second gang of VR4 / C_ACC, gang wiper to the filter', range: [0, 1, 'lin'], mod: 'Accent wow. Blends in the sweep as the cleaner schematic draws it: the second gang of the resonance pot taps the sweep cap, so at high resonance accents swell and build over back-to-back accents. 0 keeps the classic accent.' },
 
   // --- VCA (IC15 BA662A OTA)
   C67:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'td3',       note: 'VCA env cap (TD-3 C67 1/35)', mod: 'VCA envelope cap; scales VCA decay and attack together.' },
@@ -477,7 +478,7 @@ class TB303Voice {
     this.fbLp = 0;
     this.envVcf = 0; this.envAttack = 0;
     this.envVca = 0; this.vcaAttack = 0;
-    this.vAcc = 0;
+    this.vAcc = 0; this.vWowC = 0; this.vWow = 0;
     this.hp14 = 0; this.hp14In = 0; this.hp38 = 0; this.hp38In = 0;
     this.hp49 = 0; this.hp49In = 0; this.hp76 = 0; this.hp76In = 0;
     this.dc = { z1: 0, z2: 0, z3: 0, z4: 0 };
@@ -527,6 +528,15 @@ class TB303Voice {
     this.accFrac = k.accent; // VR7 linear
     this.accChgK = 1 / (c.R117 * c.C_ACC * this.fs);
     this.accDisA = Math.exp(-1 / (c.R_ACC * c.C_ACC * this.fs));
+    // wow: VR7 -> D24 -> R_ACC -> VR4 gang 2 track -> C_ACC; the gang wiper drives the filter. Resonance picks the tap:
+    // low takes the fast end (a sharp accent), high the cap end (a swell that builds over consecutive accents).
+    {
+      const ra = Math.max(c.VR4 * k.resonance, 1), rb = Math.max(c.VR4 * (1 - k.resonance), 1);
+      const rs = c.R_ACC + c.VR7 * k.accent * (1 - k.accent);
+      const gl = 1 / (c.R63 + 1 / (g73 + g72 + g71)), gb = 1 / rb, dt = 1 / this.fs;
+      const tap = (gsrc) => { const sum = gsrc + gb + gl; return { a: gsrc / sum, b: gb / sum, tgt: gsrc / (gsrc + gl), k: Math.exp(-dt * gb * (gsrc + gl) / sum / c.C_ACC) }; };
+      this.wowOn = tap(1 / (rs + ra)); this.wowOff = tap(0);
+    }
     // couplings
     this.hp14A = Math.exp(-1 / (c.C14 * c.R85 * this.fs));
     this.hp49A = Math.exp(-1 / (c.C49 * c.R88 * this.fs));
@@ -736,10 +746,17 @@ class TB303Voice {
     const drive = vAccIn - c.V_D - this.vAcc;
     if (drive > 0) this.vAcc += drive * this.accChgK;
     this.vAcc *= this.accDisA;
+    if (c.WOW > 0 || this.vWowC > 1e-6) {
+      const vs = vAccIn - c.V_D, t = vs > this.wowOff.b * this.vWowC ? this.wowOn : this.wowOff;
+      this.vWow = t.a * vs + t.b * this.vWowC;
+      const tgt = t === this.wowOn ? t.tgt * vs : 0;
+      this.vWowC = tgt + t.k * (this.vWowC - tgt);
+    }
+    const vAccF = c.WOW > 0 ? this.vAcc + c.WOW * (this.vWow - this.vAcc) : this.vAcc;
 
     // --- VCF control: Millman sum at Q10 base, expo current
     const vEnvMod = this.accentNote ? 0 : this.envVcf * this.envModFrac;
-    const vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * this.vAcc;
+    const vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * vAccF;
     const Il = Math.min(c.I_REF * Math.exp(vb / VT), 2e-3);
 
     const y = this._vcfStep(wave * this.inAtt, Il);

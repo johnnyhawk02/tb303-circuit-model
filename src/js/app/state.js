@@ -90,6 +90,8 @@ const PATTERN_BUILTIN = {
     [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
 };
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
+// a part differs from stock (works for parts whose stock value is 0)
+function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return Math.abs(v - d) > (d ? 1e-6 * Math.abs(d) : 1e-9); }
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
   if (!x || typeof x !== 'object') return out;
@@ -106,7 +108,7 @@ function cleanSettings(x) {
 }
 function snapshot() {
   const parts = {};
-  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
+  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && partChanged(k)) parts[k] = state.parts[k];
   return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session

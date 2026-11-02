@@ -93,7 +93,7 @@
   .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
 
-  .mods { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
+  .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
   .md .mdesc { font-size: 9.5px; }
   .board-info { margin: 0 -8px -8px; padding: 6px 8px; bottom: -8px; }
   .fxpane { --knob: 30px; --kn-w: 58px; gap: 8px 0; }

@@ -189,7 +189,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .pane[hidden] { display: none !important; }
 
 /* front-page mods */
-.mods { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px 10px; padding-top: 8px; }
+.mods { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px 10px; padding-top: 8px; }
 .md .mname { margin-top: 2px; }
 .md .mdesc { order: 2; font-size: 10.5px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
 
@@ -428,7 +428,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
   .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
 
-  .mods { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
+  .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
   .md .mdesc { font-size: 9.5px; }
   .board-info { margin: 0 -8px -8px; padding: 6px 8px; bottom: -8px; }
   .fxpane { --knob: 30px; --kn-w: 58px; gap: 8px 0; }
@@ -703,6 +703,7 @@ const COMPONENTS = {
   C_ACC:  { v: 1e-6,    unit: 'F', block: 'Accent',source: 'schematic', note: 'accent sweep cap C13 (1/50); TD-3 C62 1µ', mod: 'Accent sweep cap. The Devil Fish Sweep Speed control changes how fast this charges and bleeds, so stacked accents wah more or less.' },
   R_ACC:  { v: 47e3,    unit: 'Ω', block: 'Accent',source: 'schematic', note: 'sweep resistor R46 47K; TD-3 R39 47K', mod: 'Accent sweep bleed. Part of the Sweep Speed mod: higher values let consecutive accents build further.' },
   V_D:    { v: 0.55,    unit: 'V', block: 'Accent',source: 'estimate',  note: 'D27/D28 forward drop' },
+  WOW:    { v: 0,       unit: '×', block: 'Accent',source: 'estimate',  note: 'blend toward the schematic accent sweep: D24 / R_ACC / second gang of VR4 / C_ACC, gang wiper to the filter', range: [0, 1, 'lin'], mod: 'Accent wow. Blends in the sweep as the cleaner schematic draws it: the second gang of the resonance pot taps the sweep cap, so at high resonance accents swell and build over back-to-back accents. 0 keeps the classic accent.' },
 
   // --- VCA (IC15 BA662A OTA)
   C67:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'td3',       note: 'VCA env cap (TD-3 C67 1/35)', mod: 'VCA envelope cap; scales VCA decay and attack together.' },
@@ -1087,7 +1088,7 @@ class TB303Voice {
     this.fbLp = 0;
     this.envVcf = 0; this.envAttack = 0;
     this.envVca = 0; this.vcaAttack = 0;
-    this.vAcc = 0;
+    this.vAcc = 0; this.vWowC = 0; this.vWow = 0;
     this.hp14 = 0; this.hp14In = 0; this.hp38 = 0; this.hp38In = 0;
     this.hp49 = 0; this.hp49In = 0; this.hp76 = 0; this.hp76In = 0;
     this.dc = { z1: 0, z2: 0, z3: 0, z4: 0 };
@@ -1137,6 +1138,15 @@ class TB303Voice {
     this.accFrac = k.accent; // VR7 linear
     this.accChgK = 1 / (c.R117 * c.C_ACC * this.fs);
     this.accDisA = Math.exp(-1 / (c.R_ACC * c.C_ACC * this.fs));
+    // wow: VR7 -> D24 -> R_ACC -> VR4 gang 2 track -> C_ACC; the gang wiper drives the filter. Resonance picks the tap:
+    // low takes the fast end (a sharp accent), high the cap end (a swell that builds over consecutive accents).
+    {
+      const ra = Math.max(c.VR4 * k.resonance, 1), rb = Math.max(c.VR4 * (1 - k.resonance), 1);
+      const rs = c.R_ACC + c.VR7 * k.accent * (1 - k.accent);
+      const gl = 1 / (c.R63 + 1 / (g73 + g72 + g71)), gb = 1 / rb, dt = 1 / this.fs;
+      const tap = (gsrc) => { const sum = gsrc + gb + gl; return { a: gsrc / sum, b: gb / sum, tgt: gsrc / (gsrc + gl), k: Math.exp(-dt * gb * (gsrc + gl) / sum / c.C_ACC) }; };
+      this.wowOn = tap(1 / (rs + ra)); this.wowOff = tap(0);
+    }
     // couplings
     this.hp14A = Math.exp(-1 / (c.C14 * c.R85 * this.fs));
     this.hp49A = Math.exp(-1 / (c.C49 * c.R88 * this.fs));
@@ -1346,10 +1356,17 @@ class TB303Voice {
     const drive = vAccIn - c.V_D - this.vAcc;
     if (drive > 0) this.vAcc += drive * this.accChgK;
     this.vAcc *= this.accDisA;
+    if (c.WOW > 0 || this.vWowC > 1e-6) {
+      const vs = vAccIn - c.V_D, t = vs > this.wowOff.b * this.vWowC ? this.wowOn : this.wowOff;
+      this.vWow = t.a * vs + t.b * this.vWowC;
+      const tgt = t === this.wowOn ? t.tgt * vs : 0;
+      this.vWowC = tgt + t.k * (this.vWowC - tgt);
+    }
+    const vAccF = c.WOW > 0 ? this.vAcc + c.WOW * (this.vWow - this.vAcc) : this.vAcc;
 
     // --- VCF control: Millman sum at Q10 base, expo current
     const vEnvMod = this.accentNote ? 0 : this.envVcf * this.envModFrac;
-    const vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * this.vAcc;
+    const vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * vAccF;
     const Il = Math.min(c.I_REF * Math.exp(vb / VT), 2e-3);
 
     const y = this._vcfStep(wave * this.inAtt, Il);
@@ -1662,6 +1679,8 @@ const PATTERN_BUILTIN = {
     [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
 };
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
+// a part differs from stock (works for parts whose stock value is 0)
+function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return Math.abs(v - d) > (d ? 1e-6 * Math.abs(d) : 1e-9); }
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
   if (!x || typeof x !== 'object') return out;
@@ -1678,7 +1697,7 @@ function cleanSettings(x) {
 }
 function snapshot() {
   const parts = {};
-  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
+  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && partChanged(k)) parts[k] = state.parts[k];
   return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session
@@ -2947,7 +2966,7 @@ function fromSlider(k, x) {
 const SRC_TEXT = { schematic: 'from the 1982 sheet', td3: 'read from the TD-3 sheet', rat: 'standard RAT value', lex: 'from Lexicon documentation', estimate: 'estimate' };
 function partRow(k) {
   const d = COMPONENTS[k], v = state.parts[k];
-  const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
+  const changed = partChanged(k, v) ? ' changed' : '';
   const t = d.fixed ? 0.5 : toSlider(k, v) / SL;
   return `<div class="pk${d.mod ? ' mod' : ''}${d.fixed ? ' fixed' : ''}" data-k="${k}">
     <div class="knob" data-k="${k}" ${d.fixed ? '' : 'tabindex="0" role="slider"'} aria-label="${k}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t * 100)}">${knobSVG()}</div>
@@ -2974,7 +2993,7 @@ const TABS = ['Mods', ...BLOCKS];
 let partsTab = store.get('partsTab', 'Mods'); if (!TABS.includes(partsTab)) partsTab = 'Mods';
 const tabsEl = document.getElementById('ptabs');
 function tabKeys(t) { return Object.keys(COMPONENTS).filter(k => t === 'Mods' ? COMPONENTS[k].mod : COMPONENTS[k].block === t); }
-function changedIn(t) { return tabKeys(t).filter(k => Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6).length; }
+function changedIn(t) { return tabKeys(t).filter(k => partChanged(k)).length; }
 function renderTabs() {
   tabsEl.innerHTML = TABS.map(t => {
     const n = changedIn(t);
@@ -3004,7 +3023,7 @@ function renderBoardSoon() { const bp = document.getElementById('pane-board'); i
 function applyPart(k, val) {
   state.parts[k] = val;
   if (k === 'I_REF') queueMicrotask(drawTrim);
-  for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
+  for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', partChanged(k, val)); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
   for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx(); renderBoardSoon();
@@ -3047,12 +3066,13 @@ const FRONT_MODS = [
   ['A_Q21', 'Reso limit', 'up to self-oscillation'],
   ['R_IN', 'Drive', 'push the filter harder'],
   ['C18', 'Ladder cap', 'resonance character'],
+  ['WOW', 'Accent wow', 'swell on accents at high reso'],
 ].filter(([k]) => k in COMPONENTS);
 const modsEl = document.getElementById('mods');
 function renderFrontMods() {
   modsEl.innerHTML = FRONT_MODS.map(([k, name, desc]) => {
     const d = COMPONENTS[k], v = state.parts[k];
-    const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
+    const changed = partChanged(k, v) ? ' changed' : '';
     return `<div class="md" data-k="${k}" title="${k}: ${d.mod.replace(/"/g, '&quot;')}">
       <div class="knob" data-k="${k}" tabindex="0" role="slider" aria-label="${name} (${k})" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
       <span class="mname">${name}</span><span class="mdesc">${desc}</span>
@@ -3674,7 +3694,7 @@ function bands(k, v) {
 }
 const CELL_W = 88, CELL_H = 76, PAD = 14, HEAD = 22;
 function partSVG(k, cx, cy) {
-  const d = COMPONENTS[k], v = state.parts[k], chg = Math.abs(v / d.v - 1) > 1e-6;
+  const d = COMPONENTS[k], v = state.parts[k], chg = partChanged(k, v);
   const lead = (x1, x2) => `<line class="lead" x1="${x1}" y1="${cy}" x2="${x2}" y2="${cy}"/>`;
   const pads = `<circle class="pad" cx="${cx - 34}" cy="${cy}" r="4"/><circle class="pad" cx="${cx + 34}" cy="${cy}" r="4"/>`;
   let body;
@@ -3736,7 +3756,7 @@ function renderBoard() {
   const cur = boardInfo.dataset.k; if (cur) boardEl.querySelector(`.part[data-k="${cur}"]`)?.classList.add('sel');
 }
 function boardSay(k) {
-  const d = COMPONENTS[k], v = state.parts[k], t = tolerance(k), chg = Math.abs(v / d.v - 1) > 1e-6;
+  const d = COMPONENTS[k], v = state.parts[k], t = tolerance(k), chg = partChanged(k, v);
   const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   boardInfo.dataset.k = k;
   boardInfo.innerHTML = `<b>${k}</b> <span class="bv${chg ? ' changed' : ''}">${esc(fmt(v, d.unit))}</span> · ${esc(d.note)}. Stock ${esc(fmt(d.v, d.unit))}${t ? `, ±${+(t * 100).toFixed(1)}%` : ''}.`
