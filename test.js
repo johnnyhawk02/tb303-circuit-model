@@ -30,3 +30,17 @@ const t0=Date.now(); const tb=new Float32Array(SR*5); v.process(tb); console.log
 const pcm=Buffer.alloc(44+out.length*2); pcm.write('RIFF',0);pcm.writeUInt32LE(36+out.length*2,4);pcm.write('WAVEfmt ',8);pcm.writeUInt32LE(16,16);pcm.writeUInt16LE(1,20);pcm.writeUInt16LE(1,22);pcm.writeUInt32LE(SR,24);pcm.writeUInt32LE(SR*2,28);pcm.writeUInt16LE(2,32);pcm.writeUInt16LE(16,34);pcm.write('data',36);pcm.writeUInt32LE(out.length*2,40);
 for(let i=0;i<out.length;i++) pcm.writeInt16LE(Math.max(-32767,Math.min(32767,Math.round(out[i]/Math.max(mx,1e-9)*0.9*32767))),44+i*2);
 fs.writeFileSync('demo.wav',pcm);
+// 6. Lexicon 224: measured decay should follow the Mid decay setting on every reverb program
+{
+  const { Lexicon224, LEX_PROGRAMS, lexParams, COMPONENTS } = require('./tb303-model.js');
+  const c = {}; for (const k in COMPONENTS) c[k] = COMPONENTS[k].v;
+  const knobs = new TB303Voice(SR).knobs;
+  for (let pr = 0; pr < 8; pr++) {
+    const k = { ...knobs, lexprog: pr / 8, lexdepth: 1 }, L = new Lexicon224(SR); L.derive(c, k);
+    const w = SR / 20, en = []; let s = 0, bad = 0;
+    for (let i = 0; i < SR * 6; i++) { L.run(i < 200 ? 0.8 * Math.sin(i * 0.3) : 0); const y = L.L * L.L + L.R * L.R; if (!isFinite(y)) bad++; s += y; if ((i + 1) % w === 0) { en.push(s); s = 0; } }
+    const mx = Math.max(...en), im = en.indexOf(mx), at = (db) => en.findIndex((e, i) => i >= im && 10 * Math.log10(e / mx) < db) * 0.05;
+    const m = L.memoryUse();
+    console.log('224', LEX_PROGRAMS[pr].short.padEnd(13), 'Mid', lexParams(k).mid.toFixed(2), 's  measured RT60', (3 * (at(-25) - at(-5))).toFixed(2), 's  memory', m.words, '/', m.of, bad ? 'NaN!' : '');
+  }
+}

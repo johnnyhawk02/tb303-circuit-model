@@ -146,6 +146,19 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .strip .fx { gap: 16px 34px; }
 .strip .fxknobs { gap: 16px 34px; }
 #pane-rat .kn.small .knob { width: 68px; height: 68px; }
+#pane-lex { padding-top: 6px; }
+.blk-lex { display: grid; gap: 14px; }
+.lex-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.lex-head h3 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.lex-lcd { font: 400 22px/1 var(--font-lcd); letter-spacing: .04em; }
+.lex-progs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+.lex-progs button { padding: 6px 4px; font: 500 11px var(--font-mono); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.lex-progs button b { display: block; font: 400 20px/1 var(--font-lcd); }
+.lex-progs button[aria-checked=true] { background: var(--fg); color: var(--bg); box-shadow: 2px 2px 0 var(--ghost); }
+#fx-lex .fxknobs { display: flex; flex-wrap: wrap; gap: 14px 22px; }
+#fx-lex .kn.small .knob { width: 60px; height: 60px; }
+.lex-note { max-width: 70ch; }
+@media (max-width: 760px) { .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .strip { grid-template-columns: minmax(0, 1fr); } }
 
 /* preset menu */
@@ -251,6 +264,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
     <button type="button" role="tab" data-pane="seq">Sequencer</button>
     <button type="button" role="tab" data-pane="mods">Mods</button>
     <button type="button" role="tab" data-pane="rat">RAT</button>
+    <button type="button" role="tab" data-pane="lex">224</button>
     <button type="button" role="tab" data-pane="presets">Presets</button>
   </div>
 
@@ -282,6 +296,19 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
         <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
         <div class="fxknobs" id="fx-rat-knobs"></div>
       </div>
+    </section>
+  </div>
+
+  <div class="pane" id="pane-lex" role="tabpanel" aria-label="Lexicon 224" hidden>
+    <section class="blk-lex">
+      <div class="lex-head">
+        <h3>Lexicon 224</h3>
+        <button type="button" class="onoff" id="fx-lex-on" aria-pressed="false">Off</button>
+        <span class="lex-lcd" id="lex-lcd" aria-live="polite"></span>
+      </div>
+      <div class="lex-progs" id="lex-progs" role="radiogroup" aria-label="Program"></div>
+      <div class="fx" id="fx-lex"><div class="fxknobs" id="fx-lex-knobs"></div></div>
+      <p class="hint lex-note" id="lex-note"></p>
     </section>
   </div>
 
@@ -361,6 +388,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
         <p><strong>VCF.</strong> Four coupled ladder stages with a tanh law per transistor pair, 18n bottom cap and 33n above, solved implicitly. Full feedback (k = 17) self-oscillates.</p>
         <p><strong>Envelopes and VCA.</strong> C62 decays through R138 + VR6 (200 ms to 2.5 s). Accent shorts VR6 and charges the sweep cap. The OTA VCA gets resonance compensation through C76/R100, and normal notes fade in through R_SOFT.</p>
         <p><strong>Mods.</strong> Dotted parts map mostly to Devil Fish controls: Normal and Accent decay, VEG decay, Soft attack, Slide time, Sweep speed and self-oscillating resonance.</p>
+        <p><strong>Lexicon 224.</strong> Runs on its own 20 kHz clock with 12-bit gain-ranging converters, 16-bit words and a shared 32K-word delay memory. The core is Dattorro's published Griesinger-style plate network; the 224's own microcode is not public, so the hall, chamber, room and chorus variants are estimates.</p>
         <p><strong>RAT.</strong> LM308 stage with gain-bandwidth and slew limits from its 30p cap, 1N914 diodes to ground, then the 3.3n filter.</p>
       </div>
     </section>
@@ -403,7 +431,7 @@ class TB303Processor extends AudioWorkletProcessor {
     return len;
   }
   process(inputs, outputs) {
-    const out = outputs[0][0]; if (!out) return true;
+    const out = outputs[0][0]; if (!out) return true; const outR = outputs[0][1];
     let i = 0;
     while (i < out.length) {
       if (this.playing && this.ctr <= 0) { this.stepLen = this.startStep() || 1; this.ctr = this.stepLen; }
@@ -414,10 +442,10 @@ class TB303Processor extends AudioWorkletProcessor {
         if (this.gateOffAt > elapsed) run = Math.min(run, this.gateOffAt - elapsed);
         else if (this.gateOffAt === elapsed) { this.v.noteOff(); this.gateOffAt = -1; }
       }
-      this.v.process(out, i, i + run);
+      this.v.process(out, i, i + run, outR);
       i += run; if (this.playing) this.ctr -= run;
     }
-    for (let c = 1; c < outputs[0].length; c++) outputs[0][c].set(out);
+    for (let c = 2; c < outputs[0].length; c++) outputs[0][c].set(out);
     return true;
   }
 }
@@ -436,6 +464,17 @@ const KNOBS = [
   { id: 'dist',      name: 'Distortion',ref: '100k(A)',    def: 0.5,  fx: 'rat' },
   { id: 'filter',    name: 'Filter',    ref: '100k(B)',    def: 0.4,  fx: 'rat' },
   { id: 'ratvol',    name: 'Volume',    ref: '100k(A)',    def: 0.5,  fx: 'rat' },
+  { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex' },
+  { id: 'lexbass',   name: 'Bass',      ref: '0.6–70 s',   def: 0.3,  fx: 'lex' },
+  { id: 'lexmid',    name: 'Mid',       ref: '0.6–70 s',   def: 0.27, fx: 'lex' },
+  { id: 'lexxover',  name: 'Crossover', ref: '100 Hz–10.9k', def: 0.443, fx: 'lex' },
+  { id: 'lextreble', name: 'Treble',    ref: '100 Hz–10.9k', def: 0.834, fx: 'lex' },
+  { id: 'lexdepth',  name: 'Depth',     ref: '0–71',       def: 0.5,  fx: 'lex' },
+  { id: 'lexdiff',   name: 'Diffusion', ref: '0–63',       def: 0.55, fx: 'lex' },
+  { id: 'lexpre',    name: 'Predelay',  ref: 'per program', def: 0.2, fx: 'lex' },
+  { id: 'lexme',     name: 'Mode enh',  ref: 'off, 16–1',  def: 0.5,  fx: 'lex' },
+  { id: 'lexpitch',  name: 'Pitch',     ref: '1–16',       def: 0.2,  fx: 'lex' },
+  { id: 'lexmix',    name: 'Return',    ref: 'wet level',  def: 0.5,  fx: 'lex' },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 const codeName = (c) => NOTE[c % 12] + (Math.floor(c / 12));
@@ -451,7 +490,7 @@ const store = {
 };
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
-  wave: 'saw', bpm: 128, fx: { rat: false }, shuffle: 0, gate: 0.5,
+  wave: 'saw', bpm: 128, fx: { rat: false, lex: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
 };
@@ -460,6 +499,10 @@ const SOUND_BUILTIN = {
   'Devil Fish style': {
     knobs: { resonance: 0.9, envmod: 0.7, decay: 0.2, accent: 0.9 },
     parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C_ACC: 0.47e-6, R_IN: 47e3, R72: 120e3, V_CUT: 4.5 },
+  },
+  'Acid in the hall': {
+    knobs: { cutoff: 0.28, resonance: 0.85, envmod: 0.65, decay: 0.25, lexprog: 0.25, lexmid: 0.36, lexbass: 0.4, lexpre: 0.3, lexmix: 0.45 },
+    fx: { rat: true, lex: true }, parts: {},
   },
   'Long drone': {
     knobs: { cutoff: 0.25, resonance: 0.75, envmod: 0.4, decay: 0.9 }, wave: 'square',
@@ -485,7 +528,7 @@ function cleanSettings(x) {
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
-  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat };
+  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
@@ -501,7 +544,7 @@ function snapshot() {
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
-  if (sess.fx) state.fx = { rat: !!sess.fx.rat };
+  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex };
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
 }
@@ -553,8 +596,30 @@ function knobText(id, p) {
     case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
     case 'dist': return 'gain ×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
     case 'filter': return fmt(Math.round(1 / (2 * Math.PI * (c.RAT_RF + 100e3 * p) * c.RAT_CFLT)), 'Hz');
-    default: return Math.round(p * 100) + '%';
+    default: {
+      if (id.startsWith('lex')) return lexText(id, p);
+      return Math.round(p * 100) + '%';
+    }
   }
+}
+function lexText(id, p) {
+  const q = lexParams({ ...state.knobs, [id]: p }), sec = (t) => (t < 10 ? t.toFixed(2) : t.toFixed(1)) + ' s';
+  const hz = (f) => f >= 10000 ? 'off' : f >= 1000 ? (f / 1000).toFixed(f < 10000 ? 2 : 1) + ' kHz' : Math.round(f) + ' Hz';
+  const chorus = q.P.alg === 'chorus';
+  switch (id) {
+    case 'lexprog': return 'P' + q.P.n;
+    case 'lexbass': return chorus ? Math.round(p * 100) + '%' : sec(q.bass);
+    case 'lexmid': return chorus ? Math.round(p * 100) + '%' : sec(q.mid);
+    case 'lexxover': return chorus ? Math.round(p * 100) + '%' : hz(q.xover);
+    case 'lextreble': return chorus ? Math.round(p * 100) + '%' : hz(q.treble);
+    case 'lexdepth': return String(q.depth);
+    case 'lexdiff': return String(q.diff);
+    case 'lexpre': return Math.round(q.pre) + ' ms';
+    case 'lexme': return q.me ? 'amt ' + q.me : 'off';
+    case 'lexpitch': return String(q.pitch);
+    case 'lexmix': return Math.round(p * 100) + '%';
+  }
+  return '';
 }
 const knobEls = {};
 for (const k of KNOBS) {
@@ -563,7 +628,7 @@ for (const k of KNOBS) {
     <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
   (k.fx ? document.getElementById('fx-' + k.fx + '-knobs') : panel).appendChild(wrap);
   const el = wrap.querySelector('.knob');
-  knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val') };
+  knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
   let startY = 0, startV = 0;
   el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); startY = e.clientY; startV = state.knobs[k.id]; wrap.classList.add('active'); });
   el.addEventListener('pointerup', () => wrap.classList.remove('active'));
@@ -583,6 +648,7 @@ function drawKnob(id) {
   k.ptr.setAttribute('transform', `rotate(${-135 + 270 * p} 32 32)`);
   k.el.setAttribute('aria-valuenow', Math.round(p * 100));
   k.val.textContent = knobText(id, p);
+  if (id.startsWith('lex')) drawLex();
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;
@@ -755,7 +821,7 @@ function fromSlider(k, x) {
   const v = m === 'log' ? lo * Math.pow(hi / lo, t) : lo + (hi - lo) * t;
   return +v.toPrecision(3);
 }
-const SRC_TEXT = { schematic: 'from the 1982 sheet', td3: 'read from the TD-3 sheet', rat: 'standard RAT value', estimate: 'estimate' };
+const SRC_TEXT = { schematic: 'from the 1982 sheet', td3: 'read from the TD-3 sheet', rat: 'standard RAT value', lex: 'from Lexicon documentation', estimate: 'estimate' };
 function partRow(k) {
   const d = COMPONENTS[k], v = state.parts[k];
   const changed = Math.abs(v / d.v - 1) > 1e-6 ? ' changed' : '';
@@ -917,7 +983,7 @@ async function initAudio() {
   drawScope();
 }
 function makeFallback() {
-  const v = new TB303Voice(ctx.sampleRate), sp = ctx.createScriptProcessor(1024, 0, 1);
+  const v = new TB303Voice(ctx.sampleRate), sp = ctx.createScriptProcessor(1024, 0, 2);
   const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1, shuffle: 0, gate: 0.5 };
   f.msg = (m) => {
     if (m.type === 'knob') v.setKnob(m.name, m.value); else if (m.type === 'component') v.setComponent(m.name, m.value);
@@ -925,7 +991,7 @@ function makeFallback() {
     else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'groove') { f.shuffle = m.shuffle; f.gate = m.gate; } else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
   };
   sp.onaudioprocess = (e) => {
-    const out = e.outputBuffer.getChannelData(0);
+    const out = e.outputBuffer.getChannelData(0), outR = e.outputBuffer.getChannelData(1);
     for (let i = 0; i < out.length; i++) {
       if (f.playing) {
         if (f.ctr <= 0) {
@@ -937,7 +1003,7 @@ function makeFallback() {
         if (f.len - f.ctr === f.off) v.noteOff();
         f.ctr--;
       }
-      v.process(out, i, i + 1);
+      v.process(out, i, i + 1, outR);
     }
   };
   return f;
@@ -1019,15 +1085,37 @@ function drawScope() {
   drawStatic(b.subarray(t, t + 1000));
 })();
 
+// ---------- Lexicon 224 ----------
+{
+  const el = document.getElementById('lex-progs');
+  el.innerHTML = LEX_PROGRAMS.map((P, i) => `<button type="button" role="radio" data-i="${i}" aria-checked="false" title="${P.name}"><b>${P.n}</b>${P.short}</button>`).join('');
+  el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setKnob('lexprog', b.dataset.i / 8); });
+}
+const LEX_CHORUS_NAMES = { lexbass: 'Pair 1', lexmid: 'Pair 2', lexxover: 'Pair 3', lextreble: 'Pair 4', lexdepth: 'Wander' };
+function drawLex() {
+  const progs = document.getElementById('lex-progs'); if (!progs || !knobEls.lexmix) return;
+  const q = lexParams(state.knobs), chorus = q.P.alg === 'chorus';
+  for (const b of progs.children) b.setAttribute('aria-checked', +b.dataset.i === q.prog);
+  for (const k of KNOBS) if (k.fx === 'lex') { const e = knobEls[k.id]; e.name.textContent = (chorus && LEX_CHORUS_NAMES[k.id]) || k.name; e.val.textContent = knobText(k.id, state.knobs[k.id]); }
+  document.getElementById('lex-lcd').textContent = `P${q.P.n} ${q.P.name.toUpperCase()}`;
+  const m = preview.lex.memoryUse(), c = state.parts;
+  const shrunk = !chorus && m.scale < q.P.size - 1e-3 ? ` Shrunk to ${Math.round(m.scale / q.P.size * 100)}% to fit.` : '';
+  document.getElementById('lex-note').textContent = (chorus
+    ? 'Eight voices, four a side, each delay wandering at random. The first four knobs are the voice-pair levels; Diffusion acts on pairs 3 and 4.'
+    : `Predelay ${q.P.pre[0]}–${q.P.pre[1]} ms on this program.`) +
+    ` ${(c.LEX_FS / 1000).toFixed(1)} kHz, ${Math.round(c.LEX_BITS)}-bit converters, ${m.words.toLocaleString()} of ${m.of.toLocaleString()} words.${shrunk}` +
+    ' Program names, control ranges and converter specs follow Lexicon; the algorithms are estimates built on Dattorro\'s Griesinger-style plate. Parts are in Options under 224.';
+}
+
 // ---------- effects ----------
 function renderFx() {
-  for (const n of ['rat']) {
+  for (const n of ['rat', 'lex']) {
     const b = document.getElementById('fx-' + n + '-on');
     b.setAttribute('aria-pressed', state.fx[n]); b.textContent = state.fx[n] ? 'On' : 'Off';
     document.getElementById('fx-' + n).classList.toggle('on', state.fx[n]);
   }
 }
-for (const n of ['rat']) document.getElementById('fx-' + n + '-on').onclick = () => {
+for (const n of ['rat', 'lex']) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
   renderFx(); saveSession();
 };
@@ -1040,7 +1128,7 @@ function applySound(x) {
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
   state.wave = c.wave || 'saw';
-  state.fx = c.fx || { rat: false };
+  state.fx = c.fx || { rat: false, lex: false };
   for (const n in state.fx) { preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] }); }
   renderFx();
   for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); send({ type: 'knob', name: k.id, value: state.knobs[k.id] }); }
