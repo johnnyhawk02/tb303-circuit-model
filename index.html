@@ -183,14 +183,20 @@ input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px
 .pm-none { padding: 10px 12px; color: var(--mute); }
 
 /* options sheet */
-dialog#options { width: min(1080px, 100vw); max-width: 100vw; height: 100%; max-height: 100%; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1.5px solid var(--fg); background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); color: var(--fg); text-shadow: 1.5px 1.5px 0 var(--ghost); }
-dialog#options::backdrop { background: rgb(20 28 8 / .4); }
-.opt-head { position: sticky; top: 0; z-index: 2; background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 14px 20px; border-bottom: 1.5px solid var(--fg); }
-.opt-head h2 { font-size: 22px; letter-spacing: .04em; }
-.opt-body { padding: 8px max(20px, env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) 20px; display: grid; }
-.opt-body > section { padding: 22px 0; border-bottom: 1px solid var(--line); min-width: 0; display: grid; gap: 14px; }
-.opt-body > section > h3 { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: min(760px, calc(100dvh - 32px)); max-height: none; margin: auto; padding: 0;
+  border: 1.5px solid var(--fg); box-shadow: 6px 6px 0 var(--ghost); flex-direction: column; overflow: hidden;
+  background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); color: var(--fg); text-shadow: 1.5px 1.5px 0 var(--ghost); }
+dialog#options[open] { display: flex; }
+dialog#options::backdrop { background: rgb(20 28 8 / .45); }
+.opt-head { flex: none; display: flex; align-items: flex-end; gap: 8px 26px; padding: 14px 14px 0 22px; border-bottom: 1.5px solid var(--fg); }
+.opt-head h2 { font: 400 34px/1 var(--font-lcd); letter-spacing: .04em; padding-bottom: 9px; }
+.opt-head .otabs { border-bottom: 0; flex: 1; min-width: 0; }
+.xbtn { width: 40px; height: 40px; align-self: center; margin-bottom: 6px; border-color: transparent; }
+.xbtn svg { width: 20px; height: 20px; }
+.opt-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 22px 28px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
+.osec { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.osec[hidden] { display: none; }
+#midi-map { grid-template-columns: repeat(3, auto 1fr); gap: 6px 14px; }
 .presets { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
 .presets select { min-width: 200px; max-width: 100%; }
 .presets input[type=text] { width: 180px; max-width: 100%; }
@@ -230,6 +236,8 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 .notes strong { color: var(--fg); font-weight: 600; }
 
 @media (max-width: 760px) {
+  .opt-head { flex-wrap: wrap; padding-left: 16px; } .opt-head h2 { padding-bottom: 0; flex: 1; } .otabs { order: 3; flex-basis: 100%; } .xbtn { margin-bottom: 0; }
+  #midi-map { grid-template-columns: repeat(2, auto 1fr); } .opt-body { padding: 18px 16px 24px; }
   .sq-body { grid-template-columns: 1fr; }
   .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
   .sq-ed { margin-left: 0; }
@@ -339,23 +347,11 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
 <dialog id="options" aria-labelledby="opt-title">
   <div class="opt-head">
     <h2 id="opt-title">Options</h2>
-    <button type="button" id="close-options">Done</button>
+    <div class="tabs otabs" id="otabs" role="tablist" aria-label="Options sections"><button type="button" role="tab" data-sec="circuit" aria-selected="true">Circuit</button><button type="button" role="tab" data-sec="monitor" aria-selected="false">Monitor</button><button type="button" role="tab" data-sec="midi" aria-selected="false">MIDI</button><button type="button" role="tab" data-sec="file" aria-selected="false">File</button><button type="button" role="tab" data-sec="about" aria-selected="false">About</button></div>
+    <button type="button" class="icon xbtn" id="close-options" aria-label="Close options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" fill="none"/></svg></button>
   </div>
   <div class="opt-body">
-    <section>
-      <h3>Settings file</h3>
-      <div class="presets">
-        <button type="button" id="preset-export">Export all</button>
-        <button type="button" id="preset-import">Import</button>
-        <input type="file" id="preset-file" accept=".json,application/json" hidden>
-        <span class="hint">Your sound and pattern presets, the current sound and pattern, as one JSON file.</span>
-      </div>
-    </section>
-
-
-
-    <section>
-      <h3>Circuit</h3>
+    <section class="osec" id="osec-circuit" role="tabpanel" aria-label="Circuit">
       <div class="legend">
         <span><span class="dot"></span>commonly modded</span>
         <span>Drag a knob to change the part. Click its value to reset it.</span>
@@ -365,23 +361,25 @@ canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--f
       <div class="parts" id="parts" role="tabpanel"></div>
       <div class="detail" id="pdetail" aria-live="polite">Hover or focus a part to see what it does.</div>
     </section>
-
-    <section>
-      <h3>Monitor</h3>
+    <section class="osec" id="osec-monitor" role="tabpanel" aria-label="Monitor" hidden>
       <div class="monitor">
         <canvas id="scope" width="1200" height="300" aria-label="Oscilloscope view of the output"></canvas>
         <dl class="readouts" id="readouts"></dl>
       </div>
     </section>
-
-    <section>
-      <h3>MIDI</h3>
+    <section class="osec" id="osec-midi" role="tabpanel" aria-label="MIDI" hidden>
       <p class="hint" id="midi-status">Front-panel dials follow MIDI CC from any input, on any channel.</p>
       <dl class="readouts" id="midi-map"></dl>
     </section>
-
-    <section>
-      <h3>About the model</h3>
+    <section class="osec" id="osec-file" role="tabpanel" aria-label="File" hidden>
+      <div class="presets">
+        <button type="button" id="preset-export">Export all</button>
+        <button type="button" id="preset-import">Import</button>
+        <input type="file" id="preset-file" accept=".json,application/json" hidden>
+        <span class="hint">Your sound and pattern presets, the current sound and pattern, as one JSON file.</span>
+      </div>
+    </section>
+    <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
       <div class="notes">
         <p><strong>Source.</strong> Roland main board schematic, Feb 19 1982, with unclear values read from the TD-3 clone sheet. Parts on neither sheet are estimates. Running at <span id="rate">2× oversampling</span>.</p>
         <p><strong>Pitch and VCO.</strong> A 6-bit R-2R ladder from 5.333 V gives 1/12 V per step. An exponential current charges C33 from 5.5 V to 12 V, then resets, smoothed with a polyBLEP.</p>
@@ -2407,6 +2405,19 @@ const optDlg = document.getElementById('options');
 document.getElementById('open-options').onclick = () => { if (optDlg.showModal) optDlg.showModal(); else optDlg.setAttribute('open', ''); };
 document.getElementById('close-options').onclick = () => { if (optDlg.close) optDlg.close(); else optDlg.removeAttribute('open'); };
 optDlg.addEventListener('click', (e) => { if (e.target === optDlg) optDlg.close(); });
+const otabs = document.getElementById('otabs');
+function showSec(k, focus) {
+  for (const b of otabs.querySelectorAll('[role=tab]')) { const on = b.dataset.sec === k; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); }
+  for (const sec of optDlg.querySelectorAll('.osec')) sec.hidden = sec.id !== 'osec-' + k;
+  optDlg.querySelector('.opt-body').scrollTop = 0; store.set('optTab', k);
+}
+otabs.addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) showSec(b.dataset.sec, true); });
+otabs.addEventListener('keydown', (e) => {
+  const d = { ArrowLeft: -1, ArrowRight: 1 }[e.key]; if (!d) return;
+  const t = [...otabs.querySelectorAll('[role=tab]')], i = t.findIndex(b => b.getAttribute('aria-selected') === 'true');
+  showSec(t[(i + d + t.length) % t.length].dataset.sec, true); e.preventDefault();
+});
+showSec(document.getElementById('osec-' + store.get('optTab', 'circuit')) ? store.get('optTab', 'circuit') : 'circuit');
 document.getElementById('restore').onclick = () => {
   for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
   renderParts(); renderFrontMods(); renderFx(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
