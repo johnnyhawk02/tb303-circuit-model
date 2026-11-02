@@ -122,6 +122,16 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
 .badge { display: inline-block; font: 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; margin-left: 6px; }
 .badge.est { color: var(--est); }
 .badge.td3 { color: var(--trace); }
+.fxgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px 26px; }
+.fx { border: 1px solid var(--rule); padding: 14px 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.fx.on { border-color: var(--trace); }
+.fxhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.fxhead h3 { margin: 0; font: 700 15px var(--font-display); letter-spacing: .06em; text-transform: uppercase; }
+.onoff { min-width: 58px; }
+.onoff[aria-pressed=true] { background: var(--trace); border-color: var(--trace); color: var(--sheet); }
+.fxknobs { display: flex; flex-wrap: wrap; gap: 14px 22px; }
+.fx select { font: 13px var(--font-body); color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); padding: 5px 8px; border-radius: 2px; }
+.fx .hint { margin: 0; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 16px; color: var(--ink-2); font-size: 12px; align-items: center; }
 .notes { columns: 2 320px; column-gap: 32px; color: var(--ink-2); font-size: 13px; }
 .notes p { margin: 0 0 10px; break-inside: avoid; }
@@ -185,6 +195,23 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
     <div class="panel" id="panel"></div>
   </section>
 
+  <section>
+    <h2 style="margin-bottom:14px">Effects · after the VCA, booster into RAT</h2>
+    <div class="fxgrid">
+      <div class="fx" id="fx-lpb">
+        <div class="fxhead"><h3>LPB-1 booster</h3><button type="button" class="onoff" id="fx-lpb-on" aria-pressed="false">Off</button></div>
+        <label class="field"><span class="label">Variant</span><select id="lpb-variant" aria-label="LPB-1 variant"></select></label>
+        <div class="fxknobs" id="fx-lpb-knobs"></div>
+        <p class="hint" id="lpb-info"></p>
+      </div>
+      <div class="fx" id="fx-rat">
+        <div class="fxhead"><h3>ProCo RAT</h3><button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button></div>
+        <div class="fxknobs" id="fx-rat-knobs"></div>
+        <p class="hint">LM308 gain stage with its 30p slew limit, 1N914 diodes to ground, then the 3.3n filter. Mods are in the RAT parts tab.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="scope">
     <div>
       <h2 style="margin-bottom:10px">Output · TP6 equivalent</h2>
@@ -220,6 +247,7 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
       <span><span class="badge mod">mod</span> a part people commonly mod on 303s and TD-3s</span>
       <span><span class="badge">schematic</span> printed on the sheet</span>
       <span><span class="badge td3">TD-3</span> read from the TD-3 clone sheet</span>
+      <span><span class="badge">LPB-1</span> <span class="badge">RAT</span> effect circuit values</span>
       <span><span class="badge est">estimate</span> on neither sheet; chosen to match documented behaviour</span>
       <button type="button" id="restore">Restore all parts</button>
     </div>
@@ -275,6 +303,8 @@ canvas { width: 100%; height: 170px; display: block; border: 1px solid var(--rul
 const VT = 0.02585; // thermal voltage at ~300 K
 
 // source: 'schematic' = value printed on the 1982 sheet
+//         'lpb1'      = from the LPB-1 variant schematics
+//         'rat'       = standard ProCo RAT values
 //         'td3'       = read from the Behringer TD-3 (clone) schematic
 //         'estimate'  = not legible / not printed, chosen to match the
 //                       behaviour the sheet documents (ramp levels, decay times)
@@ -358,6 +388,35 @@ const COMPONENTS = {
   R_OTA:  { v: 22e3,    unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'OTA output load' },
   C38:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'schematic', note: 'VCA output coupling (1/50)' },
   R_OUT:  { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'output load, HPF with C38' },
+
+  // --- LPB-1 booster (EHX Linear Power Booster, common-emitter)
+  LPB_R1:  { v: 430e3,  unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'bias resistor to +9 V (Modern: 1M)' },
+  LPB_R2:  { v: 43e3,   unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'bias resistor to ground (Modern: 100k)' },
+  LPB_CIN: { v: 100e-9, unit: 'F', block: 'Boost', source: 'lpb1', note: 'input cap (Stock 100n, Mole 3.3µ, Bird 2.2n, Modern 10n)', range: [1e-9, 10e-6, 'log'], mod: 'Sets the low cut. 2.2n is the Screaming Bird treble booster; 3.3µ passes everything.' },
+  LPB_CB:  { v: 1e-12,  unit: 'F', block: 'Boost', source: 'lpb1', note: 'base to ground cap (Mole only: 100n; 1p = absent)', range: [1e-12, 1e-6, 'log'], mod: 'Mole / Hog\'s Foot bass mod: cuts highs at the base.' },
+  LPB_RC:  { v: 10e3,   unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'collector resistor' },
+  LPB_CC:  { v: 1e-12,  unit: 'F', block: 'Boost', source: 'lpb1', note: 'cap across collector resistor (Mole only: 100n; 1p = absent)', range: [1e-12, 1e-6, 'log'], mod: 'Mole / Hog\'s Foot: rolls off gain above about 160 Hz for a bass boost.' },
+  LPB_RE:  { v: 390,    unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'emitter resistor; gain ≈ RC / RE', mod: 'Lower for more gain and earlier clipping.' },
+  LPB_COUT:{ v: 100e-9, unit: 'F', block: 'Boost', source: 'lpb1', note: 'output cap into the A100k level pot (Mole 3.3µ, Bird 2.2n)', range: [1e-9, 10e-6, 'log'] },
+  LPB_VS:  { v: 9,      unit: 'V', block: 'Boost', source: 'lpb1', note: 'supply; sets bias point and headroom', range: [6, 18, 'lin'], mod: 'Running at 18 V gives more clean headroom.' },
+  R_SRC:   { v: 10e3,   unit: 'Ω', block: 'Boost', source: 'estimate', note: 'source impedance driving the effects' },
+
+  // --- ProCo RAT
+  RAT_CIN: { v: 22e-9,  unit: 'F', block: 'RAT',   source: 'rat', note: 'input coupling into 1M' },
+  RAT_RD:  { v: 100e3,  unit: 'Ω', block: 'RAT',   source: 'rat', note: 'DISTORTION pot 100k(A) in the LM308 feedback' },
+  RAT_CF:  { v: 100e-12,unit: 'F', block: 'RAT',   source: 'rat', note: 'cap across the distortion pot', mod: 'Raising it smooths the fizz at high gain.' },
+  RAT_RG1: { v: 47,     unit: 'Ω', block: 'RAT',   source: 'rat', note: 'gain leg 1 resistor (with 2.2µ)' },
+  RAT_CG1: { v: 2.2e-6, unit: 'F', block: 'RAT',   source: 'rat', note: 'gain leg 1 cap' },
+  RAT_RG2: { v: 560,    unit: 'Ω', block: 'RAT',   source: 'rat', note: 'gain leg 2 resistor (with 4.7µ)', mod: 'Ruetz mod: add resistance here (or a pot) to tame the low-mid gain.' },
+  RAT_CG2: { v: 4.7e-6, unit: 'F', block: 'RAT',   source: 'rat', note: 'gain leg 2 cap', mod: 'Smaller caps cut bass before clipping for a tighter sound.' },
+  RAT_CC:  { v: 30e-12, unit: 'F', block: 'RAT',   source: 'rat', note: 'LM308 compensation cap; sets slew rate and bandwidth', mod: 'The LM308 slew limit is the RAT\'s character. Smaller cap = brighter; swapping in a faster op-amp loses it.' },
+  RAT_GBW: { v: 1e6,    unit: 'Hz',block: 'RAT',   source: 'estimate', note: 'LM308 gain-bandwidth at 30p', range: [2e5, 5e6, 'log'] },
+  RAT_SR:  { v: 0.3,    unit: 'V/µs', block: 'RAT', source: 'estimate', note: 'LM308 slew rate at 30p', range: [0.05, 5, 'log'] },
+  RAT_RCL: { v: 1e3,    unit: 'Ω', block: 'RAT',   source: 'rat', note: 'resistor into the clipping diodes' },
+  RAT_VF:  { v: 0.6,    unit: 'V', block: 'RAT',   source: 'rat', note: 'clipping diode drop at 1 mA (1N914 ≈ 0.6 V)', range: [0.2, 2.5, 'lin'], mod: 'Diode swap. Germanium about 0.3 V (softer), LEDs about 1.7 V (Turbo RAT: louder, more open), 2.5 V is close to no diodes.' },
+  RAT_RF:  { v: 1.5e3,  unit: 'Ω', block: 'RAT',   source: 'rat', note: 'fixed filter resistor (in series with the 100k FILTER pot)' },
+  RAT_CFLT:{ v: 3.3e-9, unit: 'F', block: 'RAT',   source: 'rat', note: 'filter cap', mod: 'Sets the FILTER range; larger caps make the filter darker overall.' },
+  RAT_VS:  { v: 9,      unit: 'V', block: 'RAT',   source: 'rat', note: 'supply; op-amp swings to about ±(V/2 − 1)', range: [6, 18, 'lin'] },
 };
 
 function audioTaper(p) { return p <= 0 ? 0 : Math.pow(p, 2.74); } // 'A' pot, ~15% at mid
@@ -384,7 +443,10 @@ class TB303Voice {
     for (const k in COMPONENTS) this.c[k] = (components && k in components) ? components[k] : COMPONENTS[k].v;
 
     // front panel (0..1)
-    this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8 };
+    this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, boost: 0.5, dist: 0.5, filter: 0.4, ratvol: 0.5 };
+    this.fx = { lpb: false, rat: false };
+    this.lp = { hin: 0, xin: 0, b: 0, c: 0, hout: 0, xout: 0 };
+    this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0 };
     this.waveform = 'saw';
 
     // state
@@ -409,6 +471,7 @@ class TB303Voice {
   }
 
   setComponent(name, value) { if (name in this.c) { this.c[name] = value; this._derive(); } }
+  setFx(name, on) { if (name in this.fx) this.fx[name] = !!on; }
   setKnob(name, value) { if (name in this.knobs) { this.knobs[name] = value; this._derive(); } }
 
   _derive() {
@@ -455,6 +518,82 @@ class TB303Voice {
     this.hp38A = Math.exp(-1 / (c.C38 * c.R_OUT * this.fs));
     this.vinDen = 1 / c.R88 + 1 / c.R100 + 1 / c.R101;
     this.vol = audioTaper(k.volume);
+    this._deriveFx();
+  }
+
+  _deriveFx() {
+    const c = this.c, k = this.knobs, fs = this.fs, e = (tau) => Math.exp(-1 / (Math.max(tau, 1e-12) * fs));
+    // LPB-1: bias point from the divider, gain from RC / (RE + re)
+    const rb = c.LPB_R1 * c.LPB_R2 / (c.LPB_R1 + c.LPB_R2);
+    const vth = c.LPB_VS * c.LPB_R2 / (c.LPB_R1 + c.LPB_R2);
+    const ie = Math.max((vth - 0.65) / (c.LPB_RE + rb / 200), 1e-6);
+    const vc = Math.max(c.LPB_VS - ie * c.LPB_RC, ie * c.LPB_RE + 0.25);
+    const re = VT / ie;
+    this.lpbBias = { ie, vc };
+    this.lpbGain = c.LPB_RC / (c.LPB_RE + re);
+    this.lpbUp = Math.max(c.LPB_VS - vc, 0.05);                 // swing to cutoff
+    this.lpbDown = Math.max(vc - (ie * c.LPB_RE + 0.2), 0.05);  // swing to saturation
+    this.lpbInA = e(c.LPB_CIN * (c.R_SRC + rb));
+    this.lpbDiv = rb / (c.R_SRC + rb);
+    this.lpbBA = e(c.LPB_CB * (c.R_SRC * rb / (c.R_SRC + rb)));
+    this.lpbCA = e(c.LPB_RC * c.LPB_CC);
+    this.lpbOutA = e(c.LPB_COUT * 100e3);
+    this.lpbLevel = audioTaper(k.boost);
+    // RAT: LM308 non-inverting stage
+    const rd = c.RAT_RD * audioTaper(k.dist) + 1;
+    this.ratRd = rd;
+    this.ratInA = e(c.RAT_CIN * 1e6);
+    this.ratA1 = e(c.RAT_RG1 * c.RAT_CG1); this.ratA2 = e(c.RAT_RG2 * c.RAT_CG2);
+    this.ratFA = e(rd * c.RAT_CF);
+    const comp = 30e-12 / c.RAT_CC;
+    const gHf = 1 + rd * (1 / c.RAT_RG1 + 1 / c.RAT_RG2);
+    this.ratGain = gHf;
+    this.ratK = Math.min(1, 2 * Math.PI * c.RAT_GBW * comp / gHf / fs);
+    this.ratSlew = c.RAT_SR * 1e6 * comp / fs;
+    this.ratRail = Math.max(c.RAT_VS / 2 - 1, 0.5);
+    this.ratCA = e(4.7e-6 * (c.RAT_RCL + 1e3));
+    this.ratN = 1.8 * VT;
+    this.ratIs = 1e-3 / Math.exp(c.RAT_VF / this.ratN);
+    this.ratFltA = e((c.RAT_RF + 100e3 * k.filter) * c.RAT_CFLT);
+    this.ratLevel = audioTaper(k.ratvol) * 6;
+  }
+
+  _lpb(x) {
+    const s = this.lp;
+    s.hin = this.lpbInA * (s.hin + x - s.xin); s.xin = x;       // C_IN high-pass
+    const vb = s.hin * this.lpbDiv;
+    s.b = vb + this.lpbBA * (s.b - vb);                          // C_B low-pass (Mole)
+    let vc = -this.lpbGain * s.b;                                // inverting CE stage
+    vc = vc > 0 ? this.lpbUp * Math.tanh(vc / this.lpbUp) : this.lpbDown * Math.tanh(vc / this.lpbDown);
+    s.c = vc + this.lpbCA * (s.c - vc);                          // C_C across RC (Mole)
+    s.hout = this.lpbOutA * (s.hout + s.c - s.xout); s.xout = s.c; // C_OUT into the pot
+    return s.hout * this.lpbLevel;
+  }
+
+  _rat(x) {
+    const s = this.rt, c = this.c;
+    s.hin = this.ratInA * (s.hin + x - s.xin); s.xin = x;
+    const u = s.hin;
+    // current through the two RC gain legs (inverting input follows u)
+    s.h1 = this.ratA1 * (s.h1 + u - s.x1); s.h2 = this.ratA2 * (s.h2 + u - s.x1); s.x1 = u;
+    const iv = (s.h1 / c.RAT_RG1 + s.h2 / c.RAT_RG2) * this.ratRd;
+    s.fb = iv + this.ratFA * (s.fb - iv);                        // pot || 100p
+    const target = u + s.fb;
+    let dy = (target - s.y) * this.ratK;                         // gain-bandwidth limit
+    if (dy > this.ratSlew) dy = this.ratSlew; else if (dy < -this.ratSlew) dy = -this.ratSlew; // slew limit
+    s.y = Math.max(-this.ratRail, Math.min(this.ratRail, s.y + dy));
+    s.hc = this.ratCA * (s.hc + s.y - s.xc); s.xc = s.y;         // 4.7µ output coupling
+    // diode pair to ground through RAT_RCL: (w - v)/R = 2 Is sinh(v / nVt)
+    const w = s.hc, R = c.RAT_RCL, n = this.ratN, Is = this.ratIs;
+    let v = s.v;
+    for (let i = 0; i < 4; i++) {
+      const t = Math.min(Math.max(v / n, -80), 80), sh = Math.sinh(t), ch = Math.cosh(t);
+      const f = (w - v) / R - 2 * Is * sh, df = -1 / R - 2 * Is * ch / n;
+      v -= f / df;
+    }
+    s.v = v;
+    s.f = v + this.ratFltA * (s.f - v);                          // FILTER: (1.5k + pot) with 3.3n
+    return s.f * this.ratLevel;
   }
 
   // note: 0..63 DAC code (33 = A, 110 Hz)
@@ -615,7 +754,9 @@ class TB303Voice {
     const iout = Iabc * Math.tanh(vin / (2 * VT));
     const vout = iout * c.R_OTA;
     this.hp38 = this.hp38A * (this.hp38 + vout - this.hp38In); this.hp38In = vout;
-    const o = this.hp38 * this.vol * 4.0;
+    let o = this.hp38 * this.vol * 4.0;
+    if (this.fx.lpb) o = this._lpb(o);
+    if (this.fx.rat) o = this._rat(o);
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }
 
@@ -659,6 +800,7 @@ class TB303Processor extends AudioWorkletProcessor {
     if (m.type === 'knob') v.setKnob(m.name, m.value);
     else if (m.type === 'component') v.setComponent(m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value;
+    else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'pattern') this.pattern = m.value;
     else if (m.type === 'bpm') this.bpm = m.value;
     else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
@@ -706,7 +848,18 @@ const KNOBS = [
   { id: 'decay',     name: 'Decay',     ref: 'VR6 1M(A)',  def: 0.3 },
   { id: 'accent',    name: 'Accent',    ref: 'VR7 50K(B)', def: 0.75 },
   { id: 'volume',    name: 'Volume',    ref: 'VR8 50K(A)', def: 0.85 },
+  { id: 'boost',     name: 'Level',     ref: 'A100k',      def: 0.5,  fx: 'lpb' },
+  { id: 'dist',      name: 'Distortion',ref: '100k(A)',    def: 0.5,  fx: 'rat' },
+  { id: 'filter',    name: 'Filter',    ref: '100k(B)',    def: 0.4,  fx: 'rat' },
+  { id: 'ratvol',    name: 'Volume',    ref: '100k(A)',    def: 0.5,  fx: 'rat' },
 ];
+const LPB_VARIANTS = {
+  'Stock': {},
+  'Mole / Hog\'s Foot': { LPB_CIN: 3.3e-6, LPB_CB: 100e-9, LPB_CC: 100e-9, LPB_COUT: 3.3e-6 },
+  'Screaming Bird': { LPB_CIN: 2.2e-9, LPB_COUT: 2.2e-9 },
+  'Modern': { LPB_R1: 1e6, LPB_R2: 100e3, LPB_CIN: 10e-9 },
+};
+const LPB_KEYS = ['LPB_R1', 'LPB_R2', 'LPB_CIN', 'LPB_CB', 'LPB_RC', 'LPB_CC', 'LPB_RE', 'LPB_COUT'];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 const codeName = (c) => NOTE[c % 12] + (Math.floor(c / 12));
 // original example line, A minor-ish, codes around A = 33
@@ -721,7 +874,7 @@ const store = {
 };
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
-  wave: 'saw', bpm: 128,
+  wave: 'saw', bpm: 128, fx: { lpb: false, rat: false },
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
 };
@@ -751,6 +904,7 @@ function cleanSettings(x) {
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
+  if (x.fx && typeof x.fx === 'object') out.fx = { lpb: !!x.fx.lpb, rat: !!x.fx.rat };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length === 16) out.pattern = x.pattern.map(st => ({
     code: Math.min(57, Math.max(9, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
@@ -759,11 +913,12 @@ function cleanSettings(x) {
 function snapshot() {
   const parts = {};
   for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
-  return { knobs: { ...state.knobs }, parts, wave: state.wave, bpm: state.bpm, pattern: state.pattern.map(st => ({ ...st })) };
+  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
+  if (sess.fx) state.fx = sess.fx;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
 }
 let saveTimer = 0;
@@ -812,6 +967,8 @@ function knobText(id, p) {
     case 'cutoff': return (preview.wCut * c.V_CUT * p * 1000).toFixed(1) + ' mV';
     case 'resonance': return 'k = ' + (c.A_Q21 * p).toFixed(1);
     case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
+    case 'dist': return 'gain ×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
+    case 'filter': return fmt(Math.round(1 / (2 * Math.PI * (c.RAT_RF + 100e3 * p) * c.RAT_CFLT)), 'Hz');
     default: return Math.round(p * 100) + '%';
   }
 }
@@ -820,7 +977,7 @@ for (const k of KNOBS) {
   const wrap = document.createElement('div'); wrap.className = 'kn';
   wrap.innerHTML = `<div class="knob" tabindex="0" role="slider" aria-label="${k.name}" aria-valuemin="0" aria-valuemax="100" id="knob-${k.id}">${knobSVG()}</div>
     <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
-  panel.appendChild(wrap);
+  (k.fx ? document.getElementById('fx-' + k.fx + '-knobs') : panel).appendChild(wrap);
   const el = wrap.querySelector('.knob');
   knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val') };
   let startY = 0, startV = 0;
@@ -916,7 +1073,7 @@ function fromSlider(k, x) {
   return +v.toPrecision(3);
 }
 function srcBadge(d) {
-  return d.source === 'estimate' ? '<span class="badge est">est.</span>' : d.source === 'td3' ? '<span class="badge td3">TD-3</span>' : '';
+  return { estimate: '<span class="badge est">est.</span>', td3: '<span class="badge td3">TD-3</span>', lpb1: '<span class="badge">LPB-1</span>', rat: '<span class="badge">RAT</span>' }[d.source] || '';
 }
 function partRow(k) {
   const d = COMPONENTS[k], v = state.parts[k];
@@ -973,7 +1130,7 @@ function applyPart(k, val) {
   const lab = document.getElementById('val-' + k);
   if (lab) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', Math.abs(val / COMPONENTS[k].v - 1) > 1e-6); }
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
-  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon();
+  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx();
 }
 let tabTimer = 0;
 function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(renderTabs, 120); }
@@ -989,7 +1146,7 @@ partsEl.addEventListener('click', (e) => {
 });
 document.getElementById('restore').onclick = () => {
   for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
-  renderParts(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
+  renderParts(); renderFx(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 };
 
 // ---------- transport / audio ----------
@@ -1014,6 +1171,7 @@ async function initAudio() {
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
   send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); send({ type: 'pattern', value: state.pattern });
+  for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   drawScope();
 }
 function makeFallback() {
@@ -1021,7 +1179,7 @@ function makeFallback() {
   const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1 };
   f.msg = (m) => {
     if (m.type === 'knob') v.setKnob(m.name, m.value); else if (m.type === 'component') v.setComponent(m.name, m.value);
-    else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'pattern') f.pattern = m.value;
+    else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'fx') v.setFx(m.name, m.value); else if (m.type === 'pattern') f.pattern = m.value;
     else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
   };
   sp.onaudioprocess = (e) => {
@@ -1097,14 +1255,47 @@ function drawScope() {
   drawStatic(b.subarray(t, t + 1000));
 })();
 
+// ---------- effects ----------
+const lpbSel = document.getElementById('lpb-variant');
+lpbSel.innerHTML = Object.keys(LPB_VARIANTS).map(n => `<option>${n.replace(/</g, '&lt;')}</option>`).join('') + '<option value="">Custom</option>';
+function lpbVariantName() {
+  for (const [n, p] of Object.entries(LPB_VARIANTS)) {
+    if (LPB_KEYS.every(k => Math.abs(state.parts[k] / (p[k] ?? COMPONENTS[k].v) - 1) < 1e-3)) return n;
+  }
+  return '';
+}
+function renderFx() {
+  for (const n of ['lpb', 'rat']) {
+    const b = document.getElementById('fx-' + n + '-on');
+    b.setAttribute('aria-pressed', state.fx[n]); b.textContent = state.fx[n] ? 'On' : 'Off';
+    document.getElementById('fx-' + n).classList.toggle('on', state.fx[n]);
+  }
+  lpbSel.value = lpbVariantName();
+  const bi = preview.lpbBias;
+  document.getElementById('lpb-info').textContent =
+    `Gain ×${preview.lpbGain.toFixed(1)} (${(20 * Math.log10(preview.lpbGain)).toFixed(1)} dB), collector biased at ${bi.vc.toFixed(2)} V, ${(bi.ie * 1000).toFixed(2)} mA. Variants from your sheet; the parts are in the Boost tab.`;
+}
+for (const n of ['lpb', 'rat']) document.getElementById('fx-' + n + '-on').onclick = () => {
+  state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
+  renderFx(); saveSession();
+};
+lpbSel.addEventListener('change', () => {
+  const p = LPB_VARIANTS[lpbSel.value]; if (!p) return;
+  for (const k of LPB_KEYS) { const v = p[k] ?? COMPONENTS[k].v; state.parts[k] = v; preview.setComponent(k, v); send({ type: 'component', name: k, value: v }); }
+  renderParts(); renderFx(); readouts(); saveSession();
+});
+
 // ---------- presets ----------
-function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave }; }
+function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave, fx: x.fx }; }
 function patternSnap() { return { bpm: state.bpm, pattern: state.pattern.map(st => ({ ...st })) }; }
 function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
   state.wave = c.wave || 'saw';
+  state.fx = c.fx || { lpb: false, rat: false };
+  for (const n in state.fx) { preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] }); }
+  renderFx();
   for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); send({ type: 'knob', name: k.id, value: state.knobs[k.id] }); }
   for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
@@ -1191,7 +1382,7 @@ fileEl.addEventListener('change', async () => {
     if (!j || typeof j !== 'object') throw 0;
     let ns = 0, np = 0;
     const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
-    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
+    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave, fx: c.fx }));
     add(j.patternPresets, patBar, c => ({ bpm: c.bpm, pattern: c.pattern }));
     if (j.presets) { // version 1 files: combined presets
       add(j.presets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
@@ -1211,6 +1402,7 @@ for (const k in COMPONENTS) preview.setComponent(k, state.parts[k]);
 preview.waveform = state.wave; bpmEl.value = state.bpm;
 document.getElementById('w-saw').setAttribute('aria-pressed', state.wave === 'saw');
 document.getElementById('w-square').setAttribute('aria-pressed', state.wave === 'square');
-renderSeq(); renderParts(); readouts();
+for (const n in state.fx) preview.setFx(n, state.fx[n]);
+renderFx(); renderSeq(); renderParts(); readouts();
 })();
 </script>

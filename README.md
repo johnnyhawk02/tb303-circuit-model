@@ -20,3 +20,8 @@ Open `index.html` in a browser to play it. It has a 16-step pattern, the front p
 - **VCA:** an OTA fed through C49/R88. The resonance pot wiper is also mixed in through C76/R100 to compensate for lost bass.
 
 Each part's `source` field is `schematic`, `td3` or `estimate`.
+
+## Effects
+After the VCA there is an optional chain of two effects, each modelled from its parts:
+- **LPB-1 booster:** a single-transistor common-emitter stage. Its bias point and gain come from the resistor values. It has the four variants: Stock, Mole / Hog's Foot (bass), Screaming Bird (treble) and Modern.
+- **ProCo RAT:** an LM308 non-inverting stage limited by gain-bandwidth and slew rate (set by the 30p compensation cap). It then has 1N914 clipping diodes to ground, solved with Newton's method each sample, and the 1.5k + 100k / 3.3n filter. The usual mods (diode swaps, the Ruetz leg, gain-leg caps, the compensation cap) are marked in the RAT parts tab.

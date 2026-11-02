@@ -30,6 +30,8 @@
 const VT = 0.02585; // thermal voltage at ~300 K
 
 // source: 'schematic' = value printed on the 1982 sheet
+//         'lpb1'      = from the LPB-1 variant schematics
+//         'rat'       = standard ProCo RAT values
 //         'td3'       = read from the Behringer TD-3 (clone) schematic
 //         'estimate'  = not legible / not printed, chosen to match the
 //                       behaviour the sheet documents (ramp levels, decay times)
@@ -113,6 +115,35 @@ const COMPONENTS = {
   R_OTA:  { v: 22e3,    unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'OTA output load' },
   C38:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'schematic', note: 'VCA output coupling (1/50)' },
   R_OUT:  { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'output load, HPF with C38' },
+
+  // --- LPB-1 booster (EHX Linear Power Booster, common-emitter)
+  LPB_R1:  { v: 430e3,  unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'bias resistor to +9 V (Modern: 1M)' },
+  LPB_R2:  { v: 43e3,   unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'bias resistor to ground (Modern: 100k)' },
+  LPB_CIN: { v: 100e-9, unit: 'F', block: 'Boost', source: 'lpb1', note: 'input cap (Stock 100n, Mole 3.3µ, Bird 2.2n, Modern 10n)', range: [1e-9, 10e-6, 'log'], mod: 'Sets the low cut. 2.2n is the Screaming Bird treble booster; 3.3µ passes everything.' },
+  LPB_CB:  { v: 1e-12,  unit: 'F', block: 'Boost', source: 'lpb1', note: 'base to ground cap (Mole only: 100n; 1p = absent)', range: [1e-12, 1e-6, 'log'], mod: 'Mole / Hog\'s Foot bass mod: cuts highs at the base.' },
+  LPB_RC:  { v: 10e3,   unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'collector resistor' },
+  LPB_CC:  { v: 1e-12,  unit: 'F', block: 'Boost', source: 'lpb1', note: 'cap across collector resistor (Mole only: 100n; 1p = absent)', range: [1e-12, 1e-6, 'log'], mod: 'Mole / Hog\'s Foot: rolls off gain above about 160 Hz for a bass boost.' },
+  LPB_RE:  { v: 390,    unit: 'Ω', block: 'Boost', source: 'lpb1', note: 'emitter resistor; gain ≈ RC / RE', mod: 'Lower for more gain and earlier clipping.' },
+  LPB_COUT:{ v: 100e-9, unit: 'F', block: 'Boost', source: 'lpb1', note: 'output cap into the A100k level pot (Mole 3.3µ, Bird 2.2n)', range: [1e-9, 10e-6, 'log'] },
+  LPB_VS:  { v: 9,      unit: 'V', block: 'Boost', source: 'lpb1', note: 'supply; sets bias point and headroom', range: [6, 18, 'lin'], mod: 'Running at 18 V gives more clean headroom.' },
+  R_SRC:   { v: 10e3,   unit: 'Ω', block: 'Boost', source: 'estimate', note: 'source impedance driving the effects' },
+
+  // --- ProCo RAT
+  RAT_CIN: { v: 22e-9,  unit: 'F', block: 'RAT',   source: 'rat', note: 'input coupling into 1M' },
+  RAT_RD:  { v: 100e3,  unit: 'Ω', block: 'RAT',   source: 'rat', note: 'DISTORTION pot 100k(A) in the LM308 feedback' },
+  RAT_CF:  { v: 100e-12,unit: 'F', block: 'RAT',   source: 'rat', note: 'cap across the distortion pot', mod: 'Raising it smooths the fizz at high gain.' },
+  RAT_RG1: { v: 47,     unit: 'Ω', block: 'RAT',   source: 'rat', note: 'gain leg 1 resistor (with 2.2µ)' },
+  RAT_CG1: { v: 2.2e-6, unit: 'F', block: 'RAT',   source: 'rat', note: 'gain leg 1 cap' },
+  RAT_RG2: { v: 560,    unit: 'Ω', block: 'RAT',   source: 'rat', note: 'gain leg 2 resistor (with 4.7µ)', mod: 'Ruetz mod: add resistance here (or a pot) to tame the low-mid gain.' },
+  RAT_CG2: { v: 4.7e-6, unit: 'F', block: 'RAT',   source: 'rat', note: 'gain leg 2 cap', mod: 'Smaller caps cut bass before clipping for a tighter sound.' },
+  RAT_CC:  { v: 30e-12, unit: 'F', block: 'RAT',   source: 'rat', note: 'LM308 compensation cap; sets slew rate and bandwidth', mod: 'The LM308 slew limit is the RAT\'s character. Smaller cap = brighter; swapping in a faster op-amp loses it.' },
+  RAT_GBW: { v: 1e6,    unit: 'Hz',block: 'RAT',   source: 'estimate', note: 'LM308 gain-bandwidth at 30p', range: [2e5, 5e6, 'log'] },
+  RAT_SR:  { v: 0.3,    unit: 'V/µs', block: 'RAT', source: 'estimate', note: 'LM308 slew rate at 30p', range: [0.05, 5, 'log'] },
+  RAT_RCL: { v: 1e3,    unit: 'Ω', block: 'RAT',   source: 'rat', note: 'resistor into the clipping diodes' },
+  RAT_VF:  { v: 0.6,    unit: 'V', block: 'RAT',   source: 'rat', note: 'clipping diode drop at 1 mA (1N914 ≈ 0.6 V)', range: [0.2, 2.5, 'lin'], mod: 'Diode swap. Germanium about 0.3 V (softer), LEDs about 1.7 V (Turbo RAT: louder, more open), 2.5 V is close to no diodes.' },
+  RAT_RF:  { v: 1.5e3,  unit: 'Ω', block: 'RAT',   source: 'rat', note: 'fixed filter resistor (in series with the 100k FILTER pot)' },
+  RAT_CFLT:{ v: 3.3e-9, unit: 'F', block: 'RAT',   source: 'rat', note: 'filter cap', mod: 'Sets the FILTER range; larger caps make the filter darker overall.' },
+  RAT_VS:  { v: 9,      unit: 'V', block: 'RAT',   source: 'rat', note: 'supply; op-amp swings to about ±(V/2 − 1)', range: [6, 18, 'lin'] },
 };
 
 function audioTaper(p) { return p <= 0 ? 0 : Math.pow(p, 2.74); } // 'A' pot, ~15% at mid
@@ -139,7 +170,10 @@ class TB303Voice {
     for (const k in COMPONENTS) this.c[k] = (components && k in components) ? components[k] : COMPONENTS[k].v;
 
     // front panel (0..1)
-    this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8 };
+    this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, boost: 0.5, dist: 0.5, filter: 0.4, ratvol: 0.5 };
+    this.fx = { lpb: false, rat: false };
+    this.lp = { hin: 0, xin: 0, b: 0, c: 0, hout: 0, xout: 0 };
+    this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0 };
     this.waveform = 'saw';
 
     // state
@@ -164,6 +198,7 @@ class TB303Voice {
   }
 
   setComponent(name, value) { if (name in this.c) { this.c[name] = value; this._derive(); } }
+  setFx(name, on) { if (name in this.fx) this.fx[name] = !!on; }
   setKnob(name, value) { if (name in this.knobs) { this.knobs[name] = value; this._derive(); } }
 
   _derive() {
@@ -210,6 +245,82 @@ class TB303Voice {
     this.hp38A = Math.exp(-1 / (c.C38 * c.R_OUT * this.fs));
     this.vinDen = 1 / c.R88 + 1 / c.R100 + 1 / c.R101;
     this.vol = audioTaper(k.volume);
+    this._deriveFx();
+  }
+
+  _deriveFx() {
+    const c = this.c, k = this.knobs, fs = this.fs, e = (tau) => Math.exp(-1 / (Math.max(tau, 1e-12) * fs));
+    // LPB-1: bias point from the divider, gain from RC / (RE + re)
+    const rb = c.LPB_R1 * c.LPB_R2 / (c.LPB_R1 + c.LPB_R2);
+    const vth = c.LPB_VS * c.LPB_R2 / (c.LPB_R1 + c.LPB_R2);
+    const ie = Math.max((vth - 0.65) / (c.LPB_RE + rb / 200), 1e-6);
+    const vc = Math.max(c.LPB_VS - ie * c.LPB_RC, ie * c.LPB_RE + 0.25);
+    const re = VT / ie;
+    this.lpbBias = { ie, vc };
+    this.lpbGain = c.LPB_RC / (c.LPB_RE + re);
+    this.lpbUp = Math.max(c.LPB_VS - vc, 0.05);                 // swing to cutoff
+    this.lpbDown = Math.max(vc - (ie * c.LPB_RE + 0.2), 0.05);  // swing to saturation
+    this.lpbInA = e(c.LPB_CIN * (c.R_SRC + rb));
+    this.lpbDiv = rb / (c.R_SRC + rb);
+    this.lpbBA = e(c.LPB_CB * (c.R_SRC * rb / (c.R_SRC + rb)));
+    this.lpbCA = e(c.LPB_RC * c.LPB_CC);
+    this.lpbOutA = e(c.LPB_COUT * 100e3);
+    this.lpbLevel = audioTaper(k.boost);
+    // RAT: LM308 non-inverting stage
+    const rd = c.RAT_RD * audioTaper(k.dist) + 1;
+    this.ratRd = rd;
+    this.ratInA = e(c.RAT_CIN * 1e6);
+    this.ratA1 = e(c.RAT_RG1 * c.RAT_CG1); this.ratA2 = e(c.RAT_RG2 * c.RAT_CG2);
+    this.ratFA = e(rd * c.RAT_CF);
+    const comp = 30e-12 / c.RAT_CC;
+    const gHf = 1 + rd * (1 / c.RAT_RG1 + 1 / c.RAT_RG2);
+    this.ratGain = gHf;
+    this.ratK = Math.min(1, 2 * Math.PI * c.RAT_GBW * comp / gHf / fs);
+    this.ratSlew = c.RAT_SR * 1e6 * comp / fs;
+    this.ratRail = Math.max(c.RAT_VS / 2 - 1, 0.5);
+    this.ratCA = e(4.7e-6 * (c.RAT_RCL + 1e3));
+    this.ratN = 1.8 * VT;
+    this.ratIs = 1e-3 / Math.exp(c.RAT_VF / this.ratN);
+    this.ratFltA = e((c.RAT_RF + 100e3 * k.filter) * c.RAT_CFLT);
+    this.ratLevel = audioTaper(k.ratvol) * 6;
+  }
+
+  _lpb(x) {
+    const s = this.lp;
+    s.hin = this.lpbInA * (s.hin + x - s.xin); s.xin = x;       // C_IN high-pass
+    const vb = s.hin * this.lpbDiv;
+    s.b = vb + this.lpbBA * (s.b - vb);                          // C_B low-pass (Mole)
+    let vc = -this.lpbGain * s.b;                                // inverting CE stage
+    vc = vc > 0 ? this.lpbUp * Math.tanh(vc / this.lpbUp) : this.lpbDown * Math.tanh(vc / this.lpbDown);
+    s.c = vc + this.lpbCA * (s.c - vc);                          // C_C across RC (Mole)
+    s.hout = this.lpbOutA * (s.hout + s.c - s.xout); s.xout = s.c; // C_OUT into the pot
+    return s.hout * this.lpbLevel;
+  }
+
+  _rat(x) {
+    const s = this.rt, c = this.c;
+    s.hin = this.ratInA * (s.hin + x - s.xin); s.xin = x;
+    const u = s.hin;
+    // current through the two RC gain legs (inverting input follows u)
+    s.h1 = this.ratA1 * (s.h1 + u - s.x1); s.h2 = this.ratA2 * (s.h2 + u - s.x1); s.x1 = u;
+    const iv = (s.h1 / c.RAT_RG1 + s.h2 / c.RAT_RG2) * this.ratRd;
+    s.fb = iv + this.ratFA * (s.fb - iv);                        // pot || 100p
+    const target = u + s.fb;
+    let dy = (target - s.y) * this.ratK;                         // gain-bandwidth limit
+    if (dy > this.ratSlew) dy = this.ratSlew; else if (dy < -this.ratSlew) dy = -this.ratSlew; // slew limit
+    s.y = Math.max(-this.ratRail, Math.min(this.ratRail, s.y + dy));
+    s.hc = this.ratCA * (s.hc + s.y - s.xc); s.xc = s.y;         // 4.7µ output coupling
+    // diode pair to ground through RAT_RCL: (w - v)/R = 2 Is sinh(v / nVt)
+    const w = s.hc, R = c.RAT_RCL, n = this.ratN, Is = this.ratIs;
+    let v = s.v;
+    for (let i = 0; i < 4; i++) {
+      const t = Math.min(Math.max(v / n, -80), 80), sh = Math.sinh(t), ch = Math.cosh(t);
+      const f = (w - v) / R - 2 * Is * sh, df = -1 / R - 2 * Is * ch / n;
+      v -= f / df;
+    }
+    s.v = v;
+    s.f = v + this.ratFltA * (s.f - v);                          // FILTER: (1.5k + pot) with 3.3n
+    return s.f * this.ratLevel;
   }
 
   // note: 0..63 DAC code (33 = A, 110 Hz)
@@ -370,7 +481,9 @@ class TB303Voice {
     const iout = Iabc * Math.tanh(vin / (2 * VT));
     const vout = iout * c.R_OTA;
     this.hp38 = this.hp38A * (this.hp38 + vout - this.hp38In); this.hp38In = vout;
-    const o = this.hp38 * this.vol * 4.0;
+    let o = this.hp38 * this.vol * 4.0;
+    if (this.fx.lpb) o = this._lpb(o);
+    if (this.fx.rat) o = this._rat(o);
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }
 
