@@ -1,0 +1,109 @@
+// ---------- functions menu ----------
+const fnBtn = document.getElementById('fn-btn'), fnMenu = document.getElementById('fn-menu'), sqMsg = document.getElementById('sq-msg');
+let sqMsgT = 0;
+function sqSay(t) { sqMsg.textContent = t; clearTimeout(sqMsgT); sqMsgT = setTimeout(() => { sqMsg.textContent = ''; }, 5000); }
+function fnOpen(on) { fnMenu.hidden = !on; fnBtn.setAttribute('aria-expanded', on); if (on) fnMenu.querySelector('button').focus(); }
+fnBtn.onclick = () => fnOpen(fnMenu.hidden);
+document.addEventListener('pointerdown', (e) => { if (!fnMenu.hidden && !e.target.closest('.fn')) fnOpen(false); });
+fnMenu.addEventListener('keydown', (e) => {
+  const items = [...fnMenu.querySelectorAll('button:not(:disabled)')], i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { fnOpen(false); fnBtn.focus(); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
+});
+const undoStack = [];
+function pushUndo() { undoStack.push({ k: slotKey(sel.g, sel.n), pattern: state.pattern.map(st => ({ ...st })) }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false; }
+// ---------- install as an app ----------
+let installEvt = null;
+const standalone = () => matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
+addEventListener('appinstalled', () => { installEvt = null; document.getElementById('fn-install').hidden = true; sqSay('Installed. Open 303 from your home screen or app list.'); });
+if (standalone()) document.getElementById('fn-install').hidden = true;
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+// spread of each part between real units: 0 means it does not vary (digital settings in the 224)
+function tolerance(k) {
+  const d = COMPONENTS[k];
+  if (d.fixed || d.block === '224') return 0;
+  if (d.block === 'CV') return 0.005;          // matched 1% parts in the pitch DAC; more than this puts the scale out of tune
+  if (k === 'F_TUNE' || k === 'CV_TUNE') return 0.003; // set by the tuning trimmers at the factory, so only a few cents out
+  if (/^VR/.test(k)) return 0.2;               // pots are ±20%
+  if (d.unit === 'Ω') return 0.05;             // carbon film, ±5%
+  if (d.unit === 'F') return d.v >= 1e-6 ? 0.2 : 0.1; // electrolytics ±20%, film and ceramic ±10%
+  if (/^RAT_(GBW|SR)$/.test(k)) return 0.2;    // op-amp spec spread
+  return 0.05;                                  // voltages, gains, trims: transistor and supply spread
+}
+const FUNCTIONS = {
+  async install() {
+    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome !== 'accepted') sqSay('Install cancelled.'); installEvt = null; return; }
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) sqSay('On iPhone or iPad: tap Share, then Add to Home Screen.');
+    else if (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)) sqSay('In Safari on a Mac: File › Add to Dock.');
+    else sqSay('Use your browser menu: Install 303 Circuit Model, or Add to Home screen.');
+  },
+  // a variation, not a new pattern: about a quarter of the steps change, notes stay among the pitches the pattern already uses
+  alter() {
+    pushUndo();
+    const P = state.pattern, n = P.length, pitches = [...new Set(P.filter(st => st.gate).map(st => st.code))];
+    if (!pitches.length) pitches.push(24);
+    const idx = [...Array(n).keys()].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(n / 4)));
+    const done = { note: 0, octave: 0, accent: 0, slide: 0, rest: 0, gate: 0 };
+    for (const i of idx) {
+      const st = P[i], r = Math.random();
+      if (r < 0.4 && pitches.length > 1) { const c = pitches.filter(c => c !== st.code); st.code = c[Math.floor(Math.random() * c.length)]; st.gate = true; done.note++; }
+      else if (r < 0.55) { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; done.octave++; }
+      else if (r < 0.7) { st.accent = !st.accent; done.accent++; }
+      else if (r < 0.85) { st.slide = !st.slide; done.slide++; }
+      else if (i > 0) { st.gate = !st.gate; st.gate ? done.gate++ : done.rest++; }
+      else { st.accent = !st.accent; done.accent++; }
+    }
+    renderSeq(); pushPattern();
+    const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
+    sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
+  },
+  // nudge every adjustable part around its stock value (15% of its knob travel either way, CV parts only 0.5%), and keep only sets that still make a sound
+  parts() {
+    partsUndo.push({ ...state.parts }); if (partsUndo.length > 30) partsUndo.shift(); syncPartsUndo();
+    const keys = Object.keys(COMPONENTS).filter(k => !COMPONENTS[k].fixed && tolerance(k));
+    // like building a real unit: each part lands somewhere inside its tolerance (triangular, so most land near the middle)
+    const nudge = (k) => { const t = tolerance(k), [lo, hi] = partRange(k);
+      return t ? +Math.min(hi, Math.max(lo, COMPONENTS[k].v * (1 + t * (Math.random() + Math.random() - 1)))).toPrecision(4) : COMPONENTS[k].v; };
+    const pick = () => Object.fromEntries(keys.map(k => [k, nudge(k)]));
+    let set = null;
+    for (let tries = 0; tries < 8 && !set; tries++) {
+      const cand = pick(), v = new TB303Voice(22050);
+      for (const k in cand) v.setComponent(k, cand[k]);
+      for (const kn of KNOBS) v.setKnob(kn.id, state.knobs[kn.id]);
+      v.waveform = state.wave;
+      const buf = new Float32Array(11025); let e = 0, ok = true;
+      for (let n = 0; n < 4; n++) { v.noteOn(24 + 7 * (n & 1), n === 2, false); v.process(buf, n * 2756, n * 2756 + 1500); v.noteOff(); v.process(buf, n * 2756 + 1500, n * 2756 + 2756); }
+      for (const x of buf) { if (!isFinite(x)) ok = false; e += x * x; }
+      if (ok && Math.sqrt(e / buf.length) > 0.015) set = cand;
+    }
+    if (!set) { partsUndo.pop(); syncPartsUndo(); sqSay('Could not find a random set that still sounds. Try again.'); return; }
+    for (const k in set) state.parts[k] = set[k];
+    applySound({ ...soundSnap(), parts: Object.fromEntries(Object.entries(set)) });
+    sqSay(`Built a new unit: ${keys.length} parts somewhere inside their real tolerances. Options › Circuit shows them, and Undo under the button puts them back.`);
+  },
+  undo() {
+    const u = undoStack.pop(); if (!u) return;
+    if (u.k !== slotKey(sel.g, sel.n)) loadSlot(u.k[0], +u.k.slice(1) - 1);
+    state.pattern = u.pattern; tail = []; renderSeq(); pushPattern();
+    document.getElementById('fn-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
+  },
+  // join every chained pattern into one and put it on the Copy/Paste clipboard (and the system clipboard as JSON)
+  join() {
+    storeSlot();
+    const keys = chain.length >= 2 ? chain : [slotKey(sel.g, sel.n)];
+    const all = keys.flatMap(k => slotPattern(k)), cut = all.length > 64;
+    clip = { shuffle: state.shuffle, gate: state.gate, pattern: all.slice(0, 64) };
+    store.set('clip', clip); renderBank();
+    try { navigator.clipboard?.writeText(JSON.stringify({ app: 'tb303-circuit-model', pattern: clip.pattern })).catch(() => {}); } catch {}
+    sqSay(chain.length < 2 ? `No chain, copied ${keys[0]} (${all.length} steps). Paste it into a slot.`
+      : `Joined ${keys.join(' › ')}: ${Math.min(64, all.length)} steps copied${cut ? `, the last ${all.length - 64} cut off at the 64-step limit` : ''}. Paste it into a slot.`);
+  },
+};
+fnMenu.addEventListener('click', (e) => { const b = e.target.closest('[data-fn]'); if (!b) return; fnOpen(false); FUNCTIONS[b.dataset.fn](); });
+document.getElementById('chain-clear').onclick = () => { chain = []; store.set('chain', chain); playingSlot = ''; sendPattern(); renderChain(); };
+// the slot that was selected last holds the current pattern; seed it the first time
+if (!banks[slotKey(sel.g, sel.n)]) storeSlot();
+fillSlots(false);
+document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPattern(); renderBank(); };
+

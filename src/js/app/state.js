@@ -1,0 +1,110 @@
+const KNOBS = [
+  { id: 'tuning',    name: 'Tuning',    ref: 'VR2 50K(B)', def: 0.5 },
+  { id: 'cutoff',    name: 'Cutoff',    ref: 'VR3',        def: 0.3 },
+  { id: 'resonance', name: 'Reso',      ref: 'VR4 50K(B)', def: 0.82 },
+  { id: 'envmod',    name: 'Env mod',   ref: 'VR5 50K(A)', def: 0.62 },
+  { id: 'decay',     name: 'Decay',     ref: 'VR6 1M(A)',  def: 0.3 },
+  { id: 'accent',    name: 'Accent',    ref: 'VR7 50K(B)', def: 0.75 },
+  { id: 'volume',    name: 'Volume',    ref: 'VR8 50K(A)', def: 0.85 },
+  { id: 'dist',      name: 'Distortion',ref: '100k(A)',    def: 0.5,  fx: 'rat' },
+  { id: 'filter',    name: 'Filter',    ref: '100k(B)',    def: 0.4,  fx: 'rat' },
+  { id: 'ratvol',    name: 'Volume',    ref: '100k(A)',    def: 0.5,  fx: 'rat' },
+  { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex' },
+  { id: 'lexbass',   name: 'Bass',      ref: '0.6–70 s',   def: 0.3,  fx: 'lex' },
+  { id: 'lexmid',    name: 'Mid',       ref: '0.6–70 s',   def: 0.27, fx: 'lex' },
+  { id: 'lexxover',  name: 'Crossover', ref: '100 Hz–10.9k', def: 0.443, fx: 'lex' },
+  { id: 'lextreble', name: 'Treble',    ref: '100 Hz–10.9k', def: 0.834, fx: 'lex' },
+  { id: 'lexdepth',  name: 'Depth',     ref: '0–71',       def: 0.5,  fx: 'lex' },
+  { id: 'lexdiff',   name: 'Diffusion', ref: '0–63',       def: 0.55, fx: 'lex' },
+  { id: 'lexpre',    name: 'Predelay',  ref: 'per program', def: 0.2, fx: 'lex' },
+  { id: 'lexme',     name: 'Mode enh',  ref: 'off, 16–1',  def: 0.5,  fx: 'lex' },
+  { id: 'lexpitch',  name: 'Pitch',     ref: '1–16',       def: 0.2,  fx: 'lex' },
+  { id: 'lexmix',    name: 'Return',    ref: 'wet level',  def: 0.5,  fx: 'lex' },
+];
+const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+// original example line, A minor-ish, codes around A = 33
+const EXAMPLE = [
+  [21,1,0,1],[21,0,0,1],[33,0,1,1],[31,0,0,1],[21,1,0,1],[0,0,0,0],[24,0,1,1],[26,0,0,1],
+  [21,0,0,1],[33,1,0,1],[28,0,1,1],[24,0,0,1],[21,1,1,1],[19,0,0,1],[0,0,0,0],[36,1,0,1],
+].map(([code, accent, slide, gate]) => ({ code: code || 21, accent: !!accent, slide: !!slide, gate: !!gate }));
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('tb303.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('tb303.' + k, JSON.stringify(v)); } catch {} },
+};
+const state = {
+  knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
+  wave: 'saw', bpm: 128, fx: { rat: false, lex: false }, shuffle: 0, gate: 0.5,
+  pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
+  parts: {},
+};
+const SOUND_BUILTIN = {
+  'Stock 303': { knobs: {}, parts: {} },
+  'Devil Fish style': {
+    knobs: { resonance: 0.9, envmod: 0.7, decay: 0.2, accent: 0.9 },
+    parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C_ACC: 0.47e-6, R_IN: 47e3, R72: 120e3, V_CUT: 4.5 },
+  },
+  'Acid in the hall': {
+    knobs: { cutoff: 0.28, resonance: 0.85, envmod: 0.65, decay: 0.25, lexprog: 0.25, lexmid: 0.36, lexbass: 0.4, lexpre: 0.3, lexmix: 0.45 },
+    fx: { rat: true, lex: true }, parts: {},
+  },
+  'Long drone': {
+    knobs: { cutoff: 0.25, resonance: 0.75, envmod: 0.4, decay: 0.9 }, wave: 'square',
+    parts: { C35: 1e-6, R52: 4.7e6, R_SOFT: 22e3 },
+  },
+};
+const P = (rows) => rows.map(([code, accent, slide, gate]) => ({ code, accent: !!accent, slide: !!slide, gate: !!gate }));
+const PATTERN_BUILTIN = {
+  'Example line': { bpm: 128, pattern: EXAMPLE.map(st => ({ ...st })) },
+  'Octave bounce': { bpm: 132, pattern: P([[21,1,0,1],[33,0,0,1],[21,0,0,1],[33,1,0,1],[21,0,0,1],[33,0,1,1],[31,0,0,1],[21,0,0,1],
+    [24,1,0,1],[36,0,0,1],[24,0,0,1],[36,1,0,1],[19,0,0,1],[31,0,1,1],[33,0,0,1],[21,1,0,1]]) },
+  'Slow squelch': { bpm: 108, pattern: P([[21,1,1,1],[28,0,1,1],[33,0,0,1],[21,0,0,0],[21,0,1,1],[24,1,1,1],[26,0,0,1],[21,0,0,0],
+    [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
+};
+for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
+function cleanSettings(x) {
+  const out = { knobs: {}, parts: {} };
+  if (!x || typeof x !== 'object') return out;
+  for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
+  for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = v; }
+  if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
+  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex };
+  if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
+  if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
+    code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
+  if (typeof x.shuffle === 'number' && x.shuffle >= 0 && x.shuffle <= 0.6) out.shuffle = x.shuffle;
+  if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
+  return out;
+}
+function snapshot() {
+  const parts = {};
+  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
+  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
+}
+{ // restore last session
+  const sess = cleanSettings(store.get('session', null));
+  Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
+  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex };
+  if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
+  if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
+}
+let saveTimer = 0;
+function saveSession() { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('session', snapshot()), 300); }
+const preview = new TB303Voice(44100); // main-thread copy for derived readouts
+
+let ctx = null, node = null, analyser = null, fallback = null;
+// the deploy stamps the version; a local build shows 'dev'
+{ const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
+const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+// de-click is a playback preference, kept apart from sounds and projects
+const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
+function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
+function renderDeclick() {
+  const b = document.getElementById('dc-on'), r = document.getElementById('dc-ms');
+  b.setAttribute('aria-pressed', declick.on); b.textContent = declick.on ? 'On' : 'Off';
+  r.value = declick.ms; r.disabled = !declick.on; document.getElementById('dc-ms-v').textContent = declick.ms + ' ms';
+}
+document.getElementById('dc-on').onclick = () => { declick.on = !declick.on; store.set('declick', declick); renderDeclick(); sendDeclick(); };
+document.getElementById('dc-ms').oninput = (e) => { declick.ms = +e.target.value; store.set('declick', declick); renderDeclick(); sendDeclick(); };
+renderDeclick();
+

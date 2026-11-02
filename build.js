@@ -1,6 +1,19 @@
-const fs=require('fs');
-const model=fs.readFileSync(__dirname+'/tb303-model.js','utf8');
-const page=fs.readFileSync(__dirname+'/page.html','utf8');
-const patterns=fs.readFileSync(__dirname+'/patterns.json','utf8').trim();
-const head='<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#262626">\n<link rel="icon" href="icons/icon-192.png">\n<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">\n<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-status-bar-style" content="black">\n<meta name="apple-mobile-web-app-title" content="303">\n';
-fs.writeFileSync(__dirname+'/index.html', head + page.replace('/*__MODEL__*/', ()=>model).replace('/*__PATTERNS__*/{}', ()=>patterns));
+// Builds index.html, the whole app in one file (so it works offline and from any static host), from src/:
+//   src/index.html     page markup, with /*@css*/, /*@model*/, /*@worklet*/ and /*@app*/ slots
+//   src/css/*.css      styles, in CSS_ORDER
+//   src/js/app/*.js    the page script, in APP_ORDER, run inside one function scope
+//   src/js/worklet.js  the AudioWorklet processor
+//   tb303-model.js     the voice model (also used by test.js in Node)
+//   patterns.json      factory patterns, raw material for Generate
+const fs = require('fs'), path = require('path');
+const src = (...p) => fs.readFileSync(path.join(__dirname, ...p), 'utf8');
+const CSS_ORDER = ['base', 'top', 'panel', 'sequencer', 'board', 'options', 'responsive'];
+const APP_ORDER = ['state', 'generate', 'format', 'knobs', 'sequencer', 'banks', 'functions', 'parts', 'options', 'audio', 'voice', 'fx', 'presets', 'projects', 'midi', 'board', 'main'];
+const css = CSS_ORDER.map(n => src('src/css', n + '.css').trimEnd()).join('\n\n');
+const app = APP_ORDER.map(n => src('src/js/app', n + '.js').trimEnd()).join('\n\n')
+  .replace('/*@patterns*/{}', () => src('patterns.json').trim());
+const fill = { css, model: src('tb303-model.js').trimEnd(), worklet: src('src/js/worklet.js').trimEnd(), app };
+const html = src('src/index.html').replace(/\/\*@(css|model|worklet|app)\*\//g, (_, k) => fill[k]);
+for (const k of ['css', 'model', 'worklet', 'app']) if (!src('src/index.html').includes(`/*@${k}*/`)) throw new Error('missing slot ' + k);
+fs.writeFileSync(path.join(__dirname, 'index.html'), html);
+console.log(`index.html: ${(html.length / 1024).toFixed(0)} kB`);

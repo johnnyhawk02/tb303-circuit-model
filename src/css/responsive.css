@@ -1,0 +1,98 @@
+/* narrower windows */
+@media (max-width: 760px) {
+  .top .hp { order: 5; flex-basis: 100%; }
+  .top .hp .label { min-width: 7ch; }
+  .pm-pop { min-width: 0; }
+  .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sq-body { grid-template-columns: 1fr; }
+  .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
+  .sq-ed { margin-left: 0; }
+  .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .opt-head { flex-wrap: wrap; padding-left: 16px; }
+  .opt-head h2 { padding-bottom: 0; flex: 1; }
+  .otabs { order: 3; flex-basis: 100%; }
+  .xbtn { margin-bottom: 0; }
+  .opt-body { padding: 18px 16px 24px; }
+  #midi-map { grid-template-columns: repeat(2, auto 1fr); }
+  .monitor { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .top { gap: 12px 16px; } }
+@media (max-width: 420px) {
+  .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pane { min-height: 0; }
+}
+
+/* phones and small tablets: landscape only */
+.rotate { display: none; }
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 900px) {
+  .rotate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; align-content: center; gap: 16px; padding: 24px; text-align: center; background: var(--page); color: var(--fg); }
+  .rotate svg { width: 72px; height: 72px; stroke: var(--on); fill: none; stroke-width: 2; animation: tilt 2.4s ease-in-out infinite; }
+  .rotate p { margin: 0; font: 600 15px var(--font-body); }
+  .rotate small { color: var(--mute); font-size: 12px; }
+  .main, dialog#options { display: none !important; }
+  body { overflow: hidden; }
+}
+@keyframes tilt { 0%, 30% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+
+/* landscape phones: the voice dials become a strip on the left so the step grid gets the full height;
+   one dial size on every page, and spare height goes to the pane row, not the tabs */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --knob: 36px; --knob-part: 34px; --kn-w: 60px; }
+  body { padding: 0 max(8px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+  .main { max-width: none; grid-template-columns: minmax(118px, 13vw) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); gap: 6px 8px; align-items: start;
+    min-height: calc(100dvh - max(6px, env(safe-area-inset-bottom, 0px))); }
+  .main > .top { grid-column: 1 / -1; }
+  .main > #panel { grid-column: 1; grid-row: 2 / span 2; align-self: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: space-evenly; gap: 6px 2px; padding: 8px 4px; }
+  .main > .mtabs, .main > .pane { grid-column: 2; }
+  .main > .mtabs { grid-row: 2; margin: 0 0 -7px; }
+  .main > .pane { grid-row: 3; align-self: stretch; max-height: calc(100dvh - 92px); overflow: auto; }
+  .dev, .main > .pane { padding: 6px 8px 8px; }
+  .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
+  .pane { min-height: 0; }
+
+  .top { margin: 0 -8px; padding: 6px 8px; gap: 6px 8px; flex-wrap: nowrap; min-height: 42px; }
+  .top .hp { order: 0; flex: 1 1 0; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+  .top .hp .label, .bpm-read .label { display: none; }
+  .top .fn > button { padding: 5px 7px; }
+  .top button:not(.switch), .pm .pm-btn { min-height: 30px; }
+  .top button.pm-chip, .top button.pm-star, .top button.pm-i, .top button.pm-g { min-height: 0; }
+  .pm .pm-step { display: none; }
+  .pm-pop { max-height: calc(100dvh - 60px) !important; min-width: 0; width: 340px; }
+  .pm-pop .pm-foot { flex-wrap: wrap; width: 100%; }
+  .pm-pop .pm-foot input { min-width: 0; width: auto; flex: 1 1 0; }
+  .pm-pop .pm-foot button { flex: none; padding: 4px 10px; }
+  .pm-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .pm .pm-chip { flex: none; padding: 4px 9px; }
+
+  .kn { gap: 1px; }
+  .kn .name, .md .mname, .pk .ref { font-size: 10px; }
+  .kn .val, .md .val, .pk .val { font-size: 9.5px; }
+  .panel .kn .val { display: none; }
+  .wave-kn .switch { margin: 6px 0 4px; }
+  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px 4px; }
+  .main > #panel .trim .tname { display: none; }
+  .parts-kn .mini { min-height: 24px; }
+  .mtabs button { padding: 6px 14px; }
+
+  .sq { gap: 6px; }
+  .sq-bank { gap: 6px; }
+  .sq-bank .seg button { padding: 3px 6px; min-width: 22px; }
+  .sq-ed { margin-left: auto; }
+  .sq-ed button { padding: 3px 7px; }
+  .sq-body { grid-template-columns: 128px minmax(0, 1fr); gap: 8px; }
+  .sq-side { grid-template-columns: 1fr; gap: 4px; }
+  .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
+  .stp button { height: 20px; }
+  .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
+
+  .mods { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px 4px; }
+  .md .mdesc { display: none; }
+  .fxknobs { gap: 10px 6px; }
+  .blk-lex { gap: 8px; }
+  .lex-progs button b { font-size: 12px; }
+  .lex-note { display: none; }
+  dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

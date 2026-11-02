@@ -2,6 +2,7 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>303 Circuit Model</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#262626">
 <link rel="icon" href="icons/icon-192.png">
@@ -10,542 +11,254 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="303">
-<title>303 Circuit Model</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=VT323&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: one quiet instrument page (knobs, transport, steps); everything else lives in the Options sheet.
    Look: a dark DAW: flat grey device panels, small sans labels, ring knobs, amber for "on" and cyan for values. */
 :root {
-  --page: #262626;
+  --page: #262626;      /* behind the devices */
   --bg: #3b3b3b;        /* device panel */
   --fg: #dedede;
   --mute: #9a9a9a;
   --line: rgb(0 0 0 / .45);
   --soft: rgb(255 255 255 / .07);
-  --ghost: transparent;
   --on: #ffb02e;        /* amber: switched on, selected */
   --hi: #68d7ec;        /* cyan: values, playhead */
   --well: #2c2c2c;      /* inset fields and the step grid */
-  --font-display: "Helvetica Neue", Arial, system-ui, sans-serif;
   --font-body: "Helvetica Neue", Arial, system-ui, sans-serif;
-  --font-lcd: "Helvetica Neue", Arial, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  --grime: none; --grain: none; --pixels: none;
-  --backlight: linear-gradient(var(--page), var(--page));
+  --knob: 48px;         /* every dial on the front, the effects and the mods */
+  --knob-part: 40px;    /* dials in Options › Circuit */
+  --kn-w: 78px;         /* width of an effect dial cell */
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-html { background: var(--grime), var(--grain), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); color: var(--fg); min-height: 100%; }
-body { background: transparent; color: var(--fg); text-shadow: 1.5px 1.5px 0 var(--ghost); }
-/* the glass over everything: pixel grid plus a little blotchy fade */
-body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
-  background: var(--pixels), radial-gradient(ellipse 30% 24% at 70% 20%, rgb(167 180 110 / .14), transparent 70%), radial-gradient(ellipse 22% 30% at 8% 80%, rgb(167 180 110 / .15), transparent 70%); }
-/* lit segments leave a ghost image beside them, like a slow LCD */
-button.primary, .seg button[aria-pressed=true], .seq .cell.on, .seq .hd.cur, .onoff[aria-pressed=true] { box-shadow: 2px 2px 0 var(--ghost); }
-body { font-family: var(--font-body); font-size: 14px; line-height: 1.5; margin: 0;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
-.main { max-width: 980px; margin: 0 auto; display: grid; gap: 22px; }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
-.label { font: 500 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+html { background: var(--page); color: var(--fg); min-height: 100%; }
+body { margin: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px;
+  font-family: var(--font-body); font-size: 12px; line-height: 1.5; color: var(--fg); background: transparent; }
+.main { max-width: 1060px; margin: 0 auto; display: grid; gap: 10px; }
+h1, h2, h3 { font-family: var(--font-body); font-weight: 700; margin: 0; text-wrap: balance; }
+.label { font: 600 10px var(--font-body); letter-spacing: .02em; color: var(--mute); }
 .hint { color: var(--mute); font-size: 12px; }
-
-button { font: 500 13px var(--font-body); color: var(--fg); background: transparent; border: 1.5px solid var(--fg); padding: 7px 14px; cursor: pointer; border-radius: 0; }
-button:hover:not(:disabled) { background: var(--soft); }
-button:disabled { opacity: .35; cursor: default; }
-button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible, .pk .knob:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
-button.primary { background: var(--on); color: #161616; }
-button.primary:hover { background: var(--fg); opacity: .85; }
-select, input[type=text], input[type=number] { font: 13px var(--font-body); color: var(--fg); background: transparent; border: 1.5px solid var(--fg); padding: 6px 8px; border-radius: 0; }
-select option { background: var(--bg); color: var(--fg); }
-input[type=number] { width: 68px; font: 400 21px/1 var(--font-lcd); padding: 3px 8px; }
-
-/* top bar */
-.top { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; }
-.top { gap: 12px 18px; position: sticky; top: 0; z-index: 30; margin: -28px -16px 0; padding: 18px 16px 14px; border-bottom: 1px solid var(--line);
-  background: var(--grime), var(--grain), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
-.top .hp { position: relative; flex: 1 1 120px; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 10px; }
-.hp .pm { min-width: 0; }
-.hp .pm-btn { min-width: 0; }
-.pm .pm-btn { font-size: 19px; padding: 4px 8px; }
-.pm-foot { display: none; }
-.pm-pop .pm-foot { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-top: 1.5px solid var(--fg); }
-.pm-foot input[type=text] { flex: 1 1 140px; min-width: 0; width: auto; font-size: 12px; padding: 5px 8px; }
-.pm-foot button { padding: 5px 10px; font-size: 12px; }
-.pm-foot .hint { flex-basis: 100%; }
-.pm-foot .hint:empty { display: none; }
-#pat-bar .pm-pop { left: auto; right: 0; }
-.pm-pop { min-width: 340px; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
-.icon { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; }
-.icon svg { width: 26px; height: 26px; fill: var(--fg); }
-.play .sq, .play[aria-pressed=true] .tri { display: none; }
-.play[aria-pressed=true] .sq { display: inline; }
-.play[aria-pressed=true] { background: var(--fg); box-shadow: 2px 2px 0 var(--ghost); }
-.play[aria-pressed=true] svg { fill: var(--bg); }
-.gear { border-color: transparent; }
-.gear svg { width: 30px; height: 30px; }
-.bpm { display: flex; align-items: center; gap: 10px; }
-.bpm .knob { width: 52px; height: 52px; }
-.bpm-read { display: grid; line-height: 1; }
-.bpm-read output { font: 400 40px/0.85 var(--font-lcd); font-variant-numeric: tabular-nums; min-width: 2.2ch; }
-.wsw { display: flex; align-items: center; gap: 10px; }
-.switch { width: 58px; height: 28px; padding: 0; position: relative; }
-.switch .thumb { position: absolute; top: 3px; left: 3px; width: 22px; height: 19px; background: var(--fg); box-shadow: 2px 2px 0 var(--ghost); transition: left .12s; }
-.switch[aria-checked=true] .thumb { left: 30px; }
-.seg { display: inline-flex; border: 1.5px solid var(--fg); }
-.seg button { border: 0; padding: 7px 12px; }
-.seg button[aria-pressed=true] { background: var(--on); color: #161616; }
-.field { display: flex; align-items: center; gap: 8px; }
 .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-/* front panel knobs */
-.panel { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 22px 10px; align-items: start; }
-.parts-kn { align-content: start; gap: 5px 8px; grid-template-columns: auto 1fr; align-items: center; }
-.parts-kn .name { grid-column: 1 / -1; }
-.parts-kn .trim { grid-row: 2 / 4; }
-.parts-kn .mini { width: 100%; min-width: 0 !important; padding: 3px 4px !important; }
-.parts-kn .trim .tname { max-width: 40px; line-height: 1.15; text-align: center; }
-.trim { display: grid; justify-items: center; gap: 1px; }
-.kn .trim .knob, .main > #panel .trim .knob { width: 28px; height: 28px; cursor: ns-resize; touch-action: none; }
-.trim .tname { font: 600 9.5px var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
-.trim .tval { font: 500 10px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; }
-.trim .tval.changed { color: var(--hi); }
-.panel .mini { font: 600 10.5px var(--font-body); padding: 3px 8px; min-width: 76px; }
-.wave-kn .switch { align-self: center; margin: 14px 0 12px; }
-.wave-kn { align-content: start; }
-.kn { display: grid; justify-items: center; gap: 6px; text-align: center; min-width: 0; }
-.kn .name { font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
-.kn .val { font: 500 11px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; min-height: 1.5em; opacity: 0; transition: opacity .15s; }
-.kn:hover .val, .kn:focus-within .val, .kn.active .val { opacity: 1; }
-.kn .ref { display: none; }
-.knob { width: 68px; height: 68px; touch-action: none; cursor: ns-resize; border-radius: 50%; }
+/* controls */
+button { font: 500 12px var(--font-body); color: var(--fg); background: #4a4a4a; border: 1px solid #1c1c1c; border-radius: 2px; padding: 4px 10px; cursor: pointer; }
+button:hover:not(:disabled) { background: #555; }
+button:disabled { opacity: .35; cursor: default; }
+select, input[type=text] { font: 12px var(--font-body); color: var(--fg); background: #4a4a4a; border: 1px solid #1c1c1c; border-radius: 2px; padding: 4px 10px; }
+input[type=text] { background: var(--well); }
+select option { background: var(--bg); color: var(--fg); }
+button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 1px solid var(--hi); outline-offset: 2px; }
+.icon { width: 34px; height: 30px; padding: 0; display: grid; place-items: center; }
+.icon svg { width: 16px; height: 16px; fill: var(--fg); }
+.switch { width: 40px; height: 20px; padding: 0; position: relative; background: var(--well); border-radius: 10px; }
+.switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--fg); transition: left .12s; }
+.switch[aria-checked=true] { background: var(--on); }
+.switch[aria-checked=true] .thumb { left: 22px; background: #161616; }
+.seg { display: inline-flex; border: 1px solid #1a1a1a; border-radius: 2px; overflow: hidden; }
+.seg button { background: #4a4a4a; border: 0; border-right: 1px solid #2a2a2a; border-radius: 0; }
+.seg button[aria-pressed=true] { background: var(--on); color: #161616; }
+.onoff { min-width: 52px; }
+.onoff[aria-pressed=true] { background: var(--on); color: #161616; }
+.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid #1a1a1a; }
+.tabs button { flex: none; }
+.mtabs button, .otabs button, #ptabs button { background: #333; border: 1px solid #1a1a1a; border-bottom: 0; border-radius: 3px 3px 0 0; font: 600 11px var(--font-body); letter-spacing: .02em; color: var(--mute); margin: 0; padding: 5px 14px; }
+.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true] { background: var(--on); color: #161616; border-bottom-color: transparent; }
+.tabs button .n { font: 500 10px var(--font-mono); margin-left: 4px; }
+
+/* dials: label above, ring in the middle, value below (as in Live) */
+.knob { touch-action: none; cursor: ns-resize; border-radius: 50%; }
 .knob svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.kn.small .knob { width: 44px; height: 44px; }
+.knob svg .trk { stroke: #1b1b1b; stroke-width: 3.6; stroke-linecap: butt; }
+.knob svg .arc { stroke: var(--hi); stroke-width: 3.6; stroke-linecap: butt; }
+.knob svg .ptr { stroke: #141414; stroke-width: 3; stroke-linecap: round; }
+.kn, .md, .pk { display: grid; justify-items: center; gap: 4px; text-align: center; min-width: 0; }
+.kn .knob, .md .knob { width: var(--knob); height: var(--knob); }
+.kn .name, .md .mname, .pk .ref { order: -1; font: 600 11px/1.2 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--fg); }
+.kn .val, .md .val, .pk .val { font: 500 10.5px/1.2 var(--font-body); color: var(--fg); min-height: 0; }
+.kn .val, .md .val { transition: opacity .15s; }
+.md .val, .pk .val { cursor: pointer; white-space: nowrap; }
+.md .val.changed, .pk .val.changed { color: var(--on); font-weight: 600; }
+.kn .ref { display: none; }
 .kn.small .name { font-size: 11.5px; }
-.kn.small .val { opacity: 1; }
 
-/* front-page mods */
-.mods { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 30px 10px; padding-top: 8px; }
-.mods .md .knob { width: 52px; height: 52px; }
-.md { display: grid; justify-items: center; gap: 3px; text-align: center; min-width: 0; }
-.md .knob { width: 40px; height: 40px; }
-.md .mname { font: 700 12px var(--font-display); letter-spacing: .07em; text-transform: uppercase; margin-top: 2px; }
-.md .mdesc { font-size: 11px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
-.md .val { font: 10.5px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; cursor: pointer; white-space: nowrap; opacity: 0; transition: opacity .15s; }
-.md:hover .val, .md:focus-within .val, .md .val.changed { opacity: 1; }
-.md .val.changed { color: var(--fg); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-
-/* sequencer: piano roll */
-.sq { display: grid; gap: 12px; }
-.sq-bank { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-.sq-bank .seg button { padding: 5px 10px; font: 600 12px var(--font-mono); min-width: 30px; }
-.sq-bank .slots button { min-width: 28px; padding: 5px 0; }
-.sq-bank .slots button.used:not([aria-pressed=true]) { text-decoration: underline; text-underline-offset: 3px; }
-.sq-ed { display: flex; gap: 6px; margin-left: auto; }
+/* control bar: transport, tempo, the three preset pickers, Functions, version, options */
+.top { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; position: sticky; top: 0; z-index: 30; margin: -28px -16px 0; padding: 10px 16px;
+  background: #303030; border-bottom: 1px solid #1a1a1a; }
+.play .sq, .play[aria-pressed=true] .tri { display: none; }
+.play[aria-pressed=true] .sq { display: inline; }
+.play[aria-pressed=true] { background: var(--on); }
+.play[aria-pressed=true] svg { fill: #161616; }
+.bpm { display: flex; align-items: center; gap: 10px; }
+.bpm .knob { width: 30px; height: 30px; }
+.bpm-read { display: flex; align-items: baseline; gap: 6px; line-height: 1; }
+.bpm-read output { font: 500 13px/1 var(--font-body); background: var(--well); color: var(--hi); border: 1px solid #1c1c1c; border-radius: 2px; padding: 5px 8px; min-width: 4.2ch; text-align: center; }
+.top .hp { position: relative; flex: 1 1 120px; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 10px; }
 .fn { position: relative; }
-.fn-menu { position: absolute; z-index: 40; top: calc(100% + 4px); right: 0; min-width: 220px; display: grid; padding: 4px 0; border: 1.5px solid var(--fg); box-shadow: 4px 4px 0 var(--ghost);
-  background: var(--grime), var(--grain), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
-.fn-menu[hidden] { display: none; }
-.fn-menu button { border: 0; text-align: left; padding: 6px 12px; font: 400 19px/1.1 var(--font-lcd); white-space: nowrap; }
-.fn-menu button:disabled { opacity: .4; }
-.fn-menu button:not(:disabled):hover, .fn-menu button:focus-visible { background: var(--on); color: #161616; outline: 0; }
-.top .fn > button { font: 400 20px/1 var(--font-lcd); padding: 7px 12px; }
+.top .fn > button { font: 500 12px/1.2 var(--font-body); padding: 5px 10px; }
 .top .fn > button::after { content: " ▾"; font-size: 14px; }
-.sq-msg { position: absolute; right: 16px; top: calc(100% + 6px); max-width: min(560px, calc(100% - 32px)); padding: 6px 10px; font: 400 18px/1.15 var(--font-lcd); border: 1.5px solid var(--fg); box-shadow: 3px 3px 0 var(--ghost);
-  background: var(--grime), var(--grain), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); color: var(--fg); pointer-events: none; }
+.fn-menu { position: absolute; z-index: 40; top: calc(100% + 4px); right: 0; min-width: 220px; display: grid; padding: 4px 0;
+  background: #333; border: 1px solid #111; border-radius: 3px; box-shadow: 0 6px 20px rgb(0 0 0 / .5); }
+.fn-menu[hidden] { display: none; }
+.fn-menu button { border: 0; background: transparent; text-align: left; padding: 6px 12px; font: 12px/1.4 var(--font-body); white-space: nowrap; }
+.fn-menu button:disabled { opacity: .4; }
+.fn-menu button:not(:disabled):hover, .fn-menu button:focus-visible { background: var(--hi) !important; color: #161616 !important; outline: 0; }
+/* short messages from Functions, Generate and the like, under the bar */
+.sq-msg { position: absolute; right: 16px; top: calc(100% + 6px); max-width: min(560px, calc(100% - 32px)); padding: 6px 10px; font: 12px/1.4 var(--font-body); color: var(--fg); pointer-events: none;
+  background: #333; border: 1px solid #111; border-radius: 3px; box-shadow: 0 6px 20px rgb(0 0 0 / .5); }
 .sq-msg:empty { display: none; }
-.sq-bank .slots button { position: relative; }
-.sq-bank .slots button[data-ch]:not([data-ch=""])::after { content: attr(data-ch); position: absolute; top: -9px; right: -3px; font: 400 14px/1 var(--font-lcd); padding: 0 2px; background: var(--on); color: #161616; }
-.sq-bank .slots button.playing { outline: 2px solid var(--fg); outline-offset: -4px; }
-.chain-read { display: flex; align-items: center; gap: 8px; font: 400 20px/1 var(--font-lcd); }
-.chain-read[hidden] { display: none; }
-.chain-read .arr { color: var(--mute); }
-.chain-read .now { background: var(--on); color: #161616; padding: 0 3px; }
-.chain-read button { padding: 0 7px; font-size: 14px; line-height: 20px; }
-.sq-ed button { padding: 5px 10px; font-size: 12px; }
-.sq-body { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 16px; align-items: start; }
-.sq-side { display: grid; gap: 8px; }
-.stp { display: grid; grid-template-columns: 1fr 24px 42px 24px; gap: 0 2px; align-items: center; }
-.stp button { padding: 0; height: 24px; font-size: 10px; border-width: 1.5px; }
-.stp output { text-align: center; font: 400 20px/1 var(--font-lcd); font-variant-numeric: tabular-nums; }
-.sq-side .rnd { margin-top: 4px; padding: 6px 0; font-size: 12px; }
-.seqwrap { overflow-x: auto; scrollbar-width: thin; }
-.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(26px, 1fr)); grid-auto-rows: 14px; width: max-content; min-width: 100%;
-  font: 500 10.5px var(--font-mono); border-top: 1.5px solid var(--fg); border-bottom: 1.5px solid var(--fg); user-select: none; }
-.seq > * { border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0; background: transparent; color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
-.seq .rh { justify-content: flex-start; padding-left: 4px; border-right: 1.5px solid var(--fg); letter-spacing: .04em; }
-.seq .bar { border-right-color: var(--mute); }
-.seq .blk { background: var(--soft); }
-.seq .hd { color: var(--mute); }
-.seq .hd.cur { background: var(--on); color: #161616; }
-.seq .gap { border-bottom: 1.5px solid var(--fg); }
-.seq button { cursor: pointer; }
-.seq button:focus-visible { outline: 2px solid var(--fg); outline-offset: -3px; }
-.seq .cell.cur:not(.on):not(.ghost) { background: rgb(24 32 15 / .13); }
-.seq .cell.on { background: var(--fg); }
-.seq .cell.ghost { box-shadow: inset 0 0 0 1.5px var(--mute); }
-.seq .cell.on.cur { background: var(--mute); }
+.ver { font: 500 10.5px var(--font-body); color: var(--mute); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
+.gear { background: transparent; border-color: transparent; }
+.ver + .gear { margin-left: 0; }
+.gear svg { width: 20px; height: 20px; }
 
-/* presets and RAT strip */
-.mtabs { margin-bottom: -4px; }
-.pane[hidden] { display: none !important; }
-.pane { min-height: 440px; }
-.strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 40px; align-content: start; padding-top: 6px; }
-.strip > section { display: grid; gap: 10px; min-width: 0; align-content: start; }
-.strip h3 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
-.strip .presets { gap: 8px; }
-.strip .presets input[type=text] { flex: 1 1 120px; width: auto; min-width: 0; }
-.strip .presets button { padding: 6px 10px; font-size: 12px; }
-.strip .hint:empty { display: none; }
-.strip .fx { gap: 16px 34px; }
-.strip .fxknobs { gap: 16px 34px; }
-#pane-rat .kn.small .knob { width: 68px; height: 68px; }
-#pane-lex { padding-top: 6px; }
-.blk-lex { display: grid; gap: 14px; }
-.lex-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
-.lex-head h3 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
-.lex-lcd { font: 400 22px/1 var(--font-lcd); letter-spacing: .04em; }
-.lex-progs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
-.lex-progs button { padding: 6px 4px; font: 500 11px var(--font-mono); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
-.lex-progs button b { display: block; font: 400 20px/1 var(--font-lcd); }
-.lex-progs button[aria-checked=true] { background: var(--on); color: #161616; box-shadow: 2px 2px 0 var(--ghost); }
-#fx-lex .fxknobs { display: flex; flex-wrap: wrap; gap: 14px 22px; }
-#fx-lex .kn.small .knob { width: 60px; height: 60px; }
-.lex-note { max-width: 70ch; }
-
-@media (max-width: 760px) { .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .strip { grid-template-columns: minmax(0, 1fr); } }
-
-/* preset menu */
+/* preset picker: our own listbox over a hidden <select>, with folders, search, filter chips and stars */
 .pm { position: relative; flex: 1 1 100%; display: flex; min-width: 0; }
-.pm .pm-btn { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; font: 400 20px/1.1 var(--font-lcd); padding: 5px 10px; }
+.pm .pm-btn { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; font: 500 12px/1.2 var(--font-body); padding: 5px 10px; background: var(--well); }
 .pm-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pm-btn .grp { color: var(--mute); flex: none; }
-.pm .pm-step { padding: 0 10px; font-size: 11px; border-left-width: 0; }
-.pm-pop { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 280px; display: grid; grid-template-rows: auto minmax(0, 1fr);
-  max-height: min(62vh, 460px); border: 1.5px solid var(--fg); box-shadow: 4px 4px 0 var(--ghost);
-  background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); }
+.pm-btn .cur { flex: 1 1 auto; min-width: 0; }
+.pm .pm-btn .cur { color: var(--fg); }
+.pm .pm-step { padding: 0 8px; font-size: 9px; border-left-width: 0; }
+.pm-pop { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 280px; max-height: min(62vh, 460px);
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  background: #333; border: 1px solid #111; border-radius: 3px; box-shadow: 0 6px 20px rgb(0 0 0 / .5); }
 .pm-pop[hidden] { display: none; }
-.pm .pm-q { margin: 8px; width: auto; font: 400 20px/1 var(--font-lcd); padding: 4px 8px; }
+#pat-bar .pm-pop { left: auto; right: 0; }
+.pm-head { display: grid; min-width: 0; }
+.pm .pm-q { margin: 8px; justify-self: stretch; width: calc(100% - 16px); font: 12px var(--font-body); padding: 5px 8px; }
+.pm-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
+.pm .pm-chip { font: 600 10.5px var(--font-body); padding: 3px 8px; border-radius: 10px; background: #333; color: var(--mute); border: 1px solid #1a1a1a; }
+.pm .pm-chip[aria-pressed=true] { background: var(--hi); color: #161616; }
 .pm-list { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
-.pm .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid var(--line); padding: 6px 10px; font: 600 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; text-align: left; }
+.pm .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid #222; padding: 6px 10px; padding-left: calc(10px + var(--d, 0) * 14px); background: transparent;
+  font: 600 10.5px var(--font-body); letter-spacing: .03em; text-align: left; }
+.pm .pm-g.sub { font-weight: 500; color: var(--fg); border-top-color: transparent; }
 .pm-g::before { content: "▸"; margin-right: 8px; }
 .pm-g[aria-expanded=true]::before { content: "▾"; }
 .pm-g .n { margin-left: auto; color: var(--mute); font-weight: 400; }
-.pm .pm-i { display: block; width: 100%; border: 0; padding: 2px 12px 2px 28px; text-align: left; font: 400 19px/1.15 var(--font-lcd); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pm-i.act, .pm-i:hover, .pm-g.act { background: var(--soft); }
-.pm .pm-i[aria-selected=true] { background: var(--on); color: #161616; box-shadow: 2px 2px 0 var(--ghost); }
-.pm-none { padding: 10px 12px; color: var(--mute); }
-
-/* options sheet */
-dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: min(760px, calc(100dvh - 32px)); max-height: none; margin: auto; padding: 0;
-  border: 1.5px solid var(--fg); box-shadow: 6px 6px 0 var(--ghost); flex-direction: column; overflow: hidden;
-  background: var(--grime), var(--grain), var(--pixels), var(--backlight); background-attachment: fixed; background-size: 100% 100%, auto; background-color: var(--bg); color: var(--fg); text-shadow: 1.5px 1.5px 0 var(--ghost); }
-dialog#options[open] { display: flex; }
-dialog#options::backdrop { background: rgb(20 28 8 / .45); }
-.opt-head { flex: none; display: flex; align-items: flex-end; gap: 8px 26px; padding: 14px 14px 0 22px; border-bottom: 1.5px solid var(--fg); }
-.opt-head h2 { font: 400 34px/1 var(--font-lcd); letter-spacing: .04em; padding-bottom: 9px; }
-.opt-head .otabs { border-bottom: 0; flex: 1; min-width: 0; }
-.xbtn { width: 40px; height: 40px; align-self: center; margin-bottom: 6px; border-color: transparent; }
-.xbtn svg { width: 20px; height: 20px; }
-.opt-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 22px 28px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
-.osec { display: grid; gap: 16px; align-content: start; min-width: 0; }
-.osec[hidden] { display: none; }
-#midi-map { grid-template-columns: repeat(3, auto 1fr); gap: 6px 14px; }
-.presets { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
-.presets select { min-width: 200px; max-width: 100%; }
-.presets input[type=text] { width: 180px; max-width: 100%; }
-.presets .sep { width: 1px; align-self: stretch; background: var(--line); }
-.presets .hint { flex-basis: 100%; }
-.fx { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; }
-.fxknobs { display: flex; flex-wrap: wrap; gap: 14px 22px; }
-.onoff { min-width: 58px; }
-.onoff[aria-pressed=true] { background: var(--on); color: #161616; }
-
-.monitor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
-canvas { width: 100%; height: 150px; display: block; border: 1.5px solid var(--fg); background: transparent; }
-.readouts { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; align-content: start; margin: 0; font: 12px var(--font-mono); }
-.readouts dt { color: var(--mute); }
-.readouts dd { margin: 0; font-variant-numeric: tabular-nums; }
-
-.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; border-bottom: 1.5px solid var(--fg); }
-.tabs button { flex: none; border: 0; padding: 8px 12px 7px; font: 700 12.5px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); border-bottom: 3px solid transparent; margin-bottom: -1.5px; background: transparent; }
-.tabs button[aria-selected=true] { color: var(--fg); border-bottom-color: var(--fg); }
-.tabs button .n { font: 500 10px var(--font-mono); margin-left: 4px; }
-.parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 10px; min-height: 120px; padding-top: 6px; }
-.pk { display: grid; justify-items: center; gap: 3px; text-align: center; min-width: 0; padding: 6px 2px; position: relative; }
-.pk .knob { width: 44px; height: 44px; }
-.pk .ref { font: 500 11.5px var(--font-mono); }
-.pk .val { font: 11px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; cursor: pointer; white-space: nowrap; }
-.pk .val.changed { color: var(--fg); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-.parts.all-mod .pk.mod::after { display: none; }
-.pk.mod::after { content: ""; position: absolute; top: 4px; right: 18%; width: 6px; height: 6px; border-radius: 50%; background: var(--fg); }
-.pk.fixed .val { cursor: default; }
-.pk.fixed .knob { opacity: .3; cursor: default; }
-.detail { min-height: 3.2em; font-size: 12.5px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
-.detail b { color: var(--fg); font-family: var(--font-mono); font-weight: 500; }
-.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 12px; color: var(--mute); }
-.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--fg); margin-right: 6px; vertical-align: middle; }
-.notes { columns: 2 300px; column-gap: 32px; color: var(--mute); font-size: 13px; }
-.notes p { margin: 0 0 10px; break-inside: avoid; }
-.notes strong { color: var(--fg); font-weight: 600; }
-
-/* ---------- dark DAW theme ---------- */
-html { background: var(--page); }
-body { text-shadow: none; font-size: 12px; }
-body::after { display: none; }
-.main { gap: 10px; max-width: 1060px; }
-button, select, input[type=text], input[type=number] { font-family: var(--font-body); font-size: 12px; border: 1px solid #1c1c1c; background: #4a4a4a; color: var(--fg); border-radius: 2px; padding: 4px 10px; }
-button:hover:not(:disabled) { background: #555; }
-button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 1px solid var(--hi); outline-offset: 2px; }
-input[type=text] { background: var(--well); }
-.label, .wsw .label, .hp .label { font: 600 10px var(--font-body); letter-spacing: .02em; text-transform: none; color: var(--mute); }
-/* control bar */
-.top { background: #303030; border-bottom: 1px solid #1a1a1a; padding: 10px 16px; gap: 10px 14px; }
-.icon { width: 34px; height: 30px; }
-.icon svg { width: 16px; height: 16px; fill: var(--fg); }
-.play[aria-pressed=true] { background: var(--on); }
-.play[aria-pressed=true] svg { fill: #161616; }
-.gear { background: transparent; border-color: transparent; }
-.ver { font: 500 10.5px var(--font-body); color: var(--mute); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
-.ver + .gear { margin-left: 0; }
-.gear svg { width: 20px; height: 20px; }
-.bpm .knob { width: 30px; height: 30px; }
-.bpm-read { display: flex; align-items: baseline; gap: 6px; }
-.bpm-read output { font: 500 13px/1 var(--font-body); background: var(--well); color: var(--hi); border: 1px solid #1c1c1c; border-radius: 2px; padding: 5px 8px; min-width: 4.2ch; text-align: center; }
-.switch { width: 40px; height: 20px; background: var(--well); border-radius: 10px; }
-.switch .thumb { top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--fg); }
-.switch[aria-checked=true] { background: var(--on); }
-.switch[aria-checked=true] .thumb { left: 22px; background: #161616; }
-.top .fn > button, .pm .pm-btn { font: 500 12px/1.2 var(--font-body); padding: 5px 10px; }
-.pm .pm-btn { background: var(--well); }
-.pm .pm-btn .cur { color: var(--fg); }
-.pm .pm-step { font-size: 9px; padding: 0 8px; }
-.pm-pop, .fn-menu, .sq-msg { background: #333; border: 1px solid #111; box-shadow: 0 6px 20px rgb(0 0 0 / .5); border-radius: 3px; }
-.pm .pm-q { font: 12px var(--font-body); padding: 5px 8px; justify-self: stretch; box-sizing: border-box; width: calc(100% - 16px); }
-.pm .pm-g { font: 600 10.5px var(--font-body); letter-spacing: .03em; text-transform: none; background: transparent; border-top-color: #222; }
-.pm .pm-i { font: 12px/1.6 var(--font-body); background: transparent; padding-left: 26px; }
+.pm-row { display: flex; align-items: stretch; }
+.pm .pm-i { width: 100%; border: 0; padding: 2px 12px; background: transparent; text-align: left; font: 12px/1.6 var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-row .pm-i { flex: 1; min-width: 0; padding-left: calc(12px + var(--d, 0) * 14px); display: flex; gap: 8px; align-items: baseline; }
 .pm .pm-i[aria-selected=true] { background: var(--on); color: #161616; }
 .pm-i.act, .pm-i:hover, .pm-g.act { background: #454545; }
-.pm .pm-g { padding-left: calc(10px + var(--d, 0) * 14px); }
-.pm .pm-g.sub { font-weight: 500; color: var(--fg); border-top-color: transparent; }
-.pm-row { display: flex; align-items: stretch; }
-.pm-row .pm-i { flex: 1; min-width: 0; padding-left: calc(12px + var(--d, 0) * 14px) !important; display: flex; gap: 8px; align-items: baseline; }
 .pm-path { margin-left: auto; color: var(--mute); font-size: 10px; flex: none; }
 .pm-i[aria-selected=true] .pm-path { color: #3a2a00; }
 .pm .pm-star { flex: none; width: 28px; padding: 0; border: 0; background: transparent; color: #555; font-size: 12px; }
 .pm .pm-star:hover { color: var(--fg); }
 .pm .pm-star[aria-pressed=true] { color: var(--on); }
-.pm-head { display: grid; min-width: 0; }
-.pm-btn .cur { flex: 1 1 auto; min-width: 0; }
-.pm-btn .grp { display: none; }
-.pm-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-.pm .pm-chip { font: 600 10.5px var(--font-body); padding: 3px 8px; border-radius: 10px; background: #333; color: var(--mute); border: 1px solid #1a1a1a; }
-.pm .pm-chip[aria-pressed=true] { background: var(--hi); color: #161616; }
 .pm-sum { padding: 4px 12px 6px; font-size: 10.5px; color: var(--mute); }
 .pm-sep { border-top: 1px solid #222; margin: 4px 0; }
-.fn-menu button { font: 12px/1.4 var(--font-body) !important; background: transparent; border: 0; }
-.fn-menu button:not(:disabled):hover, .fn-menu button:focus-visible { background: var(--hi) !important; color: #161616 !important; }
-.sq-msg { font: 12px/1.4 var(--font-body); color: var(--fg); }
-/* devices */
+.pm-none { padding: 10px 12px; color: var(--mute); }
+/* save / delete row at the foot of the picker */
+.presets { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+.presets select { min-width: 200px; max-width: 100%; }
+.presets input[type=text] { width: 180px; max-width: 100%; }
+.presets .hint { flex-basis: 100%; }
+.pm-foot { display: none; }
+.pm-pop .pm-foot { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-top: 1.5px solid var(--fg); }
+.pm-foot input[type=text] { flex: 1 1 140px; min-width: 0; font-size: 12px; padding: 5px 8px; }
+.pm-foot button { padding: 5px 10px; font-size: 12px; }
+.pm-foot .hint:empty { display: none; }
+
+/* devices: grey panels with a title strip and an amber power dot */
 .dev, .main > .pane { position: relative; background: var(--bg); border: 1px solid #1a1a1a; border-radius: 4px; padding: 34px 16px 16px; }
 .dev::before, .main > .pane::before { content: attr(data-title); position: absolute; left: 0; right: 0; top: 0; height: 24px; padding: 0 10px 0 28px; display: flex; align-items: center;
   font: 600 11.5px var(--font-body); color: var(--fg); background: #444; border-bottom: 1px solid #1a1a1a; border-radius: 4px 4px 0 0; }
 .dev::after, .main > .pane::after { content: ""; position: absolute; left: 9px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--on); }
-.panel { gap: 10px; }
-.mtabs { border-bottom: 0; gap: 2px; margin: 6px 0 -11px; position: relative; z-index: 1; }
-.mtabs button, .otabs button, #ptabs button { background: #333; border: 1px solid #1a1a1a; border-bottom: 0; border-radius: 3px 3px 0 0; font: 600 11px var(--font-body); letter-spacing: .02em; text-transform: none; color: var(--mute); margin: 0; padding: 5px 14px; }
-.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true] { background: var(--on); color: #161616; border-bottom-color: transparent; }
-.tabs { border-bottom: 1px solid #1a1a1a; }
-.kn .name, .md .mname, .pk .ref { font: 600 11px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--fg); }
-.kn .val, .md .val, .pk .val { font: 500 10.5px var(--font-body); color: var(--hi); opacity: 1; }
-.md .mdesc { font-size: 10.5px; }
-.md .val.changed, .pk .val.changed { color: var(--on); text-decoration: none; }
-.knob svg .trk { stroke: #1b1b1b; stroke-width: 3.6; stroke-linecap: butt; }
-.knob svg .arc { stroke: var(--hi); stroke-width: 3.6; stroke-linecap: butt; }
-.knob svg .ptr { stroke: #141414; stroke-width: 3; stroke-linecap: round; }
-/* label above the dial, value below (as in Live) */
-.kn .name, .md .mname, .pk .ref { order: -1; }
-.md .mdesc { order: 2; }
-.kn .val, .md .val, .pk .val { color: var(--fg); }
-.kn .knob { width: 54px; height: 54px; }
-.pk.mod::after, .dot { background: var(--on); }
-/* sequencer */
-.sq-bank .seg, .seg { border: 1px solid #1a1a1a; border-radius: 2px; overflow: hidden; }
-.seg button { background: #4a4a4a; border: 0; border-right: 1px solid #2a2a2a; border-radius: 0; font: 600 11px var(--font-body); padding: 5px 9px; }
-.seg button[aria-pressed=true] { background: var(--on); color: #161616; }
-.sq-bank .slots button.used:not([aria-pressed=true]) { text-decoration: none; color: var(--hi); }
-.sq-bank .slots button[data-ch]:not([data-ch=""])::after { font: 600 9px/1 var(--font-body); padding: 1px 3px; border-radius: 2px; background: var(--hi); color: #161616; top: -7px; }
-.sq-bank .slots button.playing { outline: 2px solid var(--hi); }
-.chain-read { font: 600 12px var(--font-body); }
-.chain-read .now { background: var(--hi); color: #161616; border-radius: 2px; }
-.stp output { font: 500 12px/1 var(--font-body); color: var(--hi); background: var(--well); border-top: 1px solid #1c1c1c; border-bottom: 1px solid #1c1c1c; padding: 5px 0; }
-.stp button { height: 24px; border-radius: 0; }
-.seq { border: 1px solid #1a1a1a; background: var(--well); font: 500 10px var(--font-body); }
-.seq > * { border-right-color: #262626; border-bottom-color: #262626; }
-.seq .rh { background: #3a3a3a; color: var(--mute); border-right: 1px solid #1a1a1a; }
+
+/* TB-303 voice: waveform switch, the front dials, then components (filter trim, randomise, undo) */
+.panel { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.wave-kn { align-content: start; }
+.wave-kn .switch { align-self: center; margin: 14px 0 12px; }
+.parts-kn { align-content: start; grid-template-columns: auto 1fr; align-items: center; }
+.parts-kn .name { grid-column: 1 / -1; }
+.parts-kn .trim { grid-row: 2 / 4; }
+.parts-kn .mini { width: 100%; min-width: 0; padding: 3px 4px; font: 600 10.5px var(--font-body); }
+.trim { display: grid; justify-items: center; gap: 1px; }
+.kn .trim .knob { width: 28px; height: 28px; cursor: ns-resize; touch-action: none; }
+.trim .tname { font: 600 9.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.parts-kn .trim .tname { max-width: 40px; line-height: 1.15; text-align: center; }
+.trim .tval { font: 500 10px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; }
+.trim .tval.changed { color: var(--hi); }
+
+/* tabs under the voice and the panes they show */
+.mtabs { gap: 2px; margin: 6px 0 -11px; position: relative; z-index: 1; }
+.pane { min-height: 440px; }
+.pane[hidden] { display: none !important; }
+
+/* front-page mods */
+.mods { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px 10px; padding-top: 8px; }
+.md .mname { margin-top: 2px; }
+.md .mdesc { order: 2; font-size: 10.5px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
+
+/* effects: RAT and Lexicon 224 */
+.fx { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; }
+.fxknobs { display: flex; flex-wrap: wrap; gap: 14px 10px; }
+.fxknobs .kn { width: var(--kn-w); }
+.blk-rat { display: grid; gap: 10px; min-width: 0; align-content: start; }
+#pane-rat:not(:has(.onoff[aria-pressed=true]))::after { background: #666; }
+#fx-rat { display: grid; gap: 14px; justify-items: start; }
+.blk-lex { display: grid; gap: 14px; }
+.lex-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.lex-lcd { font: 600 13px var(--font-body); letter-spacing: .04em; color: var(--hi); }
+.lex-progs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.lex-progs button { padding: 5px 4px; font: 500 10.5px/1.2 var(--font-body); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lex-progs button b { display: block; font: 600 14px/1.2 var(--font-body); }
+.lex-progs button[aria-checked=true] { background: var(--on); color: #161616; }
+.lex-note { max-width: 70ch; font-size: 11px; color: var(--mute); }
+
+/* sequencer: banks and slots, side steppers, piano roll */
+.sq { display: grid; gap: 12px; }
+.sq-bank { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.sq-bank .seg button { padding: 5px 10px; font: 600 12px var(--font-mono); min-width: 30px; }
+.sq-bank .slots button { min-width: 28px; padding: 5px 0; position: relative; }
+.sq-bank .slots button.used:not([aria-pressed=true]) { color: var(--hi); }
+.sq-bank .slots button[data-ch]:not([data-ch=""])::after { content: attr(data-ch); position: absolute; top: -7px; right: -3px; font: 600 9px/1 var(--font-body); padding: 1px 3px; border-radius: 2px; background: var(--hi); color: #161616; }
+.sq-bank .slots button.playing { outline: 2px solid var(--hi); outline-offset: -4px; }
+.chain-read { display: flex; align-items: center; gap: 8px; font: 600 12px var(--font-body); }
+.chain-read[hidden] { display: none; }
+.chain-read .arr { color: var(--mute); }
+.chain-read .now { background: var(--hi); color: #161616; padding: 0 3px; border-radius: 2px; }
+.chain-read button { padding: 0 7px; font-size: 14px; line-height: 20px; }
+.sq-ed { display: flex; gap: 6px; margin-left: auto; }
+.sq-ed button { padding: 5px 10px; font-size: 12px; }
+.sq-body { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 16px; align-items: start; }
+.sq-side { display: grid; gap: 8px; }
+.stp { display: grid; grid-template-columns: 1fr 24px 42px 24px; gap: 0 2px; align-items: center; }
+.stp button { padding: 0; height: 24px; font-size: 10px; border-width: 1.5px; border-radius: 0; }
+.stp output { text-align: center; font: 500 12px/1 var(--font-body); color: var(--hi); background: var(--well); border-top: 1px solid #1c1c1c; border-bottom: 1px solid #1c1c1c; padding: 5px 0; }
+.stp output.unit { color: var(--mute); font-size: 10px; }
+.sq-side .rnd { margin-top: 4px; padding: 6px 0; font-size: 12px; }
+.seqwrap { overflow-x: auto; scrollbar-width: thin; }
+.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(26px, 1fr)); grid-auto-rows: 14px; width: max-content; min-width: 100%;
+  font: 500 10px var(--font-body); border: 1px solid #1a1a1a; background: var(--well); user-select: none; }
+.seq > * { border: 0; border-right: 1px solid #262626; border-bottom: 1px solid #262626; padding: 0; background: transparent; color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
+.seq .rh { justify-content: flex-start; padding-left: 4px; letter-spacing: .04em; background: #3a3a3a; color: var(--mute); border-right: 1px solid #1a1a1a; }
+.seq .bar { border-right-color: #555; }
 .seq .blk { background: #282828; }
 .seq .rh.blk { background: #1e1e1e; color: #bbb; }
-.seq .bar { border-right-color: #555; }
-.seq .gap { border-bottom-color: #555; }
-.seq .hd { background: #333; }
+.seq .hd { color: var(--mute); background: #333; }
 .seq .hd.cur { background: var(--hi); color: #161616; }
-.seq .cell.cur:not(.on):not(.ghost) { background: rgb(104 215 236 / .12); }
+.seq .gap { border-bottom: 1.5px solid #555; }
+.seq button { cursor: pointer; }
+.seq button[data-t] { touch-action: none; }
+.seq button:focus-visible { outline: 2px solid var(--fg); outline-offset: -3px; }
+.seq .cell.cur:not(.on) { background: rgb(104 215 236 / .12); }
 .seq .cell.on { background: var(--on); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .4); }
 .seq .cell.on.cur { background: #ffd27d; }
-.seq .cell.ghost { box-shadow: inset 0 0 0 1px var(--on); }
 .seq [data-t=slide].on, .seq [data-t=accent].on { background: var(--hi); }
-.seq button[data-t] { touch-action: none; }
-/* options */
-dialog#options { background: var(--bg); border: 1px solid #111; border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); text-shadow: none; }
-dialog#options::backdrop { background: rgb(0 0 0 / .5); }
-.opt-head { background: #333; border-bottom: 1px solid #1a1a1a; }
-.opt-head h2 { font: 600 15px var(--font-body); padding-bottom: 8px; }
-.otabs button { margin-bottom: -1px; }
-canvas { border: 1px solid #1a1a1a; background: var(--well); border-radius: 2px; }
-.readouts { font: 11.5px var(--font-body); }
-.readouts dd { color: var(--hi); }
-.onoff[aria-pressed=true] { background: var(--on); color: #161616; }
-#pane-rat h3 { display: none; }
-#pane-rat:not(:has(.onoff[aria-pressed=true]))::after { background: #666; }
-.strip h3, .osec h3 { font: 600 11px var(--font-body); letter-spacing: .02em; text-transform: none; color: var(--mute); }
-/* consistency pass: one knob size, one label style, one control row, on every page */
-:root { --knob: 48px; --knob-part: 40px; --kn-w: 78px; }
-.kn .knob, .kn.small .knob, #pane-rat .kn.small .knob, #fx-lex .kn.small .knob, .mods .md .knob, .md .knob { width: var(--knob); height: var(--knob); }
-.pk .knob { width: var(--knob-part); height: var(--knob-part); }
-.kn, .md, .pk { gap: 4px; }
-.kn .name, .md .mname, .pk .ref { font: 600 11px/1.2 var(--font-body); }
-.kn .val, .md .val, .pk .val { font: 500 10.5px/1.2 var(--font-body); min-height: 0; }
-.fxknobs, #fx-lex .fxknobs, .strip .fxknobs { display: flex; flex-wrap: wrap; gap: 14px 10px; }
-.fxknobs .kn { width: var(--kn-w); }
-.strip { display: block; }
-#fx-rat { display: grid; gap: 14px; justify-items: start; }
-#pane-lex { padding-top: 34px; }
-.lex-head { gap: 12px; }
-.lex-head h3 { display: none; }
-.lex-lcd { font: 600 13px var(--font-body); letter-spacing: .04em; color: var(--hi); }
-.onoff { min-width: 52px; }
-.lex-progs { gap: 4px; }
-.lex-progs button { font: 500 10.5px/1.2 var(--font-body); padding: 5px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
-.lex-progs button b { font: 600 14px/1.2 var(--font-body); }
-.lex-note { font-size: 11px; color: var(--mute); }
-.mods { gap: 18px 10px; }
-.stp output.unit { color: var(--mute); font-size: 10px; }
-.dclk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid #1a1a1a; }
-.dclk-txt { display: grid; gap: 2px; flex: 1 1 280px; min-width: 0; font-size: 12px; }
-.dclk-txt .hint { font-size: 11px; color: var(--mute); }
-.dclk-fade { display: flex; align-items: center; gap: 8px; font: 600 11px var(--font-body); color: var(--mute); }
-.dclk-fade input { width: 120px; accent-color: var(--hi); }
-.dclk-fade output { color: var(--hi); min-width: 4.5em; font-weight: 500; }
-dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-height: none; } /* fixed size: switching tabs never resizes it */
 
-@media (max-width: 760px) {
-  .opt-head { flex-wrap: wrap; padding-left: 16px; } .opt-head h2 { padding-bottom: 0; flex: 1; } .otabs { order: 3; flex-basis: 100%; } .xbtn { margin-bottom: 0; }
-  #midi-map { grid-template-columns: repeat(2, auto 1fr); } .opt-body { padding: 18px 16px 24px; }
-  .sq-body { grid-template-columns: 1fr; }
-  .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
-  .sq-ed { margin-left: 0; }
-  .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .monitor { grid-template-columns: 1fr; }
-}
-@media (max-width: 760px) { .top .hp { order: 5; flex-basis: 100%; } .top .hp .label { min-width: 7ch; } .gear { margin-left: auto; } .pm-pop { min-width: 0; } }
-@media (max-width: 520px) { .wsw .label { font-size: 10px; } .top { gap: 12px 16px; } }
-@media (max-width: 420px) { .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pane { min-height: 0; } .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-/* phones and small tablets: landscape only */
-.rotate { display: none; }
-@media (orientation: portrait) and (pointer: coarse) and (max-width: 900px) {
-  .rotate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; align-content: center; gap: 16px; padding: 24px; text-align: center; background: var(--page); color: var(--fg); }
-  .rotate svg { width: 72px; height: 72px; stroke: var(--on); fill: none; stroke-width: 2; animation: tilt 2.4s ease-in-out infinite; }
-  .rotate p { margin: 0; font: 600 15px var(--font-body); }
-  .rotate small { color: var(--mute); font-size: 12px; }
-  .main, dialog#options { display: none !important; }
-  body { overflow: hidden; }
-}
-@keyframes tilt { 0%, 30% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
-@media (orientation: landscape) and (max-height: 520px) {
-  body { padding: 0 max(8px, env(safe-area-inset-right, 0px)) 16px max(8px, env(safe-area-inset-left, 0px)); }
-  .main { gap: 6px; }
-  .top { margin: 0 -8px; padding: 6px 8px; gap: 6px 8px; flex-wrap: nowrap; }
-  .top .hp { order: 0; flex: 1 1 0; min-width: 0; grid-template-columns: minmax(0, 1fr); }
-  .top .hp .label, .wsw .label, .bpm-read .label { display: none; }
-  .pm .pm-step { display: none; }
-  .pm .pm-btn .grp { display: none; }
-  .top .fn > button { padding: 5px 7px; }
-  .gear { margin-left: 0; }
-  .pm-pop { max-height: calc(100dvh - 60px) !important; min-width: 260px; }
-  .dev, .main > .pane { padding: 6px 8px 8px; }
-  .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
-  .panel { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
-  .panel .mini { min-width: 0; width: 100%; padding: 3px 4px; min-height: 24px; }
-  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px 4px; }
-  .main > #panel .trim .tname { display: none; }
-  .wave-kn .switch { margin: 6px 0 4px; }
-  .kn { gap: 1px; } .kn .knob { width: 34px; height: 34px; }
-  .kn .name { font-size: 10px; } .panel .kn .val { display: none; }
-  .mtabs { margin: 2px 0 -7px; }
-  .mtabs button { padding: 4px 10px; }
-  .pane { min-height: 0; }
-  .sq { gap: 6px; }
-  .sq-bank { gap: 6px; }
-  .sq-bank .seg button { padding: 3px 6px; min-width: 22px; }
-  .sq-ed { margin-left: auto; }
-  .sq-ed button { padding: 3px 7px; }
-  .sq-body { grid-template-columns: 120px minmax(0, 1fr); gap: 8px; }
-  .sq-side { grid-template-columns: 1fr; gap: 4px; }
-  .stp { grid-template-columns: 1fr 20px 34px 20px; }
-  .stp .label { font-size: 9.5px; }
-  .stp button { height: 20px; }
-  .seq { grid-auto-rows: 9px; grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
-  .mods { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px 4px; }
-  .mods .md .knob { width: 36px; height: 36px; }
-  .md .mdesc { display: none; }
-  dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
-  /* voice knobs become a strip on the left, so the step grid gets the full height */
-  body { padding-bottom: max(6px, env(safe-area-inset-bottom, 0px)); }
-  .main { max-width: none; grid-template-columns: minmax(118px, 13vw) minmax(0, 1fr); gap: 6px 8px; align-items: start; }
-  .main > .top { grid-column: 1 / -1; }
-  .main > #panel { grid-column: 1; grid-row: 2 / span 2; align-self: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: space-evenly; gap: 6px 2px; padding: 8px 4px; }
-  .main > .mtabs, .main > .pane { grid-column: 2; }
-  .main > .mtabs { grid-row: 2; margin: 0 0 -7px; }
-  .main > .pane { grid-row: 3; max-height: calc(100dvh - 92px); overflow: auto; }
-  .panel .kn .knob { width: 36px; height: 36px; }
-  .top { min-height: 42px; }
-  .top button:not(.switch), .pm .pm-btn { min-height: 30px; }
-  .mtabs button { padding: 6px 14px; }
-  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); }
-  .sq-body { grid-template-columns: 128px minmax(0, 1fr); }
-  .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
-  .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* same knob size on every page; extra height goes to the pane row, not the tabs */
-  :root { --knob: 36px; --knob-part: 34px; --kn-w: 60px; }
-  .main { grid-template-rows: auto auto minmax(0, 1fr); min-height: calc(100dvh - max(6px, env(safe-area-inset-bottom, 0px))); }
-  .main > .pane { align-self: stretch; }
-  .fxknobs, #fx-lex .fxknobs, .strip .fxknobs { gap: 10px 6px; }
-  .kn .name, .md .mname, .pk .ref { font-size: 10px; }
-  .kn .val, .md .val, .pk .val { font-size: 9.5px; }
-  #pane-lex { padding-top: 6px; }
-  .blk-lex { gap: 8px; }
-  .lex-progs button b { font-size: 12px; }
-  .lex-note { display: none; }
-  .pm-pop { min-width: 0; width: 340px; }
-  .pm-pop .pm-foot { flex-wrap: wrap; box-sizing: border-box; width: 100%; }
-  .top button.pm-chip, .top button.pm-star, .top button.pm-i, .top button.pm-g { min-height: 0; }
-  .pm-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .pm .pm-chip { flex: none; padding: 4px 9px; } .pm-pop .pm-foot input { min-width: 0; width: auto; flex: 1 1 0; } .pm-pop .pm-foot button { flex: none; padding: 4px 10px; }
-  dialog#options { height: calc(100dvh - 16px); max-height: none; min-height: 0; }
-}
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
-/* circuit board view */
+/* circuit board view: a stylised PCB drawn in SVG */
 #pane-board { display: grid; grid-template-rows: auto auto; gap: 8px; align-content: start; }
 .board { width: 100%; height: auto; display: block; font-family: var(--font-mono); }
 .board .pcb.g { fill: #1f5a34; } .board .pcb.r { fill: #23485e; } .board .pcb.l { fill: #2b2b33; }
 .board .pcb { stroke: #0c2416; stroke-width: 2; }
 .board .hole { fill: #141414; stroke: #c9a43a; stroke-width: 2.5; }
-.board .silk-title { fill: #e9efe6; font: 700 13px var(--font-display); letter-spacing: .14em; }
+.board .silk-title { fill: #e9efe6; font: 700 13px var(--font-body); letter-spacing: .14em; }
 .board .blk { fill: none; stroke: rgb(233 239 230 / .55); stroke-width: 1.2; stroke-dasharray: 5 4; }
-.board .blkname { fill: #e9efe6; font: 600 10px var(--font-display); letter-spacing: .12em; }
+.board .blkname { fill: #e9efe6; font: 600 10px var(--font-body); letter-spacing: .12em; }
 .board .trace { stroke: #c9a43a; stroke-opacity: .55; stroke-width: 3; }
 .board .lead { stroke: #b9b9b9; stroke-width: 1.6; }
 .board .pad { fill: #d8b24a; stroke: #6b5413; stroke-width: 1; }
@@ -567,8 +280,153 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
 .board-info { font: 500 12px var(--font-body); color: var(--mute); min-height: 2.6em; line-height: 1.5; position: sticky; bottom: 0; background: var(--bg); padding: 4px 0; }
 .board-info b { color: var(--fg); font-family: var(--font-mono); } .board-info .bv { font-family: var(--font-mono); color: var(--fg); } .board-info .bv.changed { color: var(--hi); }
 .board-info .mini { margin-left: 6px; font: 600 10.5px var(--font-body); padding: 2px 10px; }
-</style>
 
+/* options sheet: a fixed-size dialog, so switching tabs never resizes it */
+dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: min(680px, calc(100dvh - 32px)); min-height: 0; max-height: none; margin: auto; padding: 0;
+  flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); border: 1px solid #111; border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); }
+dialog#options[open] { display: flex; }
+dialog#options::backdrop { background: rgb(0 0 0 / .5); }
+.opt-head { flex: none; display: flex; align-items: flex-end; gap: 8px 26px; padding: 14px 14px 0 22px; background: #333; border-bottom: 1px solid #1a1a1a; }
+.opt-head h2 { font: 600 15px var(--font-body); letter-spacing: .04em; padding-bottom: 8px; }
+.opt-head .otabs { border-bottom: 0; flex: 1; min-width: 0; }
+.otabs button { margin-bottom: -1px; }
+.xbtn { align-self: center; margin-bottom: 6px; border-color: transparent; }
+.opt-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 22px 28px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
+.osec { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.osec[hidden] { display: none; }
+
+/* Circuit: every part as a dial, by block */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 12px; color: var(--mute); }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--on); margin-right: 6px; vertical-align: middle; }
+.parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 10px; min-height: 120px; padding-top: 6px; }
+.pk { padding: 6px 2px; position: relative; }
+.pk .knob { width: var(--knob-part); height: var(--knob-part); }
+.pk .knob:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+.pk.mod::after { content: ""; position: absolute; top: 4px; right: 18%; width: 6px; height: 6px; border-radius: 50%; background: var(--on); }
+.parts.all-mod .pk.mod::after { display: none; }
+.pk.fixed .val { cursor: default; }
+.pk.fixed .knob { opacity: .3; cursor: default; }
+.detail { min-height: 3.2em; font-size: 12.5px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
+.detail b { color: var(--fg); font-family: var(--font-mono); font-weight: 500; }
+
+/* Monitor: de-click, scope and readouts */
+.dclk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid #1a1a1a; }
+.dclk-txt { display: grid; gap: 2px; flex: 1 1 280px; min-width: 0; font-size: 12px; }
+.dclk-txt .hint { font-size: 11px; color: var(--mute); }
+.dclk-fade { display: flex; align-items: center; gap: 8px; font: 600 11px var(--font-body); color: var(--mute); }
+.dclk-fade input { width: 120px; accent-color: var(--hi); }
+.dclk-fade output { color: var(--hi); min-width: 4.5em; font-weight: 500; }
+.monitor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
+canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; border-radius: 2px; background: var(--well); }
+.readouts { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; align-content: start; margin: 0; font: 11.5px var(--font-body); }
+.readouts dt { color: var(--mute); }
+.readouts dd { margin: 0; font-variant-numeric: tabular-nums; color: var(--hi); }
+#midi-map { grid-template-columns: repeat(3, auto 1fr); gap: 6px 14px; }
+
+/* About */
+.notes { columns: 2 300px; column-gap: 32px; color: var(--mute); font-size: 13px; }
+.notes p { margin: 0 0 10px; break-inside: avoid; }
+.notes strong { color: var(--fg); font-weight: 600; }
+
+/* narrower windows */
+@media (max-width: 760px) {
+  .top .hp { order: 5; flex-basis: 100%; }
+  .top .hp .label { min-width: 7ch; }
+  .pm-pop { min-width: 0; }
+  .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sq-body { grid-template-columns: 1fr; }
+  .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
+  .sq-ed { margin-left: 0; }
+  .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .opt-head { flex-wrap: wrap; padding-left: 16px; }
+  .opt-head h2 { padding-bottom: 0; flex: 1; }
+  .otabs { order: 3; flex-basis: 100%; }
+  .xbtn { margin-bottom: 0; }
+  .opt-body { padding: 18px 16px 24px; }
+  #midi-map { grid-template-columns: repeat(2, auto 1fr); }
+  .monitor { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .top { gap: 12px 16px; } }
+@media (max-width: 420px) {
+  .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pane { min-height: 0; }
+}
+
+/* phones and small tablets: landscape only */
+.rotate { display: none; }
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 900px) {
+  .rotate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; align-content: center; gap: 16px; padding: 24px; text-align: center; background: var(--page); color: var(--fg); }
+  .rotate svg { width: 72px; height: 72px; stroke: var(--on); fill: none; stroke-width: 2; animation: tilt 2.4s ease-in-out infinite; }
+  .rotate p { margin: 0; font: 600 15px var(--font-body); }
+  .rotate small { color: var(--mute); font-size: 12px; }
+  .main, dialog#options { display: none !important; }
+  body { overflow: hidden; }
+}
+@keyframes tilt { 0%, 30% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+
+/* landscape phones: the voice dials become a strip on the left so the step grid gets the full height;
+   one dial size on every page, and spare height goes to the pane row, not the tabs */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --knob: 36px; --knob-part: 34px; --kn-w: 60px; }
+  body { padding: 0 max(8px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+  .main { max-width: none; grid-template-columns: minmax(118px, 13vw) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); gap: 6px 8px; align-items: start;
+    min-height: calc(100dvh - max(6px, env(safe-area-inset-bottom, 0px))); }
+  .main > .top { grid-column: 1 / -1; }
+  .main > #panel { grid-column: 1; grid-row: 2 / span 2; align-self: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: space-evenly; gap: 6px 2px; padding: 8px 4px; }
+  .main > .mtabs, .main > .pane { grid-column: 2; }
+  .main > .mtabs { grid-row: 2; margin: 0 0 -7px; }
+  .main > .pane { grid-row: 3; align-self: stretch; max-height: calc(100dvh - 92px); overflow: auto; }
+  .dev, .main > .pane { padding: 6px 8px 8px; }
+  .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
+  .pane { min-height: 0; }
+
+  .top { margin: 0 -8px; padding: 6px 8px; gap: 6px 8px; flex-wrap: nowrap; min-height: 42px; }
+  .top .hp { order: 0; flex: 1 1 0; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+  .top .hp .label, .bpm-read .label { display: none; }
+  .top .fn > button { padding: 5px 7px; }
+  .top button:not(.switch), .pm .pm-btn { min-height: 30px; }
+  .top button.pm-chip, .top button.pm-star, .top button.pm-i, .top button.pm-g { min-height: 0; }
+  .pm .pm-step { display: none; }
+  .pm-pop { max-height: calc(100dvh - 60px) !important; min-width: 0; width: 340px; }
+  .pm-pop .pm-foot { flex-wrap: wrap; width: 100%; }
+  .pm-pop .pm-foot input { min-width: 0; width: auto; flex: 1 1 0; }
+  .pm-pop .pm-foot button { flex: none; padding: 4px 10px; }
+  .pm-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .pm .pm-chip { flex: none; padding: 4px 9px; }
+
+  .kn { gap: 1px; }
+  .kn .name, .md .mname, .pk .ref { font-size: 10px; }
+  .kn .val, .md .val, .pk .val { font-size: 9.5px; }
+  .panel .kn .val { display: none; }
+  .wave-kn .switch { margin: 6px 0 4px; }
+  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 3px 4px; }
+  .main > #panel .trim .tname { display: none; }
+  .parts-kn .mini { min-height: 24px; }
+  .mtabs button { padding: 6px 14px; }
+
+  .sq { gap: 6px; }
+  .sq-bank { gap: 6px; }
+  .sq-bank .seg button { padding: 3px 6px; min-width: 22px; }
+  .sq-ed { margin-left: auto; }
+  .sq-ed button { padding: 3px 7px; }
+  .sq-body { grid-template-columns: 128px minmax(0, 1fr); gap: 8px; }
+  .sq-side { grid-template-columns: 1fr; gap: 4px; }
+  .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
+  .stp button { height: 20px; }
+  .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 34px repeat(var(--steps, 16), minmax(22px, 1fr)); font-size: 8.5px; }
+
+  .mods { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px 4px; }
+  .md .mdesc { display: none; }
+  .fxknobs { gap: 10px 6px; }
+  .blk-lex { gap: 8px; }
+  .lex-progs button b { font-size: 12px; }
+  .lex-note { display: none; }
+  dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
 <div class="rotate" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn your device sideways</p><small>This instrument is laid out for landscape.</small></div>
 <div class="main">
   <header class="top">
@@ -658,7 +516,6 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
 
   <div class="pane strip" data-title="ProCo RAT" id="pane-rat" role="tabpanel" aria-label="RAT" hidden>
     <section class="blk-rat">
-      <h3>ProCo RAT</h3>
       <div class="fx" id="fx-rat">
         <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
         <div class="fxknobs" id="fx-rat-knobs"></div>
@@ -669,7 +526,6 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
   <div class="pane" data-title="Lexicon 224" id="pane-lex" role="tabpanel" aria-label="Lexicon 224" hidden>
     <section class="blk-lex">
       <div class="lex-head">
-        <h3>Lexicon 224</h3>
         <button type="button" class="onoff" id="fx-lex-on" aria-pressed="false">Off</button>
         <span class="lex-lcd" id="lex-lcd" aria-live="polite"></span>
       </div>
@@ -734,6 +590,7 @@ dialog#options { height: min(680px, calc(100dvh - 32px)); min-height: 0; max-hei
   </div>
 </dialog>
 
+<!-- the voice model: used here for readouts and the fallback engine, and loaded again into the AudioWorklet -->
 <script id="model">
 /*
  * TB-303 component-level voice model
@@ -1419,7 +1276,6 @@ class TB303Voice {
     // --- VCO: I = Iref * 2^(CV - CV_TUNE + tune)
     const I = this.iVcoRef * Math.pow(2, this.cv - c.CV_TUNE + this.tuneOct);
     const dv = I / c.C33 * this.h;
-    const dt = dv / this.swing; // phase increment
     this.vSaw += dv;
     // polyBLEP around the reset: output is delayed one sample so the sample
     // before the step can be corrected too.
@@ -1606,19 +1462,17 @@ class DeClick {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, DeClick, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
-
-</script>
-<script id="worklet-src" type="text/plain">
-class TB303Processor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this.v = new TB303Voice(sampleRate); this.slew = new ParamSlew(this.v, sampleRate); this.dc = new DeClick(this.v, sampleRate);
-    this.playing = false; this.bpm = 128; this.pattern = [];
-    this.step = -1; this.ctr = 0; this.gateOffAt = -1; this.shuffle = 0; this.gate = 0.5;
-    this.port.onmessage = (e) => this.onMsg(e.data);
+// The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
+// The AudioWorklet and the main-thread fallback both run this, so they sound the same.
+// Messages: knob, component, wave, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
+class TB303Engine {
+  constructor(fs, onStep = () => {}) {
+    this.fs = fs; this.onStep = onStep;
+    this.v = new TB303Voice(fs); this.slew = new ParamSlew(this.v, fs); this.dc = new DeClick(this.v, fs);
+    this.playing = false; this.bpm = 128; this.pattern = []; this.shuffle = 0; this.gate = 0.5;
+    this.step = -1; this.ctr = 0; this.stepLen = 1; this.gateOffAt = -1;
   }
-  onMsg(m) {
+  message(m) {
     const v = this.v;
     if (m.type === 'knob') this.slew.set('k', m.name, m.value);
     else if (m.type === 'component') this.slew.set('c', m.name, m.value);
@@ -1630,24 +1484,25 @@ class TB303Processor extends AudioWorkletProcessor {
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
     else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
   }
-  startStep() {
-    const P = this.pattern, n = P.length; if (!n) return;
+  // a 16th note; shuffle lengthens the even steps and shortens the odd ones. Returns its length in samples.
+  _startStep() {
+    const P = this.pattern, n = P.length; if (!n) return 0;
     this.step = (this.step + 1) % n;
     const s = P[this.step], prev = P[(this.step - 1 + n) % n];
-    const len = Math.round(sampleRate * 60 / this.bpm / 4 * (1 + (this.step & 1 ? -this.shuffle : this.shuffle)));
+    const len = Math.round(this.fs * 60 / this.bpm / 4 * (1 + (this.step & 1 ? -this.shuffle : this.shuffle)));
     if (s.gate) {
       this.v.noteOn(s.code, s.accent, prev.gate && prev.slide);
       this.gateOffAt = s.slide ? -1 : Math.max(1, Math.round(len * this.gate));
     } else { this.v.noteOff(); this.gateOffAt = -1; }
-    this.port.postMessage({ type: 'step', step: this.step });
+    this.onStep(this.step);
     return len;
   }
-  process(inputs, outputs) {
-    const out = outputs[0][0]; if (!out) return true; const outR = outputs[0][1];
-    let i = 0;
-    while (i < out.length) {
-      if (this.playing && this.ctr <= 0) { this.stepLen = this.startStep() || 1; this.ctr = this.stepLen; }
-      let run = out.length - i;
+  // fills out[s..e) (and outR, if given), split into runs at step starts, gate-offs and every 32 samples while slewing
+  render(out, outR, s = 0, e = out.length) {
+    let i = s;
+    while (i < e) {
+      if (this.playing && this.ctr <= 0) { this.stepLen = this._startStep() || 1; this.ctr = this.stepLen; }
+      let run = e - i;
       if (this.slew.active) { run = Math.min(run, 32); this.slew.tick(run); }
       if (this.playing) {
         run = Math.min(run, this.ctr);
@@ -1658,6 +1513,22 @@ class TB303Processor extends AudioWorkletProcessor {
       this.dc.process(out, i, i + run, outR);
       i += run; if (this.playing) this.ctr -= run;
     }
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+</script>
+<script id="worklet-src" type="text/plain">
+// AudioWorklet processor: the shared TB303Engine (from the model, loaded into the worklet first) on the audio thread
+class TB303Processor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.engine = new TB303Engine(sampleRate, (step) => this.port.postMessage({ type: 'step', step }));
+    this.port.onmessage = (e) => this.engine.message(e.data);
+  }
+  process(inputs, outputs) {
+    const out = outputs[0][0]; if (!out) return true;
+    this.engine.render(out, outputs[0][1]);
     for (let c = 2; c < outputs[0].length; c++) outputs[0][c].set(out);
     return true;
   }
@@ -1690,7 +1561,6 @@ const KNOBS = [
   { id: 'lexmix',    name: 'Return',    ref: 'wet level',  def: 0.5,  fx: 'lex' },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
-const codeName = (c) => NOTE[c % 12] + (Math.floor(c / 12));
 // original example line, A minor-ish, codes around A = 33
 const EXAMPLE = [
   [21,1,0,1],[21,0,0,1],[33,0,1,1],[31,0,0,1],[21,1,0,1],[0,0,0,0],[24,0,1,1],[26,0,0,1],
@@ -1730,6 +1600,53 @@ const PATTERN_BUILTIN = {
   'Slow squelch': { bpm: 108, pattern: P([[21,1,1,1],[28,0,1,1],[33,0,0,1],[21,0,0,0],[21,0,1,1],[24,1,1,1],[26,0,0,1],[21,0,0,0],
     [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
 };
+for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
+function cleanSettings(x) {
+  const out = { knobs: {}, parts: {} };
+  if (!x || typeof x !== 'object') return out;
+  for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
+  for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = v; }
+  if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
+  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex };
+  if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
+  if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
+    code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
+  if (typeof x.shuffle === 'number' && x.shuffle >= 0 && x.shuffle <= 0.6) out.shuffle = x.shuffle;
+  if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
+  return out;
+}
+function snapshot() {
+  const parts = {};
+  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
+  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
+}
+{ // restore last session
+  const sess = cleanSettings(store.get('session', null));
+  Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
+  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex };
+  if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
+  if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
+}
+let saveTimer = 0;
+function saveSession() { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('session', snapshot()), 300); }
+const preview = new TB303Voice(44100); // main-thread copy for derived readouts
+
+let ctx = null, node = null, analyser = null, fallback = null;
+// the deploy stamps the version; a local build shows 'dev'
+{ const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
+const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+// de-click is a playback preference, kept apart from sounds and projects
+const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
+function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
+function renderDeclick() {
+  const b = document.getElementById('dc-on'), r = document.getElementById('dc-ms');
+  b.setAttribute('aria-pressed', declick.on); b.textContent = declick.on ? 'On' : 'Off';
+  r.value = declick.ms; r.disabled = !declick.on; document.getElementById('dc-ms-v').textContent = declick.ms + ' ms';
+}
+document.getElementById('dc-on').onclick = () => { declick.on = !declick.on; store.set('declick', declick); renderDeclick(); sendDeclick(); };
+document.getElementById('dc-ms').oninput = (e) => { declick.ms = +e.target.value; store.set('declick', declick); renderDeclick(); sendDeclick(); };
+renderDeclick();
+
 // the ABL3 and Phoscyon factory patterns, from patterns.json; a step is code * 8 + gate + 2 * accent + 4 * slide
 const PATTERN_BANK = {
 "ABL3 Acid":{
@@ -2479,52 +2396,6 @@ function drawGen() {
   document.getElementById('o-dens').textContent = GEN_DENS[gen.dens] == null ? 'Any' : Math.round(GEN_DENS[gen.dens] * 100) + '%';
   document.getElementById('o-bars').textContent = gen.bars;
 }
-for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
-function cleanSettings(x) {
-  const out = { knobs: {}, parts: {} };
-  if (!x || typeof x !== 'object') return out;
-  for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
-  for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = v; }
-  if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
-  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex };
-  if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
-  if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
-    code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
-  if (typeof x.shuffle === 'number' && x.shuffle >= 0 && x.shuffle <= 0.6) out.shuffle = x.shuffle;
-  if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
-  return out;
-}
-function snapshot() {
-  const parts = {};
-  for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && Math.abs(state.parts[k] / COMPONENTS[k].v - 1) > 1e-6) parts[k] = state.parts[k];
-  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
-}
-{ // restore last session
-  const sess = cleanSettings(store.get('session', null));
-  Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
-  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex };
-  if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
-  if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
-}
-let saveTimer = 0;
-function saveSession() { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('session', snapshot()), 300); }
-const preview = new TB303Voice(44100); // main-thread copy for derived readouts
-
-let ctx = null, node = null, analyser = null, fallback = null;
-// the deploy stamps the version; a local build shows 'dev'
-{ const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
-const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
-// de-click is a playback preference, kept apart from sounds and projects
-const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
-function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
-function renderDeclick() {
-  const b = document.getElementById('dc-on'), r = document.getElementById('dc-ms');
-  b.setAttribute('aria-pressed', declick.on); b.textContent = declick.on ? 'On' : 'Off';
-  r.value = declick.ms; r.disabled = !declick.on; document.getElementById('dc-ms-v').textContent = declick.ms + ' ms';
-}
-document.getElementById('dc-on').onclick = () => { declick.on = !declick.on; store.set('declick', declick); renderDeclick(); sendDeclick(); };
-document.getElementById('dc-ms').oninput = (e) => { declick.ms = +e.target.value; store.set('declick', declick); renderDeclick(); sendDeclick(); };
-renderDeclick();
 
 // ---------- engineering notation ----------
 const PFX = [[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
@@ -2533,13 +2404,6 @@ function fmt(v, unit) {
   if (unit === 'V') return +v.toPrecision(4) + ' V';
   for (const [m, p] of PFX) if (Math.abs(v) >= m * 0.9999) return +(v / m).toPrecision(3) + ' ' + p + unit;
   return v.toExponential(2) + ' ' + unit;
-}
-function parse(str) {
-  const s = str.trim().replace(',', '.').replace(/[ΩFVAHz×\s]/g, '').replace('u', 'µ');
-  const m = s.match(/^([0-9]*\.?[0-9]+(?:e-?\d+)?)\s*([MkmµnpR]?)$/i) || s.match(/^([0-9]*\.?[0-9]+)$/);
-  if (!m) return NaN;
-  const mult = { M: 1e6, k: 1e3, K: 1e3, m: 1e-3, 'µ': 1e-6, n: 1e-9, p: 1e-12, R: 1, r: 1, '': 1 }[m[2] || ''];
-  return parseFloat(m[1]) * (mult ?? 1);
 }
 
 // ---------- knobs ----------
@@ -2593,6 +2457,31 @@ function lexText(id, p) {
   }
   return '';
 }
+// One binding for every dial: vertical drag (Shift = fine), wheel, arrow and Page keys, Home/End, double-click.
+// host is the dial itself, or a container whose dials are found by pick(e) and named by data-k.
+// set(k, value, event) and nudge(k, delta, event) receive dial units; min/max enable Home/End.
+function bindDial(host, { pick = () => host, get, set, nudge = (k, d, e) => set(k, get(k) + d, e), drag = 160, fine = 600, step = .02, page = .1, min, max, reset, start, focus = false }) {
+  let d = null;
+  const at = (e) => { const el = pick(e); return el && { el, k: el.dataset.k }; };
+  host.addEventListener('pointerdown', (e) => {
+    const t = at(e); if (!t) return;
+    t.el.setPointerCapture(e.pointerId); if (focus) t.el.focus();
+    d = { k: t.k, y: e.clientY, v: get(t.k), id: e.pointerId, el: t.el }; start?.(t.k, t.el);
+  });
+  host.addEventListener('pointermove', (e) => { if (d && e.pointerId === d.id) set(d.k, d.v + (d.y - e.clientY) / (e.shiftKey ? fine : drag), e); });
+  const end = () => { if (d) d.el.dispatchEvent(new Event('dialend')); d = null; };
+  host.addEventListener('pointerup', end); host.addEventListener('pointercancel', end);
+  host.addEventListener('wheel', (e) => { const t = at(e); if (!t) return; e.preventDefault(); nudge(t.k, -Math.sign(e.deltaY) * step, e); }, { passive: false });
+  host.addEventListener('keydown', (e) => {
+    const t = at(e); if (!t) return;
+    const delta = { ArrowUp: step, ArrowRight: step, ArrowDown: -step, ArrowLeft: -step, PageUp: page, PageDown: -page }[e.key];
+    if (delta) { e.preventDefault(); nudge(t.k, delta, e); }
+    if (min !== undefined && e.key === 'Home') set(t.k, min, e);
+    if (max !== undefined && e.key === 'End') set(t.k, max, e);
+  });
+  if (reset) host.addEventListener('dblclick', (e) => { const t = at(e); if (t) reset(t.k); });
+  return { dragging: () => !!d };
+}
 const knobEls = {};
 for (const k of KNOBS) {
   const wrap = document.createElement('div'); wrap.className = k.fx ? 'kn small' : 'kn';
@@ -2601,18 +2490,8 @@ for (const k of KNOBS) {
   (k.fx ? document.getElementById('fx-' + k.fx + '-knobs') : panel).appendChild(wrap);
   const el = wrap.querySelector('.knob');
   knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
-  let startY = 0, startV = 0;
-  el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); startY = e.clientY; startV = state.knobs[k.id]; wrap.classList.add('active'); });
-  el.addEventListener('pointerup', () => wrap.classList.remove('active'));
-  el.addEventListener('pointercancel', () => wrap.classList.remove('active'));
-  el.addEventListener('pointermove', (e) => { if (!el.hasPointerCapture(e.pointerId)) return; setKnob(k.id, startV + (startY - e.clientY) / (e.shiftKey ? 600 : 160)); });
-  el.addEventListener('wheel', (e) => { e.preventDefault(); setKnob(k.id, state.knobs[k.id] - Math.sign(e.deltaY) * 0.02); }, { passive: false });
-  el.addEventListener('keydown', (e) => {
-    const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02, PageUp: .1, PageDown: -.1 }[e.key];
-    if (d) { e.preventDefault(); setKnob(k.id, state.knobs[k.id] + d); }
-    if (e.key === 'Home') setKnob(k.id, 0); if (e.key === 'End') setKnob(k.id, 1);
-  });
-  el.addEventListener('dblclick', () => setKnob(k.id, k.def));
+  bindDial(el, { get: () => state.knobs[k.id], set: (_, v) => setKnob(k.id, v), min: 0, max: 1, reset: () => setKnob(k.id, k.def), start: () => wrap.classList.add('active') });
+  el.addEventListener('dialend', () => wrap.classList.remove('active'));
 }
 function drawKnob(id) {
   const p = state.knobs[id], k = knobEls[id];
@@ -2808,7 +2687,7 @@ function renderBank() {
     b.setAttribute('aria-label', `Pattern ${sel.g}${n + 1}`); b.title = x?.auto && x.name ? x.name.split(' / ').pop() : '';
   }
   document.getElementById('p-paste').disabled = !clip;
-  if (typeof renderChain === 'function' && document.getElementById('chain-read')) try { renderChain(); } catch {}
+  renderChain();
 }
 function loadSlot(g, n) {
   storeSlot(); sel = { g, n }; store.set('bankSel', sel);
@@ -2867,6 +2746,7 @@ function toggleChain(b) {
   if (chain.length === 1 && chain[0] === slotKey(sel.g, sel.n) && pos >= 0) chain = [];
   store.set('chain', chain); sendPattern(); renderChain();
 }
+
 // ---------- functions menu ----------
 const fnBtn = document.getElementById('fn-btn'), fnMenu = document.getElementById('fn-menu'), sqMsg = document.getElementById('sq-msg');
 let sqMsgT = 0;
@@ -2953,7 +2833,6 @@ const FUNCTIONS = {
   },
   undo() {
     const u = undoStack.pop(); if (!u) return;
-    if (u.parts) { applySound({ ...soundSnap(), parts: u.parts }); document.getElementById('fn-undo').disabled = !undoStack.length; sqSay('Part values put back.'); return; }
     if (u.k !== slotKey(sel.g, sel.n)) loadSlot(u.k[0], +u.k.slice(1) - 1);
     state.pattern = u.pattern; tail = []; renderSeq(); pushPattern();
     document.getElementById('fn-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
@@ -3062,7 +2941,6 @@ function applyPart(k, val) {
 }
 let tabTimer = 0;
 function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(renderTabs, 120); }
-let pDrag = null;
 const partT = (k) => toSlider(k, state.parts[k]) / SL;
 // real parts: resistors move in E24 steps and capacitors in E12, the values you can buy; Shift gives in-between values
 const E24 = [1.0,1.1,1.2,1.3,1.5,1.6,1.8,2.0,2.2,2.4,2.7,3.0,3.3,3.6,3.9,4.3,4.7,5.1,5.6,6.2,6.8,7.5,8.2,9.1];
@@ -3113,37 +2991,20 @@ function renderFrontMods() {
   }).join('');
   for (const [k] of FRONT_MODS) drawPartKnob(k);
 }
+// small steps on a part with a real E-series walk the series; Shift (or a big step) moves freely along its range
+const partNudge = (k, d, e) => { if (realSeries(k) && !e.shiftKey && Math.abs(d) < .05) stepReal(k, Math.sign(d)); else setPartT(k, partT(k) + d, e.shiftKey); };
+const partDials = [partsEl, modsEl].map((box) => bindDial(box, {
+  pick: (e) => e.target.closest('.knob[role=slider]'), get: partT, set: (k, t, e) => setPartT(k, t, e.shiftKey), nudge: partNudge,
+  drag: 180, min: 0, max: 1, focus: true, reset: (k) => applyPart(k, COMPONENTS[k].v), start: (k) => { if (box === partsEl) showDetail(k); },
+}));
 for (const box of [partsEl, modsEl]) {
-box.addEventListener('pointerdown', (e) => {
-  const el = e.target.closest('.knob[role=slider]'); if (!el) return;
-  const k = el.dataset.k; el.setPointerCapture(e.pointerId); el.focus();
-  pDrag = { k, y: e.clientY, t: partT(k), id: e.pointerId }; if (box === partsEl) showDetail(k);
-});
-box.addEventListener('pointermove', (e) => {
-  if (!pDrag || e.pointerId !== pDrag.id) return;
-  setPartT(pDrag.k, pDrag.t + (pDrag.y - e.clientY) / (e.shiftKey ? 600 : 180), e.shiftKey);
-});
-const endDrag = () => { pDrag = null; };
-box.addEventListener('pointerup', endDrag); box.addEventListener('pointercancel', endDrag);
-box.addEventListener('wheel', (e) => {
-  const el = e.target.closest('.knob[role=slider]'); if (!el) return;
-  e.preventDefault(); const k = el.dataset.k; if (realSeries(k) && !e.shiftKey) stepReal(k, -Math.sign(e.deltaY)); else setPartT(k, partT(k) - Math.sign(e.deltaY) * 0.02, e.shiftKey);
-}, { passive: false });
-box.addEventListener('keydown', (e) => {
-  const el = e.target.closest('.knob[role=slider]'); if (!el) return;
-  const k = el.dataset.k;
-  const d = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02, PageUp: .1, PageDown: -.1 }[e.key];
-  if (d) { e.preventDefault(); if (realSeries(k) && !e.shiftKey && Math.abs(d) < .05) stepReal(k, Math.sign(d)); else setPartT(k, partT(k) + d, e.shiftKey); }
-  if (e.key === 'Home') setPartT(k, 0); if (e.key === 'End') setPartT(k, 1);
-});
-box.addEventListener('dblclick', (e) => { const el = e.target.closest('.knob[role=slider]'); if (el) applyPart(el.dataset.k, COMPONENTS[el.dataset.k].v); });
 box.addEventListener('click', (e) => {
   const lab = e.target.closest('.val'); if (!lab) return;
   const k = lab.dataset.k; if (COMPONENTS[k].fixed) return;
   applyPart(k, COMPONENTS[k].v);
 });
 }
-partsEl.addEventListener('pointerover', (e) => { const p = e.target.closest('.pk'); if (p && !pDrag) showDetail(p.dataset.k); });
+partsEl.addEventListener('pointerover', (e) => { const p = e.target.closest('.pk'); if (p && !partDials[0].dragging()) showDetail(p.dataset.k); });
 partsEl.addEventListener('focusin', (e) => { const p = e.target.closest('.pk'); if (p) showDetail(p.dataset.k); });
 
 // ---------- options sheet ----------
@@ -3195,33 +3056,11 @@ async function initAudio() {
   sendDeclick();
   drawScope();
 }
+// no AudioWorklet: the same engine on the main thread through a ScriptProcessor
 function makeFallback() {
-  const v = new TB303Voice(ctx.sampleRate), sp = ctx.createScriptProcessor(1024, 0, 2);
-  const slew = new ParamSlew(v, ctx.sampleRate), dc = new DeClick(v, ctx.sampleRate);
-  const f = { v, sp, playing: false, bpm: 128, pattern: [], step: -1, ctr: 0, len: 1, off: -1, shuffle: 0, gate: 0.5 };
-  f.msg = (m) => {
-    if (m.type === 'knob') slew.set('k', m.name, m.value); else if (m.type === 'component') slew.set('c', m.name, m.value);
-    else if (m.type === 'wave') v.waveform = m.value; else if (m.type === 'fx') v.setFx(m.name, m.value); else if (m.type === 'declick') { dc.setOn(!!m.on); dc.setFade(m.ms); } else if (m.type === 'pattern') f.pattern = m.value;
-    else if (m.type === 'bpm') f.bpm = m.value; else if (m.type === 'groove') { f.shuffle = m.shuffle; f.gate = m.gate; } else if (m.type === 'play') { f.playing = m.value; f.step = -1; f.ctr = 0; if (!m.value) v.noteOff(); }
-  };
-  sp.onaudioprocess = (e) => {
-    const out = e.outputBuffer.getChannelData(0), outR = e.outputBuffer.getChannelData(1);
-    for (let i = 0; i < out.length; i++) {
-      if ((i & 31) === 0) slew.tick(32);
-      if (f.playing) {
-        if (f.ctr <= 0) {
-          const P = f.pattern; f.step = (f.step + 1) % P.length; const s = P[f.step], pr = P[(f.step + P.length - 1) % P.length];
-          f.len = Math.round(ctx.sampleRate * 60 / f.bpm / 4 * (1 + (f.step & 1 ? -f.shuffle : f.shuffle))); f.ctr = f.len;
-          if (s.gate) { v.noteOn(s.code, s.accent, pr.gate && pr.slide); f.off = s.slide ? -1 : Math.max(1, Math.round(f.len * f.gate)); } else { v.noteOff(); f.off = -1; }
-          markStep(f.step);
-        }
-        if (f.len - f.ctr === f.off) v.noteOff();
-        f.ctr--;
-      }
-      dc.process(out, i, i + 1, outR);
-    }
-  };
-  return f;
+  const sp = ctx.createScriptProcessor(1024, 0, 2), eng = new TB303Engine(ctx.sampleRate, markStep);
+  sp.onaudioprocess = (e) => eng.render(e.outputBuffer.getChannelData(0), e.outputBuffer.getChannelData(1));
+  return { sp, msg: (m) => eng.message(m) };
 }
 let lastStep = -1;
 function markStep(i) {
@@ -3280,17 +3119,9 @@ function setBpm(v) {
   v = Math.min(200, Math.max(60, Math.round(v))); if (v === state.bpm) return;
   state.bpm = v; drawBpm(); send({ type: 'bpm', value: v }); saveSession();
 }
-{
-  let y0 = 0, b0 = 0;
-  bpmKnob.addEventListener('pointerdown', (e) => { bpmKnob.setPointerCapture(e.pointerId); y0 = e.clientY; b0 = state.bpm; });
-  bpmKnob.addEventListener('pointermove', (e) => { if (bpmKnob.hasPointerCapture(e.pointerId)) setBpm(b0 + (y0 - e.clientY) / (e.shiftKey ? 8 : 2)); });
-  bpmKnob.addEventListener('wheel', (e) => { e.preventDefault(); setBpm(state.bpm - Math.sign(e.deltaY)); }, { passive: false });
-  bpmKnob.addEventListener('keydown', (e) => {
-    const d = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10 }[e.key];
-    if (d) { e.preventDefault(); setBpm(state.bpm + d); }
-  });
-  bpmKnob.addEventListener('dblclick', () => { const v = parseInt(prompt('Tempo (60–200 BPM)', state.bpm), 10); if (v) setBpm(v); });
-}
+bindDial(bpmKnob, { get: () => state.bpm, set: (_, v) => setBpm(v), drag: 2, fine: 8, step: 1, page: 10,
+  reset: () => { const v = parseInt(prompt('Tempo (60–200 BPM)', state.bpm), 10); if (v) setBpm(v); } });
+
 // the waveform switch sits at the left of the voice panel; component randomise and its undo at the right
 panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="name">Waveform</span>
   <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
@@ -3310,19 +3141,8 @@ function drawTrim() {
   if (!el) return;
   el.textContent = (oct >= 0 ? '+' : '') + (oct * 12).toFixed(1) + ' st'; el.classList.toggle('changed', Math.abs(oct) > 1e-4);
 }
-{
-  let d = null;
-  const set = (t) => { setPartT('I_REF', t); drawTrim(); };
-  trimEl.addEventListener('pointerdown', (e) => { trimEl.setPointerCapture(e.pointerId); trimEl.focus(); d = { y: e.clientY, t: partT('I_REF'), id: e.pointerId }; });
-  trimEl.addEventListener('pointermove', (e) => { if (d && e.pointerId === d.id) set(d.t + (d.y - e.clientY) / (e.shiftKey ? 800 : 240)); });
-  const end = () => { d = null; }; trimEl.addEventListener('pointerup', end); trimEl.addEventListener('pointercancel', end);
-  trimEl.addEventListener('wheel', (e) => { e.preventDefault(); set(partT('I_REF') - Math.sign(e.deltaY) * 0.02); }, { passive: false });
-  trimEl.addEventListener('keydown', (e) => {
-    const s = { ArrowUp: .02, ArrowRight: .02, ArrowDown: -.02, ArrowLeft: -.02, PageUp: .1, PageDown: -.1 }[e.key];
-    if (s) { e.preventDefault(); set(partT('I_REF') + s); }
-  });
-  trimEl.addEventListener('dblclick', () => { applyPart('I_REF', COMPONENTS.I_REF.v); drawTrim(); });
-}
+bindDial(trimEl, { get: () => partT('I_REF'), set: (_, t) => { setPartT('I_REF', t); drawTrim(); }, drag: 240, fine: 800, focus: true,
+  reset: () => { applyPart('I_REF', COMPONENTS.I_REF.v); drawTrim(); } });
 drawTrim();
 const partsUndo = [];
 function syncPartsUndo() { document.getElementById('parts-undo').disabled = !partsUndo.length; }
@@ -3484,7 +3304,7 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
 function presetMenu(host) {
   const sel = document.getElementById(host.dataset.for), pre = host.dataset.for.replace('-preset', '');
   const isPat = pre === 'pat';
-  host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span><span class="grp"></span></button>`
+  host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span></button>`
     + `<button type="button" class="pm-step" data-d="-1" aria-label="Previous preset">◀</button><button type="button" class="pm-step" data-d="1" aria-label="Next preset">▶</button>`
     + `<div class="pm-pop" hidden><div class="pm-head"><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets">`
     + (isPat ? `<div class="pm-chips" role="group" aria-label="Filter">${PM_TAGS.map(t => `<button type="button" class="pm-chip" data-t="${t.k}" aria-pressed="false" title="${t.tip}">${t.label}</button>`).join('')}</div>` : '')
@@ -3545,7 +3365,6 @@ function presetMenu(host) {
   function sync() {
     const it = byV.get(sel.value);
     btn.querySelector('.cur').textContent = it ? it.name : 'Choose…';
-    btn.querySelector('.grp').textContent = it && it.path[0] !== 'my' && it.path[0] !== 'built' ? it.path[it.path.length - 1] : '';
   }
   const row = (it, d, hint) => `<div class="pm-row" style="--d:${d}"><button type="button" class="pm-i" role="option" data-v="${esc(it.v)}" aria-selected="${it.v === sel.value}">${esc(hint ? it.name : it.label)}${hint ? `<span class="pm-path">${esc(pathText(it))}</span>` : ''}</button>`
     + `<button type="button" class="pm-star" data-v="${esc(it.v)}" aria-pressed="${fav.has(it.v)}" aria-label="${fav.has(it.v) ? 'Remove from' : 'Add to'} favourites">★</button></div>`;
@@ -3642,6 +3461,7 @@ function pmTags(v) {
   if (v.startsWith('b:')) pmTagCache.set(v, t);
   return t;
 }
+
 // ---------- projects: everything at once (sound, effects, tempo, all 48 bank slots, chain) ----------
 const SLOT_RE = /^[A-D]([1-9]|1[0-2])$/;
 function projectSnap() {
@@ -3739,6 +3559,7 @@ for (const k in COMPONENTS) preview.setComponent(k, state.parts[k]);
 preview.waveform = state.wave; drawBpm();
 drawWave();
 for (const n in state.fx) preview.setFx(n, state.fx[n]);
+
 // ---------- MIDI: front dials on CC 1 onwards, any channel ----------
 const MIDI_MAP = [...KNOBS.filter(k => !k.fx).map(k => ({ name: k.name, set: (t) => setKnob(k.id, t) })),
   ...FRONT_MODS.map(([k, name]) => ({ name, set: (t) => setPartT(k, t) }))];

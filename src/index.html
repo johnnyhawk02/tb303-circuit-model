@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>303 Circuit Model</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#262626">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="303">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/*@css*/
+</style>
+<div class="rotate" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn your device sideways</p><small>This instrument is laid out for landscape.</small></div>
+<div class="main">
+  <header class="top">
+    <h1 class="status">303 circuit model</h1>
+    <button class="icon play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M7 4.5 L19.5 12 L7 19.5 Z"/><rect class="sq" x="6" y="6" width="12" height="12"/></svg></button>
+    <div class="bpm">
+      <div class="knob" id="bpm" tabindex="0" role="slider" aria-label="Tempo" aria-valuemin="60" aria-valuemax="200"></div>
+      <div class="bpm-read"><output id="bpm-val">128</output><span class="label">BPM</span></div>
+    </div>
+    <div class="hp presets" id="prj-bar">
+      <span class="label">Project</span>
+      <select id="prj-preset" aria-label="Projects" hidden></select><div class="pm" data-for="prj-preset"></div>
+      <div class="pm-foot">
+        <input id="prj-name" type="text" placeholder="Save everything as…" maxlength="40" aria-label="Project name">
+        <button type="button" id="prj-save">Save</button>
+        <button type="button" id="prj-del">Delete</button>
+        <button type="button" id="prj-export">Export file</button>
+        <button type="button" id="prj-import">Import file</button>
+        <input type="file" id="prj-file" accept=".json,application/json" hidden>
+        <span class="hint" id="prj-msg" role="status"></span>
+      </div>
+    </div>
+    <div class="hp presets" id="snd-bar">
+      <span class="label">Sound</span>
+      <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
+      <div class="pm-foot">
+        <input id="snd-name" type="text" placeholder="Save current sound as…" maxlength="40" aria-label="Sound preset name">
+        <button type="button" id="snd-save">Save</button>
+        <button type="button" id="snd-del">Delete</button>
+        <span class="hint" id="snd-msg" role="status"></span>
+      </div>
+    </div>
+    <div class="hp presets" id="pat-bar">
+      <span class="label">Pattern</span>
+      <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
+      <div class="pm-foot">
+        <input id="pat-name" type="text" placeholder="Save current pattern as…" maxlength="40" aria-label="Pattern preset name">
+        <button type="button" id="pat-save">Save</button>
+        <button type="button" id="pat-del">Delete</button>
+        <span class="hint" id="pat-msg" role="status"></span>
+      </div>
+    </div>
+    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
+    <span class="sq-msg" id="sq-msg" role="status"></span>
+    <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
+    <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
+    <span class="status" id="status" role="status">Stopped</span>
+  </header>
+
+  <div class="panel dev" id="panel" data-title="TB-303 Voice"></div>
+
+  <div class="tabs mtabs" id="mtabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" data-pane="seq">Sequencer</button>
+    <button type="button" role="tab" data-pane="mods">Mods</button>
+    <button type="button" role="tab" data-pane="rat">RAT</button>
+    <button type="button" role="tab" data-pane="lex">224</button>
+    <button type="button" role="tab" data-pane="board">Board</button>
+  </div>
+
+  <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
+    <div class="sq-bank">
+      <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
+      <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
+      <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
+      <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button></div>
+    </div>
+    <div class="sq-body">
+      <div class="sq-side">
+        <div class="stp"><span class="label">Length</span><button type="button" data-a="len" data-d="-1" aria-label="Length down">◀</button><output id="o-len">16</output><button type="button" data-a="len" data-d="1" aria-label="Length up">▶</button></div>
+        <div class="stp"><span class="label">Shuffle</span><button type="button" data-a="shuf" data-d="-1" aria-label="Shuffle down">◀</button><output id="o-shuf">0%</output><button type="button" data-a="shuf" data-d="1" aria-label="Shuffle up">▶</button></div>
+        <div class="stp"><span class="label">Step len</span><button type="button" data-a="gate" data-d="-1" aria-label="Step len down">◀</button><output id="o-gate">50%</output><button type="button" data-a="gate" data-d="1" aria-label="Step len up">▶</button></div>
+        <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift" class="unit">step</output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
+        <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr" class="unit">semi</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
+        <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled, at the density and bars set below">Generate</button>
+        <div class="stp"><span class="label">Density</span><button type="button" data-g="dens" data-d="-1" aria-label="Density down">◀</button><output id="o-dens">Any</output><button type="button" data-g="dens" data-d="1" aria-label="Density up">▶</button></div>
+        <div class="stp"><span class="label">Bars</span><button type="button" data-g="bars" data-d="-1" aria-label="Bars down">◀</button><output id="o-bars">1</output><button type="button" data-g="bars" data-d="1" aria-label="Bars up">▶</button></div>
+      </div>
+      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
+    </div>
+  </section>
+
+  <div class="pane" data-title="Circuit board" id="pane-board" role="tabpanel" aria-label="Circuit board" hidden>
+    <svg class="board" id="board" role="group" aria-label="Circuit board showing every part at its current value"></svg>
+    <div class="board-info" id="board-info">Every part at its current value. Changed parts glow; tap one for details.</div>
+  </div>
+  <div class="pane" data-title="Mods" id="pane-mods" role="tabpanel" aria-label="Mods" hidden><div class="mods" id="mods" aria-label="Common mods"></div></div>
+
+  <div class="pane strip" data-title="ProCo RAT" id="pane-rat" role="tabpanel" aria-label="RAT" hidden>
+    <section class="blk-rat">
+      <div class="fx" id="fx-rat">
+        <button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button>
+        <div class="fxknobs" id="fx-rat-knobs"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="pane" data-title="Lexicon 224" id="pane-lex" role="tabpanel" aria-label="Lexicon 224" hidden>
+    <section class="blk-lex">
+      <div class="lex-head">
+        <button type="button" class="onoff" id="fx-lex-on" aria-pressed="false">Off</button>
+        <span class="lex-lcd" id="lex-lcd" aria-live="polite"></span>
+      </div>
+      <div class="lex-progs" id="lex-progs" role="radiogroup" aria-label="Program"></div>
+      <div class="fx" id="fx-lex"><div class="fxknobs" id="fx-lex-knobs"></div></div>
+      <p class="hint lex-note" id="lex-note"></p>
+    </section>
+  </div>
+</div>
+
+<dialog id="options" aria-labelledby="opt-title">
+  <div class="opt-head">
+    <h2 id="opt-title">Options</h2>
+    <div class="tabs otabs" id="otabs" role="tablist" aria-label="Options sections"><button type="button" role="tab" data-sec="circuit" aria-selected="true">Circuit</button><button type="button" role="tab" data-sec="monitor" aria-selected="false">Monitor</button><button type="button" role="tab" data-sec="midi" aria-selected="false">MIDI</button><button type="button" role="tab" data-sec="file" aria-selected="false">File</button><button type="button" role="tab" data-sec="about" aria-selected="false">About</button></div>
+    <button type="button" class="icon xbtn" id="close-options" aria-label="Close options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" fill="none"/></svg></button>
+  </div>
+  <div class="opt-body">
+    <section class="osec" id="osec-circuit" role="tabpanel" aria-label="Circuit">
+      <div class="legend">
+        <span><span class="dot"></span>commonly modded</span>
+        <span>Drag a knob to change the part. Click its value to reset it.</span>
+        <button type="button" id="restore">Restore all parts</button>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Circuit blocks" id="ptabs"></div>
+      <div class="parts" id="parts" role="tabpanel"></div>
+      <div class="detail" id="pdetail" aria-live="polite">Hover or focus a part to see what it does.</div>
+    </section>
+    <section class="osec" id="osec-monitor" role="tabpanel" aria-label="Monitor" hidden>
+      <div class="dclk">
+        <button type="button" class="onoff" id="dc-on" aria-pressed="true">On</button>
+        <div class="dclk-txt"><strong>De-click</strong><span class="hint">Eases the level over a few ms around each retrigger, where the real 303 clicks. Adds 3 ms of latency. Off is the original sound.</span></div>
+        <label class="dclk-fade">Fade <input type="range" id="dc-ms" min="0.5" max="3" step="0.25" value="1.5" aria-label="De-click fade time"> <output id="dc-ms-v">1.5 ms</output></label>
+      </div>
+      <div class="monitor">
+        <canvas id="scope" width="1200" height="300" aria-label="Oscilloscope view of the output"></canvas>
+        <dl class="readouts" id="readouts"></dl>
+      </div>
+    </section>
+    <section class="osec" id="osec-midi" role="tabpanel" aria-label="MIDI" hidden>
+      <p class="hint" id="midi-status">Front-panel dials follow MIDI CC from any input, on any channel.</p>
+      <dl class="readouts" id="midi-map"></dl>
+    </section>
+    <section class="osec" id="osec-file" role="tabpanel" aria-label="File" hidden>
+      <div class="presets">
+        <button type="button" id="preset-export">Export all</button>
+        <button type="button" id="preset-import">Import</button>
+        <input type="file" id="preset-file" accept=".json,application/json" hidden>
+        <span class="hint">Your sound and pattern presets, the current sound and pattern, as one JSON file.</span>
+      </div>
+    </section>
+    <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
+      <div class="notes">
+        <p><strong>Source.</strong> Roland main board schematic, Feb 19 1982, with unclear values read from the TD-3 clone sheet. Parts on neither sheet are estimates. Running at <span id="rate">2× oversampling</span>.</p>
+        <p><strong>Pitch and VCO.</strong> A 6-bit R-2R ladder from 5.333 V gives 1/12 V per step. An exponential current charges C33 from 5.5 V to 12 V, then resets, smoothed with a polyBLEP.</p>
+        <p><strong>VCF.</strong> Four coupled ladder stages with a tanh law per transistor pair, 18n bottom cap and 33n above, solved implicitly. Full feedback (k = 17) self-oscillates.</p>
+        <p><strong>Envelopes and VCA.</strong> C62 decays through R138 + VR6 (200 ms to 2.5 s). Accent shorts VR6 and charges the sweep cap. The OTA VCA gets resonance compensation through C76/R100, and normal notes fade in through R_SOFT.</p>
+        <p><strong>Mods.</strong> Dotted parts map mostly to Devil Fish controls: Normal and Accent decay, VEG decay, Soft attack, Slide time, Sweep speed and self-oscillating resonance.</p>
+        <p><strong>Lexicon 224.</strong> Runs on its own 20 kHz clock with 12-bit gain-ranging converters, 16-bit words and a shared 32K-word delay memory. The core is Dattorro's published Griesinger-style plate network; the 224's own microcode is not public, so the hall, chamber, room and chorus variants are estimates.</p>
+        <p><strong>RAT.</strong> LM308 stage with gain-bandwidth and slew limits from its 30p cap, 1N914 diodes to ground, then the 3.3n filter.</p>
+      </div>
+    </section>
+  </div>
+</dialog>
+
+<!-- the voice model: used here for readouts and the fallback engine, and loaded again into the AudioWorklet -->
+<script id="model">
+/*@model*/
+</script>
+<script id="worklet-src" type="text/plain">
+/*@worklet*/
+</script>
+<script>
+(() => {
+/*@app*/
+})();
+</script>

@@ -1,0 +1,69 @@
+/* Layout: one quiet instrument page (knobs, transport, steps); everything else lives in the Options sheet.
+   Look: a dark DAW: flat grey device panels, small sans labels, ring knobs, amber for "on" and cyan for values. */
+:root {
+  --page: #262626;      /* behind the devices */
+  --bg: #3b3b3b;        /* device panel */
+  --fg: #dedede;
+  --mute: #9a9a9a;
+  --line: rgb(0 0 0 / .45);
+  --soft: rgb(255 255 255 / .07);
+  --on: #ffb02e;        /* amber: switched on, selected */
+  --hi: #68d7ec;        /* cyan: values, playhead */
+  --well: #2c2c2c;      /* inset fields and the step grid */
+  --font-body: "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --knob: 48px;         /* every dial on the front, the effects and the mods */
+  --knob-part: 40px;    /* dials in Options › Circuit */
+  --kn-w: 78px;         /* width of an effect dial cell */
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--page); color: var(--fg); min-height: 100%; }
+body { margin: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px;
+  font-family: var(--font-body); font-size: 12px; line-height: 1.5; color: var(--fg); background: transparent; }
+.main { max-width: 1060px; margin: 0 auto; display: grid; gap: 10px; }
+h1, h2, h3 { font-family: var(--font-body); font-weight: 700; margin: 0; text-wrap: balance; }
+.label { font: 600 10px var(--font-body); letter-spacing: .02em; color: var(--mute); }
+.hint { color: var(--mute); font-size: 12px; }
+.status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* controls */
+button { font: 500 12px var(--font-body); color: var(--fg); background: #4a4a4a; border: 1px solid #1c1c1c; border-radius: 2px; padding: 4px 10px; cursor: pointer; }
+button:hover:not(:disabled) { background: #555; }
+button:disabled { opacity: .35; cursor: default; }
+select, input[type=text] { font: 12px var(--font-body); color: var(--fg); background: #4a4a4a; border: 1px solid #1c1c1c; border-radius: 2px; padding: 4px 10px; }
+input[type=text] { background: var(--well); }
+select option { background: var(--bg); color: var(--fg); }
+button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 1px solid var(--hi); outline-offset: 2px; }
+.icon { width: 34px; height: 30px; padding: 0; display: grid; place-items: center; }
+.icon svg { width: 16px; height: 16px; fill: var(--fg); }
+.switch { width: 40px; height: 20px; padding: 0; position: relative; background: var(--well); border-radius: 10px; }
+.switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--fg); transition: left .12s; }
+.switch[aria-checked=true] { background: var(--on); }
+.switch[aria-checked=true] .thumb { left: 22px; background: #161616; }
+.seg { display: inline-flex; border: 1px solid #1a1a1a; border-radius: 2px; overflow: hidden; }
+.seg button { background: #4a4a4a; border: 0; border-right: 1px solid #2a2a2a; border-radius: 0; }
+.seg button[aria-pressed=true] { background: var(--on); color: #161616; }
+.onoff { min-width: 52px; }
+.onoff[aria-pressed=true] { background: var(--on); color: #161616; }
+.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid #1a1a1a; }
+.tabs button { flex: none; }
+.mtabs button, .otabs button, #ptabs button { background: #333; border: 1px solid #1a1a1a; border-bottom: 0; border-radius: 3px 3px 0 0; font: 600 11px var(--font-body); letter-spacing: .02em; color: var(--mute); margin: 0; padding: 5px 14px; }
+.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true] { background: var(--on); color: #161616; border-bottom-color: transparent; }
+.tabs button .n { font: 500 10px var(--font-mono); margin-left: 4px; }
+
+/* dials: label above, ring in the middle, value below (as in Live) */
+.knob { touch-action: none; cursor: ns-resize; border-radius: 50%; }
+.knob svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.knob svg .trk { stroke: #1b1b1b; stroke-width: 3.6; stroke-linecap: butt; }
+.knob svg .arc { stroke: var(--hi); stroke-width: 3.6; stroke-linecap: butt; }
+.knob svg .ptr { stroke: #141414; stroke-width: 3; stroke-linecap: round; }
+.kn, .md, .pk { display: grid; justify-items: center; gap: 4px; text-align: center; min-width: 0; }
+.kn .knob, .md .knob { width: var(--knob); height: var(--knob); }
+.kn .name, .md .mname, .pk .ref { order: -1; font: 600 11px/1.2 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--fg); }
+.kn .val, .md .val, .pk .val { font: 500 10.5px/1.2 var(--font-body); color: var(--fg); min-height: 0; }
+.kn .val, .md .val { transition: opacity .15s; }
+.md .val, .pk .val { cursor: pointer; white-space: nowrap; }
+.md .val.changed, .pk .val.changed { color: var(--on); font-weight: 600; }
+.kn .ref { display: none; }
+.kn.small .name { font-size: 11.5px; }

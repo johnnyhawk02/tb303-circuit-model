@@ -682,7 +682,6 @@ class TB303Voice {
     // --- VCO: I = Iref * 2^(CV - CV_TUNE + tune)
     const I = this.iVcoRef * Math.pow(2, this.cv - c.CV_TUNE + this.tuneOct);
     const dv = I / c.C33 * this.h;
-    const dt = dv / this.swing; // phase increment
     this.vSaw += dv;
     // polyBLEP around the reset: output is delayed one sample so the sample
     // before the step can be corrected too.
@@ -869,4 +868,58 @@ class DeClick {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, DeClick, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+// The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
+// The AudioWorklet and the main-thread fallback both run this, so they sound the same.
+// Messages: knob, component, wave, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
+class TB303Engine {
+  constructor(fs, onStep = () => {}) {
+    this.fs = fs; this.onStep = onStep;
+    this.v = new TB303Voice(fs); this.slew = new ParamSlew(this.v, fs); this.dc = new DeClick(this.v, fs);
+    this.playing = false; this.bpm = 128; this.pattern = []; this.shuffle = 0; this.gate = 0.5;
+    this.step = -1; this.ctr = 0; this.stepLen = 1; this.gateOffAt = -1;
+  }
+  message(m) {
+    const v = this.v;
+    if (m.type === 'knob') this.slew.set('k', m.name, m.value);
+    else if (m.type === 'component') this.slew.set('c', m.name, m.value);
+    else if (m.type === 'wave') v.waveform = m.value;
+    else if (m.type === 'fx') v.setFx(m.name, m.value);
+    else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
+    else if (m.type === 'pattern') this.pattern = m.value;
+    else if (m.type === 'bpm') this.bpm = m.value;
+    else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
+    else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
+  }
+  // a 16th note; shuffle lengthens the even steps and shortens the odd ones. Returns its length in samples.
+  _startStep() {
+    const P = this.pattern, n = P.length; if (!n) return 0;
+    this.step = (this.step + 1) % n;
+    const s = P[this.step], prev = P[(this.step - 1 + n) % n];
+    const len = Math.round(this.fs * 60 / this.bpm / 4 * (1 + (this.step & 1 ? -this.shuffle : this.shuffle)));
+    if (s.gate) {
+      this.v.noteOn(s.code, s.accent, prev.gate && prev.slide);
+      this.gateOffAt = s.slide ? -1 : Math.max(1, Math.round(len * this.gate));
+    } else { this.v.noteOff(); this.gateOffAt = -1; }
+    this.onStep(this.step);
+    return len;
+  }
+  // fills out[s..e) (and outR, if given), split into runs at step starts, gate-offs and every 32 samples while slewing
+  render(out, outR, s = 0, e = out.length) {
+    let i = s;
+    while (i < e) {
+      if (this.playing && this.ctr <= 0) { this.stepLen = this._startStep() || 1; this.ctr = this.stepLen; }
+      let run = e - i;
+      if (this.slew.active) { run = Math.min(run, 32); this.slew.tick(run); }
+      if (this.playing) {
+        run = Math.min(run, this.ctr);
+        const elapsed = this.stepLen - this.ctr;
+        if (this.gateOffAt > elapsed) run = Math.min(run, this.gateOffAt - elapsed);
+        else if (this.gateOffAt === elapsed) { this.v.noteOff(); this.gateOffAt = -1; }
+      }
+      this.dc.process(out, i, i + run, outR);
+      i += run; if (this.playing) this.ctr -= run;
+    }
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
