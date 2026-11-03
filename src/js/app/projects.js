@@ -36,9 +36,8 @@ function applyProject(x) {
   state.pattern = c.pattern || blankPattern(); state.shuffle = c.shuffle ?? 0; state.gate = c.gate ?? 0.5;
   tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank(); saveSession();
 }
-const PROJECT_BUILTIN = { 'Init (stock sound, empty banks)': { sound: {}, bpm: 128, banks: {}, chain: [] } };
-for (const [n, x] of Object.entries(SOUND_BUILTIN)) PROJECT_BUILTIN['Sounds / ' + n] = { kind: 'sound', sound: x };
-for (const [n, x] of Object.entries(PATTERN_BUILTIN)) PROJECT_BUILTIN['Patterns / ' + n] = { kind: 'pattern', pattern: x };
+// no factory presets: Johnny starts from scratch (the old list is in git history before v42)
+const PROJECT_BUILTIN = {};
 // the old sound and pattern bars stay hidden in the page so Options' Export all / Import keep their lists
 const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
 const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);

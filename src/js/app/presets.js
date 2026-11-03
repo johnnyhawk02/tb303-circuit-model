@@ -175,7 +175,7 @@ function presetMenu(host) {
       if (small()) h += (h ? '<div class="pm-sep"></div>' : '') + order.map(it => row(it, 0)).join('');
       else for (const t of tree) h += drawNode(t, 0);
     }
-    list.innerHTML = h || '<div class="pm-none">Nothing matches.</div>';
+    list.innerHTML = h || `<div class="pm-none">${byV.size ? 'Nothing matches.' : 'No presets yet. Save one below.'}</div>`;
     act = -1;
   }
   function show() {
