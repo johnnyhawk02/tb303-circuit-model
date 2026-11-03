@@ -40,12 +40,11 @@ select option { background: var(--glass); color: var(--ink); }
 .switch[aria-checked=true] .thumb { background: var(--glass); }
 .label, .tname, .stp .label { text-transform: lowercase; letter-spacing: 0; }
 
-/* dials: 24 LCD segments round the ring (ghost when unlit), a small hub and a short pointer */
+/* dials: 24 LCD segments round the ring (ghost when unlit), and a pointer from the centre to the ring */
 .knob svg { overflow: visible; }
 .knob svg .trk, .knob svg .arc { stroke-width: 8; stroke-linecap: butt; stroke-dasharray: 3.25 2.204; }
 .knob svg .trk { stroke: var(--ghost); }
 .knob svg .arc { stroke: var(--ink); filter: drop-shadow(2px 2px 0 rgb(28 10 0 / .17)); }
-.knob svg .hub { fill: none; stroke: var(--ink); stroke-width: 2.5; }
 .knob svg .ptr { stroke: var(--ink); stroke-width: 4; stroke-linecap: butt; }
 .knob:focus-visible { outline-offset: 4px; border-radius: 4px; }
 .pk.fixed .knob { opacity: .35; }

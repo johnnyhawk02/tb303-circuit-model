@@ -3,12 +3,11 @@ const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
 const KNOB_SEGS = 24; // the ring is 24 LCD segments; the lit arc snaps to whole segments
 function knobSVG() {
-  // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and a short ink pointer inside the ring
+  // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and an ink pointer from the centre out to the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none"/>
     <path class="arc" d="" fill="none"/>
-    <rect class="hub" x="27" y="27" width="10" height="10" rx="1"/>
-    <line class="ptr" x1="32" y1="25" x2="32" y2="13"/>
+    <line class="ptr" x1="32" y1="32" x2="32" y2="9"/>
   </svg>`;
 }
 function arcPath(p) {
