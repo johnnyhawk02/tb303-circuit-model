@@ -286,6 +286,9 @@ public:
         L = lexBiq(rcL, zl) * 2; R = lexBiq(rcR, zr) * 2;
     }
 
+    struct MemoryUse { int words, of; double scale; bool chorus; };
+    MemoryUse memoryUse() const { return { words, memWords, scale, alg == ALG_CHORUS }; }
+
     void flush() {
         auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; };
         f(hx); f(hxIn); f(prev); f(envIn); f(envL); f(envR); f(zl); f(zr); f(yl); f(yr); f(lastL); f(lastR); f(L); f(R);
@@ -794,6 +797,12 @@ private:
         decim[0] = mk(0.5412); decim[1] = mk(1.3066);
     }
 
+public:
+    // diagnostics (readouts)
+    double vcfResonantHz(double vb) const { const double I = c[P::I_REF] * std::exp(vb / VT); return 1.3838 * (I / (4 * VT)) / (2 * PI * c[P::C19]); }
+    double cutoffBase() const { return wCut * vCutPot; }
+    double envTopBase() const { return wCut * vCutPot + wEnv * c[P::V_ENV] * envModFrac; }
+private:
     double vcfStep(double u, double Iladder) {
         const double h2 = h / 2, twoVt = 2 * VT, Ih = Iladder / 2, G0 = Iladder / (4 * VT);
         const double k = kFb;

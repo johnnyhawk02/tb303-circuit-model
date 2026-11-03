@@ -1,11 +1,21 @@
 #pragma once
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "dsp/TB303Model.h"
+#include "SeqModel.h"
 
 // The front-panel mods (FRONT_MODS in parts.js) plus the TM3 filter trim are automatable parameters;
-// every other part keeps its stock value unless a web-app preset changes it.
+// every other part is set on the Circuit page or by presets.
 struct ModInfo { const char* part; const char* name; const char* desc; };
 const std::vector<ModInfo>& frontMods();
+bool isModPart(int part);
+bool isFixedPart(int part);
+double partTolerance(int part);          // spread between real units (tolerance() in functions.js)
+std::vector<double> seriesValues(int part); // E24 / E12 values inside the part's dial range, or empty
+double snapReal(int part, double v);
+
+// MIDI CC 1.. follow the voice dials, then the mods (MIDI_MAP in midi.js)
+struct CcTarget { juce::String paramId, name; };
+const std::vector<CcTarget>& ccMap();
 
 class TB303Processor : public juce::AudioProcessor, private juce::AudioProcessorValueTreeState::Listener, private juce::AsyncUpdater {
 public:
@@ -19,92 +29,111 @@ public:
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
-
     const juce::String getName() const override { return JucePlugin_Name; }
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 10.0; }
-
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram(int) override {}
     const juce::String getProgramName(int) override { return {}; }
     void changeProgramName(int, const juce::String&) override {}
-
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
 
-    // --- pattern (message thread side) ---
-    std::vector<tb303::Step> getPattern() const;
-    void setPattern(const std::vector<tb303::Step>& p);
-    double getShuffle() const { return shuffle.load(); }
-    std::atomic<int> currentStep { -1 };
+    // ---- sequencer model (message thread; lock modelLock around changes) ----
+    juce::CriticalSection modelLock;
+    tb303::SeqModel seq;
+    void publish();                          // call after any change to seq
+    std::vector<int> chainOffs;              // of the published sequence
+    std::atomic<int> currentStep { -1 };     // index into the published sequence
     std::atomic<bool> seqRunning { false };
+    std::atomic<int> modelVersion { 0 };     // bumped by publish(), so editors redraw
 
-    // --- presets: web-app JSON (sound, pattern or project) ---
-    void applySound(const juce::var& sound);       // knobs, parts, wave, fx; anything missing goes back to stock
-    void applyPatternJson(const juce::var& x);     // pattern, gate, shuffle
-    void applyPreset(const juce::var& preset);     // {kind:'sound'|'pattern'} or a project
+    // ---- parts (message thread) ----
+    double partValue(int part) const;
+    void setPart(int part, double v);
+    juce::String randomiseParts(bool wild);  // New unit / Messed up
+    juce::String undoParts();
+    bool canUndoParts() const { return !partsUndo.empty(); }
+    void restoreParts();
+    tb303::Parts allParts() const;
+    tb303::Knobs allKnobs() const;
+    double knobValue(int k) const;
+
+    // ---- presets (web app formats) ----
+    void applySound(const juce::var& sound);
+    void applyPreset(const juce::var& preset); // honours Sound only
+    void applyProject(const juce::var& project);
     juce::var soundSnapshot() const;
     juce::var projectSnapshot() const;
-    juce::String importFile(const juce::File& f);  // returns a message for the user
-    void exportFile(const juce::File& f) const;
+    juce::String importFile(const juce::File& f);
+    void exportProject(const juce::File& f) const;
+    void exportAll(const juce::File& f) const;
+    juce::String exportFavourites(const juce::File& f) const;
 
-    // user presets: imported from the web app's favourites or project files, kept in a file shared by every instance
+    // user presets, favourites and Sound only: one file shared by every instance
     juce::StringArray userPresetNames() const;
     juce::var userPreset(const juce::String& name) const;
-    void addUserPreset(const juce::String& name, const juce::var& preset);
+    void savePreset(const juce::String& name);
     void removeUserPreset(const juce::String& name);
+    bool isFavourite(const juce::String& name) const;
+    void setFavourite(const juce::String& name, bool on);
+    bool soundOnly() const;
+    void setSoundOnly(bool on);
     static juce::File userPresetFile();
-
-    double partValue(int part) const; // current value (message thread)
-    static juce::String formatPart(double v, const juce::String& unit);
     juce::String lastPresetName;
+
+    // ---- monitor ----
+    static constexpr int SCOPE = 4096;
+    float scope[SCOPE] {};
+    std::atomic<int> scopeWrite { 0 };
+
+    static juce::String formatPart(double v, const juce::String& unit);
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void parameterChanged(const juce::String& id, float newValue) override;
     void handleAsyncUpdate() override;
     void pushAllParams(bool instant);
-    double knobValue(int k) const;
 
     std::unique_ptr<tb303::Engine> engine;
     double fs = 48000;
 
-    // raw parameter pointers, read on the audio thread
     std::array<std::atomic<float>*, tb303::K::COUNT> knobParams {};
     std::array<float, tb303::K::COUNT> lastKnob {};
-    std::vector<std::pair<int, std::atomic<float>*>> modParams; // part index, t 0..1
+    std::vector<std::pair<int, std::atomic<float>*>> modParams;
     std::vector<float> lastMod;
-    std::atomic<float>*pWave, *pRat, *pLex, *pDly, *pDeclick, *pSeq, *pRun, *pTempo, *pGate;
+    std::atomic<float>*pWave, *pRat, *pLex, *pDly, *pDeclick, *pDeclickMs, *pSeq;
+    float lastFade = -1;
 
-    // parts that are not parameters (set by presets)
+    // parts that are not parameters
     mutable juce::SpinLock partsLock;
     tb303::Parts extraParts {};
     std::atomic<int> partsVersion { 0 };
     int partsSeen = -1;
     tb303::Parts sentParts {};
+    std::vector<tb303::Parts> partsUndo;
 
-    // pattern shared with the audio thread
+    // published sequence
     mutable juce::SpinLock patternLock;
-    std::vector<tb303::Step> pattern;
-    std::atomic<double> shuffle { 0 };
+    std::vector<tb303::Step> pubPattern;
+    double pubGate = 0.5, pubShuffle = 0;
     std::atomic<int> patternVersion { 0 };
     int patternSeen = -1;
     std::vector<tb303::Step> audioPattern;
 
-    // MIDI: mono note stack, legato = slide
+    // MIDI
     std::vector<int> held;
-    bool midiAccent = false;
-    // host sync
-    bool hostSynced = false, lastDeclick = true;
+    bool midiAccent = false, hostSynced = false, lastDeclick = true;
+    std::array<std::atomic<float>, 32> ccPending;
 
-    juce::var userPresets; // object: name -> preset
-    void loadUserPresets();
-    void saveUserPresets() const;
+    juce::var userData; // { presets: {name: preset}, fav: [names], soundOnly: bool }
+    void loadUserData();
+    void saveUserData() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TB303Processor)
 };

@@ -8,17 +8,25 @@ The web app's TB-303 model as a VST3 / AU instrument (and a standalone app), bui
   the knob slew, de-click and step sequencer. `tests/` renders one scenario (pattern, knob moves, every
   effect, a waveform switch) with both and compares them; on Linux they are identical to the last bit.
   CI runs this on every push, so a change to `tb303-model.js` that isn't ported shows up as a failure.
-- **Panel.** Voice knobs with the web page's readouts, the twelve front-panel mods and the TM3 filter trim
-  (all automatable), the FX page, and the piano-roll sequencer (up to 32 steps, length, shift, transpose).
-- **Sequencer.** With *Sequencer* on, the pattern follows the host's transport, locked to its bar position.
-  *Play* runs it on its own clock (the *Tempo* dial) while the host is stopped, as in the standalone app.
+- **Everything the web app has, laid out the same way.** Voice knobs with the web page's readouts, the
+  TM3 filter trim, and *New unit* / *Messed up* / *Undo* for the components. Tabs for the Sequencer, the
+  twelve Mods (E24 / E12 steps, Shift for in-between), FX (RAT, Delay with Ping-pong / Mono, Compactor with
+  Peak / ISP / RMS, the 224 with its program buttons, LCD and memory note), Circuit (every part by block),
+  Board (the stylised PCB), Monitor (de-click, scope, readouts), MIDI (the CC map) and About.
+- **Sequencer.** Banks A-D x slots 1-12, chains (Cmd-click or right-click a slot), Copy / Paste / Clear /
+  Refill, patterns up to 64 steps (the grid shows at least 32; clicking past the end extends), Length,
+  Duplicate steps, Shuffle notes, Step len, Shift, Transpose, Generate with Density and Bars, and the
+  Functions menu (Join chain and copy, Alter pattern, Undo). It follows the host's transport and tempo,
+  locked to the bar; there is no Play button or tempo dial, the host does that.
 - **MIDI.** Notes play the voice at any time: mono, last note wins, a note played while another is held
-  slides (legato), velocity 100 or more is an accent. MIDI A2 (note 45) is the 303's A, 110 Hz.
-- **Presets.** *Import* reads the web app's files: a project export, the favourites file, or Export all.
-  Favourites land in the plug-in's Presets menu (kept in
-  `~/Library/Application Support/TB303 Circuit Model/presets.json`, shared by every instance).
-  *Export* writes a project file the web app can import. Parts that aren't front-panel mods (anything you
-  changed on the web page's Board or parts list) come across with the preset and are saved with the session.
+  slides (legato), velocity 100 or more is an accent. MIDI A2 (note 45) is the 303's A, 110 Hz. CC 1-19
+  move the front-panel dials, as in the web app.
+- **Presets.** The top bar has the web app's preset browser: search, star favourites (and show only them),
+  previous / next, Save with the auto-namer (and another name), Delete, and *Sound only*. Presets are whole
+  projects (sound, all 48 slots and the chain), kept in
+  `~/Library/Application Support/TB303 Circuit Model/presets.json` and shared by every instance. *File*
+  imports the web app's files (a project, favourites or Export all) and exports a preset, your favourites,
+  or everything, in the web app's format.
 - **De-click** adds 3 ms of latency, reported to the host so it compensates.
 
 ## Build

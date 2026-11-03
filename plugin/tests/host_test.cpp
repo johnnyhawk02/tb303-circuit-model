@@ -41,7 +41,43 @@ int main() {
     auto f = juce::File::getCurrentWorkingDirectory().getChildFile("host_test.wav");
     f.deleteFile();
     if (auto w = std::unique_ptr<juce::AudioFormatWriter>(wav.createWriterFor(new juce::FileOutputStream(f), fs, 2, 24, {}, 0))) w->writeFromAudioSampleBuffer(all, 0, all.getNumSamples());
-    const bool ok = firstSound >= 0 && firstSound < 400 && rmsSeq > 0.01f && rmsMidi > 0.01f;
+    bool ok = firstSound >= 0 && firstSound < 400 && rmsSeq > 0.01f && rmsMidi > 0.01f;
+
+    // sequencer model, presets and state, like the web app
+    auto check = [&](bool c, const char* what) { if (!c) { std::printf("FAILED: %s\n", what); ok = false; } };
+    int filled = 0; for (auto& sl : proc.seq.slots) for (auto& st : sl.pattern) if (st.gate) { filled++; break; }
+    check(filled == 48, "every slot starts filled (A1 example, the rest generated)");
+    {
+        const juce::ScopedLock sl(proc.modelLock);
+        proc.seq.select(1, 2);
+        const auto msg = proc.seq.generate();
+        std::printf("generate: %s\n", msg.toRawUTF8());
+        check(!proc.seq.cur().pattern.empty() && proc.seq.canUndo(), "generate");
+        proc.seq.toggleChain(1, 5);
+        check(proc.seq.chain.size() == 2 && proc.seq.chain[0] == "B3" && proc.seq.chain[1] == "B6", "chain B3 > B6");
+        std::printf("alter: %s\njoin: %s\n", proc.seq.alter().toRawUTF8(), proc.seq.joinChain().toRawUTF8());
+    }
+    proc.publish();
+    const auto parts = proc.randomiseParts(true);
+    std::printf("parts: %s\n", parts.toRawUTF8());
+    check(proc.canUndoParts(), "messed up");
+    const double r52 = proc.partValue(tb303::P::R52), c35 = proc.partValue(tb303::P::C35);
+    juce::MemoryBlock state; proc.getStateInformation(state);
+    TB303Processor other; other.setStateInformation(state.getData(), (int)state.getSize());
+    check(other.seq.chain.joinIntoString(",") == "B3,B6" && other.seq.selKey() == "B3", "state keeps chain and selection");
+    check(std::fabs(other.partValue(tb303::P::R52) / r52 - 1) < 1e-6 && std::fabs(other.partValue(tb303::P::C35) / c35 - 1) < 1e-6, "state keeps parts");
+    bool same = true; for (int i = 0; i < 48; ++i) { const auto& a = proc.seq.slots[(size_t)i].pattern; const auto& b = other.seq.slots[(size_t)i].pattern;
+        same &= a.size() == b.size(); for (size_t j = 0; same && j < a.size(); ++j) same &= a[j].code == b[j].code && a[j].gate == b[j].gate && a[j].accent == b[j].accent && a[j].slide == b[j].slide; }
+    check(same, "state keeps all 48 slots");
+    // web app project format both ways
+    auto tmp = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("tb303-host-test.json");
+    proc.exportProject(tmp);
+    TB303Processor third; const auto msg = third.importFile(tmp);
+    std::printf("import: %s\n", msg.toRawUTF8());
+    check(third.seq.chain.joinIntoString(",") == "B3,B6" && std::fabs(third.partValue(tb303::P::R52) / r52 - 1) < 1e-3, "export / import project");
+    tmp.deleteFile();
+    third.removeUserPreset("tb303-host-test");
+    std::printf("auto names: %s, %s\n", tb303::autoName({}).toRawUTF8(), tb303::autoName({}).toRawUTF8());
     std::printf(ok ? "OK\n" : "FAILED\n");
     return ok ? 0 : 1;
 }

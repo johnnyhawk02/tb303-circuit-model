@@ -44,7 +44,11 @@ juce_add_plugin(TB303CircuitModel
 
 target_sources(TB303CircuitModel PRIVATE
   Source/PluginProcessor.cpp
-  Source/PluginEditor.cpp)
+  Source/PluginEditor.cpp
+  Source/SeqModel.cpp)
+
+# the web app's factory patterns, the source material for Generate and Refill
+juce_add_binary_data(TB303Data SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../patterns.json)
 
 target_compile_definitions(TB303CircuitModel PUBLIC
   JUCE_WEB_BROWSER=0
@@ -56,7 +60,7 @@ target_compile_definitions(TB303CircuitModel PUBLIC
 target_compile_options(TB303CircuitModel PRIVATE -ffp-contract=off)
 
 target_link_libraries(TB303CircuitModel
-  PRIVATE juce::juce_audio_utils juce::juce_dsp
+  PRIVATE TB303Data juce::juce_audio_utils juce::juce_dsp
   PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
 
 # parity test: the C++ engine against the web app's JS, sample for sample (run: ctest, needs node)
@@ -73,8 +77,8 @@ endif()
 
 # host-style test of the processor: transport sync and MIDI (run: tb303_hosttest)
 juce_add_console_app(tb303_hosttest PRODUCT_NAME "tb303_hosttest")
-target_sources(tb303_hosttest PRIVATE tests/host_test.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp)
+target_sources(tb303_hosttest PRIVATE tests/host_test.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/SeqModel.cpp)
 target_compile_definitions(tb303_hosttest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JucePlugin_Name="TB303 Circuit Model" JUCE_STANDALONE_APPLICATION=1)
 target_compile_options(tb303_hosttest PRIVATE -ffp-contract=off)
-target_link_libraries(tb303_hosttest PRIVATE juce::juce_audio_utils PUBLIC juce::juce_recommended_config_flags)
+target_link_libraries(tb303_hosttest PRIVATE TB303Data juce::juce_audio_utils PUBLIC juce::juce_recommended_config_flags)
 add_test(NAME host COMMAND tb303_hosttest)
