@@ -120,6 +120,7 @@ const FRONT_MODS = [
   ['R_IN', 'Drive', 'push the filter harder'],
   ['C18', 'Ladder cap', 'resonance character'],
   ['WOW', 'Accent wow', 'swell on accents at high reso'],
+  ['NOISE', 'Noise', 'hiss of the old parts'],
 ].filter(([k]) => k in COMPONENTS);
 const modsEl = document.getElementById('mods');
 function renderFrontMods() {

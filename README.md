@@ -21,6 +21,7 @@ Open `index.html` in a browser to play it. It has a step sequencer with pattern 
 - **VCF:** the 4-pole transistor/diode ladder with an 18n bottom cap and 33n caps above it, and a tanh law for each transistor pair. It is solved with an implicit trapezoidal step at 2× oversampling. Resonance feedback is high-passed by C15.
 - **Envelopes:** the filter envelope charges C62 and decays through R138 + VR6 (200 ms to 2.5 s). On accented notes VR6 is shorted and the accent sweep cap (1µ/47k) charges.
 - **VCA:** an OTA fed through C49/R88. The resonance pot wiper is also mixed in through C76/R100 to compensate for lost bass.
+- **Noise:** white voltage noise at the ladder input (EN_VCF), the OTA input (EN_OTA, the main hiss, which opens and closes with the VCA) and the output stage (EN_OUT, a constant floor). NOISE scales them all; 1 is about stock-unit level (hiss around -63 dBFS under notes, -74 dBFS idle), 0 is silent.
 
 Each part's `source` field is `schematic`, `td3` or `estimate`.
 

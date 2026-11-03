@@ -117,6 +117,12 @@ const COMPONENTS = {
   C38:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'schematic', note: 'VCA output coupling (1/50)' },
   R_OUT:  { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'output load, HPF with C38' },
 
+  // --- Noise: the parts' own hiss, as white voltage noise densities at the points where it enters
+  EN_VCF: { v: 15e-9,   unit: 'V/√Hz', block: 'Noise', source: 'estimate', note: 'ladder input noise: R98 2.2K thermal plus Q12 pair shot noise, referred to the Q12 base. Resonance rings it, but it sits far below the OTA hiss', range: [0, 150e-9, 'lin'] },
+  EN_OTA: { v: 40e-9,   unit: 'V/√Hz', block: 'Noise', source: 'estimate', note: 'BA662 OTA input noise with R101 2.2K: the main hiss, which opens and closes with the VCA', range: [0, 400e-9, 'lin'] },
+  EN_OUT: { v: 0.35e-6,    unit: 'V/√Hz', block: 'Noise', source: 'estimate', note: 'output stage floor (IC15 buffer, mixer): a constant hiss under everything, after the volume pot', range: [0, 3.5e-6, 'lin'] },
+  NOISE:  { v: 1,       unit: '×', block: 'Noise', source: 'estimate', note: 'scales every noise source together (0 = silent background)', range: [0, 10, 'lin'], mod: 'Circuit noise. The hiss of the old transistors, OTA and output stage, at about stock-unit level on 1. 0 is studio-clean; turn it up for a well-worn unit.' },
+
   // --- ProCo RAT
   RAT_CIN: { v: 22e-9,  unit: 'F', block: 'RAT',   source: 'rat', note: 'input coupling into 1M' },
   RAT_RD:  { v: 100e3,  unit: 'Ω', block: 'RAT',   source: 'rat', note: 'DISTORTION pot 100k(A) in the LM308 feedback' },
@@ -479,6 +485,7 @@ class TB303Voice {
     this.envVcf = 0; this.envAttack = 0;
     this.envVca = 0; this.vcaAttack = 0;
     this.vAcc = 0; this.vWowC = 0; this.vWow = 0;
+    this.rng = 0x9e3779b9 ^ ((Math.random() * 0x7fffffff) | 0); // per-voice xorshift32 for the noise sources
     this.hp14 = 0; this.hp14In = 0; this.hp38 = 0; this.hp38In = 0;
     this.hp49 = 0; this.hp49In = 0; this.hp76 = 0; this.hp76In = 0;
     this.dc = { z1: 0, z2: 0, z3: 0, z4: 0 };
@@ -493,6 +500,10 @@ class TB303Voice {
   _derive() {
     const c = this.c, k = this.knobs;
     this._deriveDuck(k);
+    // noise: density * sqrt(bandwidth) at the oversampled rate gives the rms per sample
+    const nb = Math.sqrt(this.fs / 2) * c.NOISE;
+    this.nVcf = c.EN_VCF * nb; this.nOta = c.EN_OTA * nb; this.nOut = c.EN_OUT * nb;
+    this.noiseOn = this.nVcf + this.nOta + this.nOut > 0;
     // VCO: expo converter calibrated (TM4/TM5) to F_TUNE at CV_TUNE, 1 V/oct.
     // Ramp slope dV/dt = I/C33, frequency = I / (C33 * (V_HI - V_LO)).
     this.swing = c.V_HI - c.V_LO;
@@ -759,7 +770,13 @@ class TB303Voice {
     const vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * vAccF;
     const Il = Math.min(c.I_REF * Math.exp(vb / VT), 2e-3);
 
-    const y = this._vcfStep(wave * this.inAtt, Il);
+    // approx. unit gaussian from four uniforms (xorshift32), one per source
+    let nV = 0, nO = 0, nX = 0;
+    if (this.noiseOn) {
+      const g = () => { let a = 0; for (let i = 0; i < 4; i++) { let x = this.rng; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.rng = x; a += (x >>> 0) / 4294967296; } return (a - 2) * 1.7320508; };
+      nV = g() * this.nVcf; nO = g() * this.nOta; nX = g() * this.nOut;
+    }
+    const y = this._vcfStep(wave * this.inAtt + nV, Il);
 
     // --- output amp -> C14 coupling -> OTA VCA
     const ya = y * c.A_OUT; // Q21 diff stage -> Q19 output buffer
@@ -769,12 +786,12 @@ class TB303Voice {
     this.hp49 = this.hp49A * (this.hp49 + vo - this.hp49In); this.hp49In = vo;
     const vr = vo * this.knobs.resonance;
     this.hp76 = this.hp76A * (this.hp76 + vr - this.hp76In); this.hp76In = vr;
-    const vin = (this.hp49 / c.R88 + this.hp76 / c.R100) / this.vinDen;
+    const vin = (this.hp49 / c.R88 + this.hp76 / c.R100) / this.vinDen + nO;
     const Iabc = Math.max(this.envVca * c.V_VCA - 0.6, 0) / c.R105 + Math.max(this.vAcc - 0.6, 0) / (c.R25 + c.R26);
     const iout = Iabc * Math.tanh(vin / (2 * VT));
     const vout = iout * c.R_OTA;
     this.hp38 = this.hp38A * (this.hp38 + vout - this.hp38In); this.hp38In = vout;
-    let o = this.hp38 * this.vol * 4.0;
+    let o = this.hp38 * this.vol * 4.0 + nX * 4.0;
     if (this.fx.rat) o = this._rat(o);
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }

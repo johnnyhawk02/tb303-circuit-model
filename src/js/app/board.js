@@ -2,9 +2,9 @@
 const boardEl = document.getElementById('board'), boardInfo = document.getElementById('board-info');
 const BOARD_BLOCKS = {
   CV: 'PITCH CV DAC', Slide: 'SLIDE', VCO: 'VCO', Square: 'SQUARE SHAPER', VCF: 'VCF · DIODE LADDER',
-  Env: 'FILTER ENVELOPE', Accent: 'ACCENT SWEEP', VCA: 'VCA · OUTPUT', RAT: 'PROCO RAT', '224': 'LEXICON 224',
+  Env: 'FILTER ENVELOPE', Accent: 'ACCENT SWEEP', VCA: 'VCA · OUTPUT', RAT: 'PROCO RAT', '224': 'LEXICON 224', Noise: 'NOISE',
 };
-const BOARD_COLS = { CV: 3, Slide: 2, VCO: 6, Square: 3, VCF: 5, Accent: 3, Env: 3, VCA: 7, RAT: 5, '224': 4 };
+const BOARD_COLS = { CV: 3, Slide: 2, VCO: 6, Square: 3, VCF: 5, Accent: 3, Env: 3, VCA: 7, RAT: 5, '224': 4, Noise: 4 };
 const POT_KNOB = { VR2: 'tuning', VR4: 'resonance', VR5: 'envmod', VR6: 'decay', VR7: 'accent' };
 const BAND = ['#111', '#7a3b12', '#d22', '#f07c1a', '#f2d21b', '#2a9a3a', '#2361d6', '#8a3fc8', '#888', '#f4f4f4'];
 const GOLD = '#c9a43a', SILVER = '#c8c8c8';
