@@ -32,7 +32,7 @@ function loadStore(key) { const v = store.get(key, {}); return v && typeof v ===
     store.set('soundPresets', sp); store.set('patternPresets', pp); store.set('migrated2', true);
   }
 }
-function presetBar(pre, storeKey, builtins, snap, apply) {
+function presetBar(pre, storeKey, builtins, snap, apply, autoName) {
   const sel = document.getElementById(pre + '-preset'), nameEl = document.getElementById(pre + '-name');
   const delBtn = document.getElementById(pre + '-del'), msg = document.getElementById(pre + '-msg');
   const bar = { user: loadStore(storeKey), say: (t) => { msg.textContent = t; clearTimeout(bar.t); bar.t = setTimeout(() => { msg.textContent = ''; }, 4000); } };
@@ -51,6 +51,12 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
     sel.dispatchEvent(new Event('sync'));
   };
   bar.save = () => store.set(storeKey, bar.user);
+  // auto-namer: fill the name box with a suggestion, unless the person typed their own
+  let suggested = '';
+  bar.suggest = (force) => {
+    if (!autoName || (!force && nameEl.value.trim() && nameEl.value !== suggested)) return;
+    nameEl.value = suggested = autoName(bar.user);
+  };
   sel.addEventListener('change', () => {
     const v = sel.value; delBtn.disabled = !v.startsWith('u:'); armed = ''; delBtn.textContent = 'Delete';
     if (!v) return;
@@ -60,8 +66,10 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
     bar.say(`Loaded ${name}.`);
   });
   document.getElementById(pre + '-save').onclick = () => {
+    if (autoName && !nameEl.value.trim()) bar.suggest(true);
     const name = nameEl.value.trim();
     if (!name) { nameEl.focus(); bar.say('Type a name first, then save.'); return; }
+    suggested = '';
     const existed = name in bar.user;
     bar.user[name] = snap(); bar.save(); bar.render('u:' + name);
     bar.say(existed ? `Updated ${name}.` : `Saved ${name}.`);

@@ -161,6 +161,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .pm-foot input[type=text] { flex: 1 1 140px; min-width: 0; font-size: 12px; padding: 5px 8px; }
 .pm-foot button { padding: 5px 10px; font-size: 12px; }
 .pm-foot .hint:empty { display: none; }
+.top .hp[hidden] { display: none; }
+.pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
+.pm-foot #prj-roll { padding: 5px 8px; }
 
 /* devices: grey panels with a title strip and an amber power dot */
 .dev, .main > .pane { position: relative; background: var(--bg); border: 1px solid #1a1a1a; border-radius: 4px; padding: 34px 16px 16px; }
@@ -468,19 +471,21 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
       <div class="bpm-read"><output id="bpm-val">128</output><span class="label">BPM</span></div>
     </div>
     <div class="hp presets" id="prj-bar">
-      <span class="label">Project</span>
-      <select id="prj-preset" aria-label="Projects" hidden></select><div class="pm" data-for="prj-preset"></div>
+      <span class="label">Preset</span>
+      <select id="prj-preset" aria-label="Presets" hidden></select><div class="pm" data-for="prj-preset"></div>
       <div class="pm-foot">
-        <input id="prj-name" type="text" placeholder="Save everything as…" maxlength="40" aria-label="Project name">
+        <input id="prj-name" type="text" placeholder="Save everything as…" maxlength="40" aria-label="Preset name">
+        <button type="button" id="prj-roll" title="Another name" aria-label="Suggest another name">🎲</button>
         <button type="button" id="prj-save">Save</button>
         <button type="button" id="prj-del">Delete</button>
         <button type="button" id="prj-export">Export file</button>
         <button type="button" id="prj-import">Import file</button>
+        <label class="pm-opt" title="Loading a preset changes only the sound and effects, and keeps your patterns and tempo"><input type="checkbox" id="prj-sndonly"> Sound only</label>
         <input type="file" id="prj-file" accept=".json,application/json" hidden>
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
     </div>
-    <div class="hp presets" id="snd-bar">
+    <div class="hp presets" id="snd-bar" hidden>
       <span class="label">Sound</span>
       <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
       <div class="pm-foot">
@@ -490,7 +495,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
         <span class="hint" id="snd-msg" role="status"></span>
       </div>
     </div>
-    <div class="hp presets" id="pat-bar">
+    <div class="hp presets" id="pat-bar" hidden>
       <span class="label">Pattern</span>
       <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
       <div class="pm-foot">
@@ -3524,6 +3529,74 @@ for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = (
   renderFx(); saveSession();
 };
 
+// ---------- preset auto-namer ----------
+// Five styles, often mixed: alien word-part mashups, messed-up desserts, cosmology, ancient Greek-ish,
+// and a last pass where each s turns into z 60% of the time.
+const NAMER = (() => {
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+  const chance = (p) => Math.random() < p;
+  const WORDS = ['squelch', 'acid', 'resonance', 'filter', 'bubble', 'sludge', 'wobble', 'circuit', 'diode', 'ladder', 'voltage', 'quantum',
+    'thunder', 'velvet', 'crystal', 'murmur', 'fractal', 'glimmer', 'plasma', 'mollusc', 'saxophone', 'lantern', 'whisper', 'cobalt'];
+  const A_PRE = ['zor', 'qua', 'vex', 'thra', 'xil', 'oom', 'kry', 'bla', 'nyx', 'gor', 'fen', 'plu', 'yth', 'ska', 'zub', 'mor', 'quee', 'drax'];
+  const A_MID = ['la', 'ri', 'on', 'ex', 'ub', 'ae', 'ix', 'ol', 'ee', 'aa', 'u', 'yo'];
+  const A_END = ['th', 'x', 'nok', 'ar', 'ium', 'ozz', 'eep', 'ul', 'orb', 'ak', 'ish', 'oid'];
+  // front of one word up to a vowel, back of another from a consonant, so the joint stays sayable
+  const splice = (a, b) => {
+    const cuts = [...a.slice(1, -1)].map((c, i) => (/[aeiouy]/.test(c) ? i + 2 : 0)).filter(Boolean);
+    const tails = [...b.slice(1)].map((c, i) => (!/[aeiouy]/.test(c) ? i + 1 : 0)).filter(i => i && i >= b.length / 3);
+    return a.slice(0, cuts.length ? pick(cuts) : 2) + b.slice(tails.length ? pick(tails) : b.length >> 1);
+  };
+  const alien = () => {
+    if (chance(0.5)) { // splice the front of one word onto the back of another
+      const a = pick(WORDS), b = pick(WORDS);
+      return cap(splice(a, b));
+    }
+    let w = pick(A_PRE); if (chance(0.7)) w += pick(A_MID); w += pick(A_END);
+    return cap(w) + (chance(0.25) ? '-' + cap(pick(A_PRE) + pick(A_END)) : '');
+  };
+  const DESSERTS = ['Tiramisu', 'Pavlova', 'Eclair', 'Creme Brulee', 'Baklava', 'Panna Cotta', 'Profiterole', 'Trifle', 'Cheesecake', 'Sorbet',
+    'Macaron', 'Strudel', 'Meringue', 'Parfait', 'Clafoutis', 'Mille-feuille', 'Cannoli', 'Gelato', 'Souffle', 'Sticky Toffee', 'Banoffee', 'Tarte Tatin', 'Spotted Dick', 'Jelly'];
+  const MESS = ['Burnt', 'Melted', 'Sideways', 'Haunted', 'Soggy', 'Inverted', 'Radioactive', 'Fermented', 'Exploded', 'Backwards', 'Feral', 'Damp', 'Cursed', 'Upside-down'];
+  const dessert = () => {
+    const d = pick(DESSERTS), r = Math.random();
+    if (r < 0.3) return pick(MESS) + ' ' + d;
+    if (r < 0.55) return splice(d.replace(/ .*/, ''), pick(DESSERTS).replace(/ .*/, '').toLowerCase()); // Tiramiclair
+    if (r < 0.75) return d.replace(/[aeiou]/g, (v) => (chance(0.5) ? { a: 'o', e: 'u', i: 'a', o: 'e', u: 'i' }[v] : v)); // vowels slipped
+    if (r < 0.9) { const w = d.split(' '); w[0] = w[0].split('').reverse().join('').toLowerCase(); w[0] = cap(w[0]); return w.join(' '); } // backwards
+    return d + ' ' + pick(['Incident', 'Collapse', 'Mishap', 'Disaster', 'Situation']);
+  };
+  const COSMOS = ['Redshift', 'Event Horizon', 'Dark Matter', 'Inflaton', 'Quasar', 'Pulsar', 'Magnetar', 'Cosmic Web', 'Baryon', 'Hubble Flow',
+    'Accretion Disk', 'Neutrino', 'Singularity', 'Nebula', 'Perihelion', 'Aphelion', 'Parsec', 'Lagrange Point', 'Oort Cloud', 'Lensing',
+    'Big Crunch', 'Supernova', 'Blueshift', 'Dyson Sphere', 'Wormhole', 'Planck Epoch', 'Cepheid', 'Kuiper Belt', 'Dark Energy', 'Spaghettification'];
+  const cosmos = () => pick(COSMOS) + (chance(0.2) ? ' ' + pick(['Prime', 'Remnant', 'Drift', 'Echo', 'Zero']) : '');
+  const GREEK = ['Aether', 'Logos', 'Kairos', 'Chronos', 'Pneuma', 'Eidolon', 'Arete', 'Hubris', 'Nous', 'Telos', 'Apeiron', 'Kosmos', 'Chthonia',
+    'Eros', 'Thanatos', 'Hypnos', 'Mneme', 'Agora', 'Oracle', 'Labyrinth', 'Amphora', 'Odyssey', 'Hydra', 'Gorgon', 'Elysion', 'Tartaros', 'Delphi', 'Ithaka'];
+  const greekify = (w) => {
+    const base = w.replace(/[^a-z]+$/i, '').replace(/[aeiouy]+$/i, '');
+    return (chance(0.3) ? pick(['Proto', 'Hyper', 'Neo', 'Pan', 'Archi', 'Meta']) : '') + cap(base.toLowerCase()) + pick(['os', 'ia', 'eion', 'ikon', 'ides', 'ax']);
+  };
+  const greek = () => (chance(0.55) ? pick(GREEK) : greekify(pick([...WORDS, ...GREEK]))) + (chance(0.15) ? ' ' + pick(['of Delphi', 'the Elder', 'Ascending', 'Rex']) : '');
+  const STYLES = [alien, dessert, cosmos, greek];
+  // mixes: two styles side by side, or a word from one greekified
+  const mix = () => {
+    const r = Math.random();
+    if (r < 0.4) return pick([cosmos, greek, alien])() + ' ' + pick([dessert, cosmos])().split(' ').pop();
+    if (r < 0.7) return greekify(pick([...DESSERTS, ...COSMOS]).split(' ')[0]);
+    return pick(STYLES)() + ' ' + pick(STYLES)().split(' ')[0];
+  };
+  const zed = (t) => t.replace(/s/g, (c) => (chance(0.6) ? 'z' : c)).replace(/S/g, (c) => (chance(0.6) ? 'Z' : c));
+  return (taken = {}) => {
+    for (let i = 0; i < 20; i++) {
+      let n = chance(0.4) ? mix() : pick(STYLES)();
+      const w = n.split(/\s+/).filter((x, j, a) => x && a.indexOf(x) === j).slice(0, 3); // no repeats, three words at most
+      n = zed(w.join(' ')).slice(0, 40);
+      if (n && !(n in taken)) return n;
+    }
+    return 'Preset ' + (Object.keys(taken).length + 1);
+  };
+})();
+
 // ---------- presets ----------
 function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave, fx: x.fx }; }
 function patternSnap() { return { bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; }
@@ -3558,7 +3631,7 @@ function loadStore(key) { const v = store.get(key, {}); return v && typeof v ===
     store.set('soundPresets', sp); store.set('patternPresets', pp); store.set('migrated2', true);
   }
 }
-function presetBar(pre, storeKey, builtins, snap, apply) {
+function presetBar(pre, storeKey, builtins, snap, apply, autoName) {
   const sel = document.getElementById(pre + '-preset'), nameEl = document.getElementById(pre + '-name');
   const delBtn = document.getElementById(pre + '-del'), msg = document.getElementById(pre + '-msg');
   const bar = { user: loadStore(storeKey), say: (t) => { msg.textContent = t; clearTimeout(bar.t); bar.t = setTimeout(() => { msg.textContent = ''; }, 4000); } };
@@ -3577,6 +3650,12 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
     sel.dispatchEvent(new Event('sync'));
   };
   bar.save = () => store.set(storeKey, bar.user);
+  // auto-namer: fill the name box with a suggestion, unless the person typed their own
+  let suggested = '';
+  bar.suggest = (force) => {
+    if (!autoName || (!force && nameEl.value.trim() && nameEl.value !== suggested)) return;
+    nameEl.value = suggested = autoName(bar.user);
+  };
   sel.addEventListener('change', () => {
     const v = sel.value; delBtn.disabled = !v.startsWith('u:'); armed = ''; delBtn.textContent = 'Delete';
     if (!v) return;
@@ -3586,8 +3665,10 @@ function presetBar(pre, storeKey, builtins, snap, apply) {
     bar.say(`Loaded ${name}.`);
   });
   document.getElementById(pre + '-save').onclick = () => {
+    if (autoName && !nameEl.value.trim()) bar.suggest(true);
     const name = nameEl.value.trim();
     if (!name) { nameEl.focus(); bar.say('Type a name first, then save.'); return; }
+    suggested = '';
     const existed = name in bar.user;
     bar.user[name] = snap(); bar.save(); bar.render('u:' + name);
     bar.say(existed ? `Updated ${name}.` : `Saved ${name}.`);
@@ -3771,6 +3852,16 @@ function projectSnap() {
   return { sound: soundSnap(), bpm: state.bpm, sel: { ...sel }, chain: [...chain],
     banks: Object.fromEntries(Object.entries(banks).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
 }
+// a preset is a whole project, or (folded in from the old separate lists) just a sound or just a pattern
+const sndOnlyEl = document.getElementById('prj-sndonly');
+sndOnlyEl.checked = !!store.get('prjSoundOnly', false);
+sndOnlyEl.onchange = () => store.set('prjSoundOnly', sndOnlyEl.checked);
+function applyPreset(x) {
+  if (!x || typeof x !== 'object') return;
+  if (x.kind === 'pattern') { if (!sndOnlyEl.checked) { applyPattern(x.pattern); storeSlot(); renderBank(); saveSession(); } return; }
+  if (x.kind === 'sound' || sndOnlyEl.checked) { applySound(x.sound || {}); return; }
+  applyProject(x);
+}
 function applyProject(x) {
   if (!x || typeof x !== 'object') return;
   if (x.sound) applySound(x.sound); else applySound({});
@@ -3793,16 +3884,31 @@ function applyProject(x) {
   tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank(); saveSession();
 }
 const PROJECT_BUILTIN = { 'Init (stock sound, empty banks)': { sound: {}, bpm: 128, banks: {}, chain: [] } };
+for (const [n, x] of Object.entries(SOUND_BUILTIN)) PROJECT_BUILTIN['Sounds / ' + n] = { kind: 'sound', sound: x };
+for (const [n, x] of Object.entries(PATTERN_BUILTIN)) PROJECT_BUILTIN['Patterns / ' + n] = { kind: 'pattern', pattern: x };
+// the old sound and pattern bars stay hidden in the page so Options' Export all / Import keep their lists
 const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
 const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);
-const prjBar = presetBar('prj', 'projectPresets', PROJECT_BUILTIN, projectSnap, applyProject);
+const prjBar = presetBar('prj', 'projectPresets', PROJECT_BUILTIN, projectSnap, applyPreset, (taken) => NAMER(taken));
+// fold saved sound and pattern presets into the one list (once, and again for anything imported later)
+function foldPresets() {
+  const done = new Set(store.get('folded', [])); let n = 0;
+  const fold = (src, kind) => { for (const [name, x] of Object.entries(src)) {
+    const id = kind + ':' + name; if (done.has(id)) continue; done.add(id);
+    let nm = name; for (let i = 2; nm in prjBar.user; i++) nm = `${name.slice(0, 34)} (${i})`;
+    prjBar.user[nm] = { kind, [kind]: x }; n++;
+  } };
+  fold(soundBar.user, 'sound'); fold(patBar.user, 'pattern');
+  store.set('folded', [...done]); if (n) { prjBar.save(); prjBar.render(''); }
+}
+foldPresets();
 const download = (name, obj) => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
   a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 document.getElementById('prj-export').onclick = () => {
-  const nm = (document.getElementById('prj-name').value.trim() || 'tb303-project').replace(/[^\w .-]+/g, '_');
+  const nm = (document.getElementById('prj-name').value.trim() || 'tb303-preset').replace(/[^\w .-]+/g, '_');
   download(nm + '.json', { app: 'tb303-circuit-model', kind: 'project', version: 1, project: projectSnap() });
   prjBar.say(`Exported ${nm}.json.`);
 };
@@ -3817,9 +3923,11 @@ prjFile.addEventListener('change', async () => {
     const nm = f.name.replace(/\.json$/i, '').trim().slice(0, 40) || 'Imported';
     prjBar.user[nm] = projectSnap(); prjBar.save(); prjBar.render('u:' + nm);
     prjBar.say(`Loaded and saved as ${nm}.`);
-  } catch { prjBar.say('That file is not a project export from this page.'); }
+  } catch { prjBar.say('That file is not a preset export from this page.'); }
 });
 for (const el of document.querySelectorAll('.pm')) presetMenu(el);
+document.getElementById('prj-roll').onclick = () => prjBar.suggest(true);
+document.querySelector('#prj-bar .pm-btn')?.addEventListener('click', () => prjBar.suggest(false));
 
 document.getElementById('preset-export').onclick = () => {
   const data = JSON.stringify({ app: 'tb303-circuit-model', version: 2,
@@ -3829,7 +3937,7 @@ document.getElementById('preset-export').onclick = () => {
   a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
   a.download = 'tb303-settings.json'; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  soundBar.say(`Exported tb303-settings.json: current sound and pattern, ${Object.keys(soundBar.user).length} sound and ${Object.keys(patBar.user).length} pattern presets.`);
+  prjBar.say(`Exported tb303-settings.json: current sound and pattern, ${Object.keys(soundBar.user).length} sound and ${Object.keys(patBar.user).length} pattern presets.`);
 };
 const fileEl = document.getElementById('preset-file');
 document.getElementById('preset-import').onclick = () => fileEl.click();
@@ -3849,12 +3957,12 @@ fileEl.addEventListener('change', async () => {
       const withPat = Object.fromEntries(Object.entries(j.presets).filter(([, x]) => Array.isArray(x?.pattern)));
       add(withPat, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
     }
-    soundBar.save(); patBar.save(); soundBar.render(''); patBar.render('');
+    soundBar.save(); patBar.save(); soundBar.render(''); patBar.render(''); foldPresets();
     const cur = j.current;
     if (cur?.sound || cur?.pattern) { if (cur.sound) applySound(cur.sound); if (cur.pattern) applyPattern(cur.pattern); }
     else if (cur) { applySound(cur); applyPattern(cur); }
-    soundBar.say(`Imported ${ns} sound and ${np} pattern preset${np === 1 ? '' : 's'}${cur ? ', and applied the saved sound and pattern' : ''}.`);
-  } catch { soundBar.say('That file is not a settings export from this page. Use Export all here to see the format.'); }
+    prjBar.say(`Imported ${ns} sound and ${np} pattern preset${np === 1 ? '' : 's'}${cur ? ', and applied the saved sound and pattern' : ''}.`);
+  } catch { prjBar.say('That file is not a settings export from this page. Use Export all here to see the format.'); }
 });
 
 for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); drawKnob(k.id); }

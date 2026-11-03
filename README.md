@@ -2,7 +2,7 @@
 
 A JavaScript simulation of the TB-303 bass voice, modelled at component level from the Roland main board schematic (Feb 1982). Values that sheet doesn't show clearly were taken from the Behringer TD-3 schematic.
 
-Open `index.html` in a browser to play it. It has a step sequencer with pattern presets, the front panel knobs, a scope, and a parts list you can edit while it plays.
+Open `index.html` in a browser to play it. It has a step sequencer, one Preset menu (sound, effects, tempo, all 48 bank slots and the chain, with a Sound only option and an auto-namer for saves), the front panel knobs, a scope, and a parts list you can edit while it plays.
 
 ## Files
 - `tb303-model.js`: the voice (`TB303Voice`) and its parts table (`COMPONENTS`). It has no dependencies and runs in Node, in a browser, or in an AudioWorklet.
@@ -10,7 +10,7 @@ Open `index.html` in a browser to play it. It has a step sequencer with pattern 
 - `src/`: the page source. `src/index.html` is the markup with slots; `src/css/` holds the styles by area, `src/js/worklet.js` the AudioWorklet wrapper, and `src/js/app/` the app by feature (sequencer, banks, knobs, parts, board, presets, MIDI and so on).
 - `build.js`: `node build.js` fills the slots in `src/index.html` with the CSS, the model, the worklet, the app code and `patterns.json`, and writes the single-file `index.html` that gets deployed. Edit `src/`, never `index.html`.
 - `test.js`: sanity checks (DAC voltages, 110 Hz at the A key, filter range, decay times) and renders `demo.wav`.
-- `patterns.json`: the ABL3 and Phoscyon factory patterns behind the pattern presets. `tools/import-patterns.js` makes it from the plug-ins' files, and `node build.js` puts it in the page.
+- `patterns.json`: the ABL3 and Phoscyon factory patterns that Generate uses as raw material. `tools/import-patterns.js` makes it from the plug-ins' files, and `node build.js` puts it in the page.
 - `calib.js`: works out the ladder's self-oscillation gain (k = 17) and its resonance-frequency factor.
 
 ## What's modelled

@@ -75,3 +75,6 @@
 .pm-foot input[type=text] { flex: 1 1 140px; min-width: 0; font-size: 12px; padding: 5px 8px; }
 .pm-foot button { padding: 5px 10px; font-size: 12px; }
 .pm-foot .hint:empty { display: none; }
+.top .hp[hidden] { display: none; }
+.pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
+.pm-foot #prj-roll { padding: 5px 8px; }

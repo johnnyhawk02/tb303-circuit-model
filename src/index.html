@@ -26,19 +26,21 @@
       <div class="bpm-read"><output id="bpm-val">128</output><span class="label">BPM</span></div>
     </div>
     <div class="hp presets" id="prj-bar">
-      <span class="label">Project</span>
-      <select id="prj-preset" aria-label="Projects" hidden></select><div class="pm" data-for="prj-preset"></div>
+      <span class="label">Preset</span>
+      <select id="prj-preset" aria-label="Presets" hidden></select><div class="pm" data-for="prj-preset"></div>
       <div class="pm-foot">
-        <input id="prj-name" type="text" placeholder="Save everything as…" maxlength="40" aria-label="Project name">
+        <input id="prj-name" type="text" placeholder="Save everything as…" maxlength="40" aria-label="Preset name">
+        <button type="button" id="prj-roll" title="Another name" aria-label="Suggest another name">🎲</button>
         <button type="button" id="prj-save">Save</button>
         <button type="button" id="prj-del">Delete</button>
         <button type="button" id="prj-export">Export file</button>
         <button type="button" id="prj-import">Import file</button>
+        <label class="pm-opt" title="Loading a preset changes only the sound and effects, and keeps your patterns and tempo"><input type="checkbox" id="prj-sndonly"> Sound only</label>
         <input type="file" id="prj-file" accept=".json,application/json" hidden>
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
     </div>
-    <div class="hp presets" id="snd-bar">
+    <div class="hp presets" id="snd-bar" hidden>
       <span class="label">Sound</span>
       <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
       <div class="pm-foot">
@@ -48,7 +50,7 @@
         <span class="hint" id="snd-msg" role="status"></span>
       </div>
     </div>
-    <div class="hp presets" id="pat-bar">
+    <div class="hp presets" id="pat-bar" hidden>
       <span class="label">Pattern</span>
       <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
       <div class="pm-foot">
