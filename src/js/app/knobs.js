@@ -1,15 +1,18 @@
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
+const KNOB_SEGS = 24; // the ring is 24 LCD segments; the lit arc snaps to whole segments
 function knobSVG() {
-  // Live-style dial: thick value arc over a dark track, and a dark pointer that runs out through the ring
+  // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and a short ink pointer inside the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none" stroke="var(--line)" stroke-width="3.6"/>
-    <path class="arc" d="" fill="none" stroke="var(--fg)" stroke-width="3.6"/>
-    <line class="ptr" x1="32" y1="32" x2="32" y2="4.5" stroke="var(--bg)" stroke-width="3" stroke-linecap="round"/>
+    <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none"/>
+    <path class="arc" d="" fill="none"/>
+    <rect class="hub" x="27" y="27" width="10" height="10" rx="1"/>
+    <line class="ptr" x1="32" y1="25" x2="32" y2="13"/>
   </svg>`;
 }
 function arcPath(p) {
+  p = Math.ceil(Math.min(1, Math.max(0, p)) * KNOB_SEGS - 0.001) / KNOB_SEGS;
   const a0 = KNOB_A0, a = a0 + KNOB_SWEEP * p, r = 25, cx = 32, cy = 32;
   const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
   const [x0, y0] = pt(a0), [x1, y1] = pt(a);

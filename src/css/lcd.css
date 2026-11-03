@@ -40,10 +40,15 @@ select option { background: var(--glass); color: var(--ink); }
 .switch[aria-checked=true] .thumb { background: var(--glass); }
 .label, .tname, .stp .label { text-transform: lowercase; letter-spacing: 0; }
 
-/* dials: an unlit ghost ring, lit segments up to the value, an ink pointer */
-.knob svg .trk { stroke: var(--ghost); stroke-dasharray: 3 1.6; }
-.knob svg .arc { stroke: var(--ink); stroke-dasharray: 3 1.6; filter: drop-shadow(1.5px 1.5px 0 rgb(10 15 4 / .17)); }
-.knob svg .ptr { stroke: var(--ink); }
+/* dials: 24 LCD segments round the ring (ghost when unlit), a small hub and a short pointer */
+.knob svg { overflow: visible; }
+.knob svg .trk, .knob svg .arc { stroke-width: 8; stroke-linecap: butt; stroke-dasharray: 3.25 2.204; }
+.knob svg .trk { stroke: var(--ghost); }
+.knob svg .arc { stroke: var(--ink); filter: drop-shadow(2px 2px 0 rgb(10 15 4 / .17)); }
+.knob svg .hub { fill: none; stroke: var(--ink); stroke-width: 2.5; }
+.knob svg .ptr { stroke: var(--ink); stroke-width: 4; stroke-linecap: butt; }
+.knob:focus-visible { outline-offset: 4px; border-radius: 4px; }
+.pk.fixed .knob { opacity: .35; }
 .kn .name, .md .mname, .fxname { text-transform: lowercase; }
 
 /* devices: no grey boxes, just a lowercase heading over an ink rule */
@@ -106,3 +111,19 @@ canvas { background: transparent; border: 2px solid var(--ink); }
   button, select, input[type=text] { border-width: 1.5px; }
   .seq { border-width: 1.5px; }
 }
+
+/* sliders (Options › Monitor): a segmented ink bar with a solid ink cap */
+input[type=range] { -webkit-appearance: none; appearance: none; height: 22px; margin: 0; background: none; cursor: pointer; touch-action: none; accent-color: var(--ink); }
+input[type=range]::-webkit-slider-runnable-track { height: 10px; border: 2px solid var(--ink); border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 6px); }
+input[type=range]::-moz-range-track { height: 6px; border: 2px solid var(--ink); border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 6px); }
+input[type=range]::-moz-range-progress { height: 6px; background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 6px); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 20px; margin-top: -7px; background: var(--ink); border: 0; border-radius: 2px; box-shadow: var(--shadow); }
+input[type=range]::-moz-range-thumb { width: 12px; height: 20px; background: var(--ink); border: 0; border-radius: 2px; }
+input[type=checkbox] { accent-color: var(--ink); }
+
+/* waveform switch: an LCD toggle, the lit block slides across */
+.switch { border-radius: 3px; }
+.switch .thumb { border-radius: 1px; box-shadow: none; }
+/* steppers: the value reads like a segment display between two ink keys */
+.stp output { font-size: 20px; }
+.stp output.unit { font-size: 15px; }
