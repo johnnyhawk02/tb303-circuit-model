@@ -196,3 +196,15 @@ html.fit, html.fit body { height: 100dvh; overflow: hidden; }
 html.fit body { padding: 0; position: relative; }
 html.fit .main { position: absolute; left: 50%; top: 50%; width: 1000px; max-width: none; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
 html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 72px 34px; gap: 6px; }
+
+/* v65: sliders as segmented bar graphs (like the faders in Johnny's SH-101 screen): a row of segments, lit up to the value over a ghost of the rest */
+.main input[type=range] { --f: 0; height: 22px; }
+.main input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.main input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+.main input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; filter: none; }
+.main input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+.main input[type=range]:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
