@@ -80,28 +80,35 @@
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <div class="sq-side">
+      <!-- three rows, one kind of control each: the pattern and what you do to it, its shape, and Generate -->
+      <div class="sq-row sq-bank">
+        <span class="rlab">pattern</span>
+        <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
+        <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
+        <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
+        <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
+        <div class="acts">
+          <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
+          <button type="button" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle</button>
+          <button type="button" id="p-clear">Clear</button>
+          <button type="button" id="p-undo" disabled>Undo</button>
+        </div>
+      </div>
+      <div class="sq-row sq-side">
+        <span class="rlab">shape</span>
         <label class="sld"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
         <label class="sld"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
         <label class="sld spr" title="Drag to rotate the pattern; springs back to centre"><span>Shift</span><input type="range" data-a="shift" min="-16" max="16" step="1" value="0" aria-label="Shift pattern by steps"><output id="o-shift">0</output></label>
         <label class="sld spr" title="Drag to transpose the pattern; springs back to centre"><span>Transpose</span><input type="range" data-a="tr" min="-12" max="12" step="1" value="0" aria-label="Transpose pattern by semitones"><output id="o-tr">0</output></label>
-        <div class="acts">
-          <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
-          <button type="button" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle</button>
-          <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled, at the density and bars set here">Generate</button>
-          <button type="button" id="p-clear">Clear</button>
-          <button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button>
-          <button type="button" id="p-undo" disabled>Undo</button>
-        </div>
-        <div class="stp"><span class="label">Density</span><button type="button" data-g="dens" data-d="-1" aria-label="Density down">◀</button><output id="o-dens">Any</output><button type="button" data-g="dens" data-d="1" aria-label="Density up">▶</button></div>
-        <div class="stp"><span class="label">Bars</span><button type="button" data-g="bars" data-d="-1" aria-label="Bars down">◀</button><output id="o-bars">1</output><button type="button" data-g="bars" data-d="1" aria-label="Bars up">▶</button></div>
       </div>
-      <div class="sq-bank">
-        <span class="bk-lab">pattern</span>
-        <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
-      <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
-      <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
-      <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
+      <div class="sq-row sq-gen">
+        <span class="rlab">generate</span>
+        <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
+        <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars to generate"><output id="o-bars">1</output></label>
+        <div class="acts">
+          <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled, at the density and bars set here">Generate</button>
+          <button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button>
+        </div>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
     </div>

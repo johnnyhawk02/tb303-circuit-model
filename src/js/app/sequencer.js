@@ -171,11 +171,9 @@ document.getElementById('p-shuf').onclick = () => {
   sqSay(`Shuffled ${P.length} steps. Tap again for another order; Functions › Undo puts it back.`);
 };
 drawGen();
-document.querySelector('.sq-side').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-g]'); if (!b) return;
-  const d = +b.dataset.d;
-  if (b.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, gen.dens + d));
-  else gen.bars = Math.min(4, Math.max(1, gen.bars + d));
+document.querySelector('.sq-gen').addEventListener('input', (e) => {
+  const el = e.target.closest('input[data-g]'); if (!el) return;
+  if (el.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, +el.value)); else gen.bars = Math.min(4, Math.max(1, +el.value));
   store.set('gen', gen); drawGen();
 });
 document.getElementById('rand').onclick = () => {

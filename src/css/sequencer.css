@@ -1,8 +1,7 @@
 /* sequencer: banks and slots, side steppers, piano roll */
 .sq { display: grid; gap: 14px; align-content: start; }
-.sq-bank { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .sq-bank .seg button { padding: 5px 10px; font: 17px var(--font-mono); min-width: 30px; }
-.sq-bank .slots button { min-width: 28px; padding: 5px 0; position: relative; }
+.sq-bank .slots button { min-width: 30px; padding: 0; height: 26px; position: relative; }
 .sq-bank .slots button.used:not([aria-pressed=true]) { color: var(--hi); }
 .sq-bank .slots button[data-ch]:not([data-ch=""])::after { content: attr(data-ch); position: absolute; top: -7px; right: -3px; font: 12.5px/1 var(--font-body); padding: 1px 3px; border-radius: 2px; background: var(--hi); color: var(--glass); }
 .sq-bank .slots button.playing { outline: 2px solid var(--hi); outline-offset: -4px; }
@@ -11,23 +10,20 @@
 .chain-read .arr { color: var(--mute); }
 .chain-read .now { background: var(--hi); color: var(--glass); padding: 0 3px; border-radius: 2px; }
 .chain-read button { padding: 0 7px; font-size: 19.5px; line-height: 20px; }
-.sq-ed { display: flex; gap: 6px; margin-left: auto; }
-.sq-ed button { padding: 5px 10px; font-size: 17px; }
-.sq-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: start; }
-/* the Shyoy layout (Johnny): one strip of sliders and pattern tools, then the bank row, then the roll at full width */
-.sq-side { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
-.sld { display: grid; grid-template-columns: auto 120px 40px; align-items: center; gap: 0 8px; font-size: 18px; text-transform: lowercase; }
-.sld output { text-align: right; font-size: 18px; font-variant-numeric: tabular-nums; }
+.sq-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; align-items: start; }
+/* the strip over the roll: three rows with one kind of control each and a label column on the left, so everything lines up.
+   pattern: slots, copy/paste and the edits; shape: four sliders; generate: two sliders and its buttons. */
+.sq-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.sq-row > .rlab { flex: none; width: 66px; font-size: 16px; color: var(--mute); text-transform: lowercase; }
+.sld { display: grid; grid-template-columns: 66px 92px 40px; align-items: center; gap: 0 6px; font-size: 17px; text-transform: lowercase; margin-right: 6px; }
+.sld span { white-space: nowrap; }
+.sld output { text-align: left; font-size: 17px; font-variant-numeric: tabular-nums; }
 .sld input { width: 100%; }
-.acts { display: flex; flex-wrap: wrap; gap: 6px; }
-.acts button { padding: 1px 10px; font-size: 18px; }
-.bk-lab { font-size: 17px; text-transform: lowercase; }
-.stp { display: grid; grid-template-columns: auto 24px 42px 24px; gap: 0 4px; align-items: center; }
-.stp button { padding: 0; height: 24px; font-size: 14px; border-width: 1.5px; border-radius: 0; }
-.stp output { text-align: center; font: 17px/1 var(--font-body); color: var(--hi); background: var(--well); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 5px 0; }
-.stp output.unit { color: var(--mute); font-size: 14px; }
+.acts { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
+.acts button { padding: 0 9px; font-size: 16px; height: 26px; }
 .seqwrap { overflow-x: auto; scrollbar-width: thin; }
-.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(22px, 1fr)); grid-auto-rows: 16px; width: max-content; min-width: 100%;
+/* every step fits on screen, even 64 (Johnny): columns share the width instead of scrolling */
+.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(0, 1fr)); grid-auto-rows: 16px; width: 100%;
   font: 14px var(--font-body); border: 1px solid var(--ink); background: var(--well); user-select: none; }
 .seq > * { border: 0; border-right: 1px solid var(--rulec); border-bottom: 1px solid var(--rulec); padding: 0; background: transparent; color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
 .seq .rh { justify-content: flex-start; padding-left: 4px; letter-spacing: .04em; background: transparent; color: var(--mute); border-right: 1px solid var(--ink); }
