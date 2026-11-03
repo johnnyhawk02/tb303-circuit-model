@@ -99,24 +99,6 @@ dialog#options { background: var(--glass); color: var(--ink); border: 6px solid 
 .otabs button { background: transparent; border: 2px solid var(--ink); border-bottom: 0; text-transform: lowercase; color: var(--ink); }
 canvas { background: transparent; border: 2px solid var(--ink); }
 .dot, .pk.mod::after { background: var(--ink); border-radius: 0; }
-.rotate { background: var(--glass); color: var(--ink); border: 6px solid var(--bezel); }
-.rotate svg { stroke: var(--ink); }
-
-@media (orientation: landscape) and (max-height: 520px) {
-  body { padding: 2px max(4px, env(safe-area-inset-right, 0px)) 2px max(4px, env(safe-area-inset-left, 0px)); }
-  .main { border-width: 3px; border-radius: 8px; padding: 0 6px 6px; height: calc(100dvh - 4px); min-height: 0; grid-template-rows: auto auto minmax(0, 1fr); }
-  .main > .pane { max-height: none; min-height: 0; }
-  .main > #panel { min-height: 0; overflow: auto; }
-  .top { padding: 4px 6px; min-height: 0; }
-  .top { margin: 0 -6px; }
-  .dev { margin: 0; border-bottom: 0; border-right: 1px solid var(--line); }
-  .mtabs { margin: 0 0 -7px; padding: 0; }
-  .mtabs button { padding: 2px 12px; }
-  .lex-progs button { padding: 1px 2px; line-height: 1; }
-  .lex-progs button b { line-height: 1; }
-  button, select, input[type=text] { border-width: 1.5px; }
-  .seq { border-width: 1.5px; }
-}
 
 /* sliders (Options › Monitor): a segmented ink bar with a solid ink cap */
 input[type=range] { -webkit-appearance: none; appearance: none; height: 22px; margin: 0; background: none; cursor: pointer; touch-action: none; accent-color: var(--ink); }
@@ -137,13 +119,6 @@ input[type=checkbox] { accent-color: var(--ink); }
 .seq button:hover:not(:disabled) { background: var(--tint2); }
 .seq .cell.on, .seq [data-t=slide].on, .seq [data-t=accent].on { background: var(--ink); }
 .seq .rh.blk, .seq .blk { background: var(--tint); }
-@media (orientation: landscape) and (max-height: 520px) {
-  input[type=range] { height: 16px; }
-  input[type=range]::-webkit-slider-runnable-track { height: 8px; border-width: 1.5px; }
-  input[type=range]::-webkit-slider-thumb { width: 9px; height: 15px; margin-top: -5px; }
-  .sq-bank .seg button { min-height: 0; }
-}
-
 /* waveform switch: always a light (glass) square sliding on a black ink track, whichever side it is on (Johnny) */
 .switch, .switch[aria-checked=true], button.switch:hover:not(:disabled), button.switch:active:not(:disabled) { background: var(--ink); border-color: var(--ink); }
 .switch .thumb, .switch[aria-checked=true] .thumb { background: var(--glass); }
@@ -252,7 +227,7 @@ html.fit .lex-note { max-width: none; margin: 0; font-size: var(--fs-s); line-he
 html.fit .mods { gap: 16px 10px; padding-top: 4px; }
 
 /* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
-html.fit dialog#options { width: 960px; height: 600px; max-height: none; margin: auto; transform: scale(var(--k, 1)); }
+html.fit dialog#options { width: 960px; height: 600px; max-width: none; max-height: none; inset: auto; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
 dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
 dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
 dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
@@ -291,3 +266,6 @@ html.fit .mods { gap: 30px 10px; padding-top: 10px; }
 /* the Options sheet: the screen's fine pixel grid too, and a lowercase title like every other heading */
 dialog#options { background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px); }
 dialog#options .opt-head h2 { text-transform: lowercase; }
+/* touch: no pinch-zoom or page scroll (the screen already fills the window); scroll areas inside still scroll */
+html.fit { touch-action: pan-x pan-y; overscroll-behavior: none; }
+html.fit .pm-pop { max-height: 460px; }

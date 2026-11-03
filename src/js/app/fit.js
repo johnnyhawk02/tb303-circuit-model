@@ -2,17 +2,17 @@
 // On a desktop window the screen is a fixed 1000 x 647 pane (the shape of Johnny's MacBook Pro display, 1.545:1),
 // scaled as a whole to fill the window with the dark case round it, so every page reads the same at any window size
 // and nothing moves when you switch tabs. The scale goes on the root, so the Options sheet scales with the screen.
-// Phones and short windows keep their own compact layout.
+// Phones and iPads get the same screen, just smaller (Johnny): no separate compact layout.
 (() => {
-  const main = document.querySelector('.main'), root = document.documentElement, W = 1000, H = 647, PAD = 16;
-  const mq = matchMedia('(min-width: 701px) and (min-height: 521px)');
+  const root = document.documentElement, W = 1000, H = 647;
+  root.classList.add('fit');
   const fit = () => {
-    root.classList.toggle('fit', mq.matches);
-    if (!mq.matches) { root.style.removeProperty('--k'); return; }
-    const k = Math.min((innerWidth - PAD) / W, (innerHeight - PAD) / H, 2.2);
+    const vw = visualViewport?.width || innerWidth, vh = visualViewport?.height || innerHeight;
+    const pad = Math.min(vw, vh) < 600 ? 4 : 16; // a phone needs every pixel
+    const k = Math.min((vw - pad) / W, (vh - pad) / H, 2.2);
     root.style.setProperty('--k', k.toFixed(4));
   };
-  addEventListener('resize', fit); mq.addEventListener('change', fit); fit();
+  addEventListener('resize', fit); addEventListener('orientationchange', fit); visualViewport?.addEventListener('resize', fit); fit();
 })();
 
 // ---------- slider fill ----------
