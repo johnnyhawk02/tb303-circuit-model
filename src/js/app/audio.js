@@ -80,7 +80,7 @@ bpmKnob.innerHTML = knobSVG();
 function drawBpm() {
   const p = (state.bpm - 60) / 140;
   bpmKnob.querySelector('.arc').setAttribute('d', arcPath(p));
-  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
+  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${knobAngle(p)} 32 32)`);
   bpmKnob.setAttribute('aria-valuenow', state.bpm); bpmVal.textContent = state.bpm;
 }
 function setBpm(v) {

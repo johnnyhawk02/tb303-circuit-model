@@ -1,21 +1,25 @@
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
-// the ring is 24 LCD segments (dash pattern in lcd.css); the lit arc ends exactly at the pointer
+// the ring is 25 LCD segments, so there is one at the centre (dash pattern 3.1 on, 2.136 off in lcd.css: 25 periods round the 300° arc).
+// The pointer sits on the centre of the segment nearest the value, and the ring is lit up to and including it,
+// so pointer and lit segments always line up (Johnny)
+const KNOB_SEGS = 25, KNOB_END = (1.068 + 3.1) / (3.1 + 2.136); // each dash is centred in its period (dashoffset 4.168)
+const knobSeg = (p) => Math.round(Math.min(1, Math.max(0, p)) * (KNOB_SEGS - 1));
+const knobAngle = (p) => KNOB_A0 + KNOB_SWEEP * (knobSeg(p) + 0.5) / KNOB_SEGS;
 function knobSVG() {
   // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and an ink pointer from the centre out to the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none"/>
     <path class="arc" d="" fill="none"/>
-    <line class="ptr" x1="32" y1="32" x2="32" y2="9"/>
+    <line class="ptr" x1="32" y1="32" x2="32" y2="11"/>
   </svg>`;
 }
 function arcPath(p) {
-  p = Math.min(1, Math.max(0, p));
-  const a0 = KNOB_A0, a = a0 + KNOB_SWEEP * p, r = 25, cx = 32, cy = 32;
+  const a0 = KNOB_A0, a = a0 + KNOB_SWEEP * (knobSeg(p) + KNOB_END) / KNOB_SEGS, r = 25, cx = 32, cy = 32;
   const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
   const [x0, y0] = pt(a0), [x1, y1] = pt(a);
-  return p < 0.002 ? '' : `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${KNOB_SWEEP * p > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${a - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 function knobText(id, p) {
   const c = state.parts;
@@ -101,7 +105,7 @@ function drawKnob(id) {
   if (id === 'cmpmode' || id === 'dlypp') { drawCmpMode(); return; }
   const p = state.knobs[id], k = knobEls[id]; if (!k) return;
   k.arc.setAttribute('d', arcPath(p));
-  k.ptr.setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
+  k.ptr.setAttribute('transform', `rotate(${knobAngle(p)} 32 32)`);
   k.el.setAttribute('aria-valuenow', Math.round(p * 100));
   k.val.textContent = knobText(id, p);
   if (id.startsWith('lex')) drawLex();
