@@ -70,15 +70,13 @@ tabsEl.addEventListener('keydown', (e) => {
   if (j === undefined) return; e.preventDefault();
   selectTab(TABS[(j + TABS.length) % TABS.length], true);
 });
-// redraw the board on the next frame when it is showing (safe to call before the board code has run)
-function renderBoardSoon() { const bp = document.getElementById('pane-board'); if (!bp || bp.hidden || bp._raf) return; bp._raf = requestAnimationFrame(() => { bp._raf = 0; renderBoard(); }); }
 function applyPart(k, val) {
   state.parts[k] = val;
   if (k === 'I_REF') queueMicrotask(drawTrim);
   for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', partChanged(k, val)); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
-  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx(); renderBoardSoon();
+  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx();
 }
 let tabTimer = 0;
 function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(renderTabs, 120); }

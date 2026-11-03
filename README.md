@@ -7,7 +7,7 @@ Open `index.html` in a browser to play it. It has a step sequencer, one Preset m
 ## Files
 - `tb303-model.js`: the voice (`TB303Voice`) and its parts table (`COMPONENTS`). It has no dependencies and runs in Node, in a browser, or in an AudioWorklet.
 - `tb303-model.js` also has `TB303Engine`, the player around the voice (knob slew, de-click, the step sequencer). The AudioWorklet and the main-thread fallback both run it.
-- `src/`: the page source. `src/index.html` is the markup with slots; `src/css/` holds the styles by area, `src/js/worklet.js` the AudioWorklet wrapper, and `src/js/app/` the app by feature (sequencer, banks, knobs, parts, board, presets, MIDI and so on).
+- `src/`: the page source. `src/index.html` is the markup with slots; `src/css/` holds the styles by area, `src/js/worklet.js` the AudioWorklet wrapper, and `src/js/app/` the app by feature (sequencer, banks, knobs, parts, presets, MIDI and so on).
 - `build.js`: `node build.js` fills the slots in `src/index.html` with the CSS, the model, the worklet, the app code and `patterns.json`, and writes the single-file `index.html` that gets deployed. Edit `src/`, never `index.html`.
 - `test.js`: sanity checks (DAC voltages, 110 Hz at the A key, filter range, decay times) and renders `demo.wav`.
 - `patterns.json`: the ABL3 and Phoscyon factory patterns that Generate uses as raw material. `tools/import-patterns.js` makes it from the plug-ins' files, and `node build.js` puts it in the page.

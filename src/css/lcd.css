@@ -208,3 +208,7 @@ html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 
 .main input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; filter: none; }
 .main input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
 .main input[type=range]:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
+/* every page the same size: the pages stack in one cell (the hidden ones keep their space, unseen), so the screen is as tall as the tallest and never jumps */
+html.fit .main > .pane { grid-row: 4; grid-column: 1; min-height: 0; overflow: auto; }
+html.fit .main > .pane[hidden] { display: var(--pane-d, block) !important; visibility: hidden; pointer-events: none; }
+.fxpane { --pane-d: grid; }

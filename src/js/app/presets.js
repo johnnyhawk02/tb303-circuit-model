@@ -13,7 +13,7 @@ function applySound(x) {
   for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
   drawWave();
-  renderParts(); renderFrontMods(); drawTrim(); for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderBoardSoon();
+  renderParts(); renderFrontMods(); drawTrim(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
 function applyPattern(x) {
   const c = cleanSettings(x);

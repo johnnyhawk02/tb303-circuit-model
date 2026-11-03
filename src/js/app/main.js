@@ -4,7 +4,7 @@ function showPane(name, focus) {
   if (name === 'rat' || name === 'lex') name = 'fx'; // the RAT and 224 tabs became one
   if (!document.getElementById('pane-' + name)) name = 'seq';
   for (const b of mtabs.querySelectorAll('[role=tab]')) { const on = b.dataset.pane === name; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); }
-  for (const p of document.querySelectorAll('.main > .pane')) p.hidden = p.id !== 'pane-' + name; renderBoardSoon();
+  for (const p of document.querySelectorAll('.main > .pane')) p.hidden = p.id !== 'pane-' + name;
   store.set('mainTab', name);
 }
 mtabs.addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) showPane(b.dataset.pane, true); });
