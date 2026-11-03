@@ -164,6 +164,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .top .hp[hidden] { display: none; }
 .pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
 .pm-foot #prj-roll { padding: 5px 8px; }
+.pm-foot .dev { border-style: dashed; }
 
 /* devices: grey panels with a title strip and an amber power dot */
 .dev, .main > .pane { position: relative; background: var(--bg); border: 1px solid #1a1a1a; border-radius: 4px; padding: 34px 16px 16px; }
@@ -481,6 +482,8 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
         <button type="button" id="prj-export">Export file</button>
         <button type="button" id="prj-import">Import file</button>
         <label class="pm-opt" title="Loading a preset changes only the sound and effects, and keeps your patterns and tempo"><input type="checkbox" id="prj-sndonly"> Sound only</label>
+        <button type="button" class="dev" id="prj-favx" title="Development: export starred presets">Export favourites</button>
+        <button type="button" class="dev" id="prj-clear" title="Development: delete every saved preset">Clear all</button>
         <input type="file" id="prj-file" accept=".json,application/json" hidden>
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
@@ -3918,6 +3921,10 @@ prjFile.addEventListener('change', async () => {
   const f = prjFile.files[0]; prjFile.value = ''; if (!f) return;
   try {
     const j = JSON.parse(await f.text()), x = j?.project || j?.current?.project;
+    if (j?.kind === 'presets' && j.projectPresets && typeof j.projectPresets === 'object') { // a favourites file
+      let n = 0; for (const [k, v] of Object.entries(j.projectPresets)) { const nm = k.trim().slice(0, 40); if (nm && v && typeof v === 'object') { prjBar.user[nm] = v; n++; } }
+      prjBar.save(); prjBar.render(''); prjBar.say(`Added ${n} preset${n === 1 ? '' : 's'}.`); return;
+    }
     if (!x || typeof x !== 'object') throw 0;
     applyProject(x);
     const nm = f.name.replace(/\.json$/i, '').trim().slice(0, 40) || 'Imported';
@@ -3926,6 +3933,29 @@ prjFile.addEventListener('change', async () => {
   } catch { prjBar.say('That file is not a preset export from this page.'); }
 });
 for (const el of document.querySelectorAll('.pm')) presetMenu(el);
+// ---- dev-only buttons (remove this block and the .dev buttons in index.html when done) ----
+document.getElementById('prj-favx').onclick = () => {
+  const out = {};
+  for (const v of store.get('fav.prj', [])) {
+    const n = v.slice(2), x = v[0] === 'u' ? prjBar.user[n] : PROJECT_BUILTIN[n];
+    if (x) out[v[0] === 'u' ? n : n.split(' / ').pop()] = x;
+  }
+  const c = Object.keys(out).length;
+  if (!c) { prjBar.say('No favourites yet: star some presets first.'); return; }
+  download('tb303-favourites.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: out });
+  prjBar.say(`Exported ${c} favourite${c === 1 ? '' : 's'} to tb303-favourites.json.`);
+};
+{
+  const btn = document.getElementById('prj-clear'); let armed = false;
+  btn.onclick = () => {
+    const c = Object.keys(prjBar.user).length;
+    if (!armed) { armed = true; btn.textContent = `Confirm clear ${c}`; prjBar.say('This deletes every saved preset. Click again to confirm.'); setTimeout(() => { armed = false; btn.textContent = 'Clear all'; }, 4000); return; }
+    armed = false; btn.textContent = 'Clear all';
+    for (const b of [prjBar, soundBar, patBar]) { for (const k of Object.keys(b.user)) delete b.user[k]; b.save(); b.render(''); }
+    store.set('fav.prj', store.get('fav.prj', []).filter(v => v.startsWith('b:'))); store.set('recent.prj', []);
+    prjBar.say(`Cleared ${c} saved preset${c === 1 ? '' : 's'}.`);
+  };
+}
 document.getElementById('prj-roll').onclick = () => prjBar.suggest(true);
 document.querySelector('#prj-bar .pm-btn')?.addEventListener('click', () => prjBar.suggest(false));
 

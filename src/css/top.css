@@ -78,3 +78,4 @@
 .top .hp[hidden] { display: none; }
 .pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
 .pm-foot #prj-roll { padding: 5px 8px; }
+.pm-foot .dev { border-style: dashed; }
