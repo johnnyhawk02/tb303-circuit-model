@@ -121,7 +121,7 @@ const COMPONENTS = {
   EN_VCF: { v: 15e-9,   unit: 'V/√Hz', block: 'Noise', source: 'estimate', note: 'ladder input noise: R98 2.2K thermal plus Q12 pair shot noise, referred to the Q12 base. Resonance rings it, but it sits far below the OTA hiss', range: [0, 150e-9, 'lin'] },
   EN_OTA: { v: 40e-9,   unit: 'V/√Hz', block: 'Noise', source: 'estimate', note: 'BA662 OTA input noise with R101 2.2K: the main hiss, which opens and closes with the VCA', range: [0, 400e-9, 'lin'] },
   EN_OUT: { v: 0.35e-6,    unit: 'V/√Hz', block: 'Noise', source: 'estimate', note: 'output stage floor (IC15 buffer, mixer): a constant hiss under everything, after the volume pot', range: [0, 3.5e-6, 'lin'] },
-  NOISE:  { v: 1,       unit: '×', block: 'Noise', source: 'estimate', note: 'scales every noise source together (0 = silent background)', range: [0, 10, 'lin'], mod: 'Circuit noise. The hiss of the old transistors, OTA and output stage, at about stock-unit level on 1. 0 is studio-clean; turn it up for a well-worn unit.' },
+  NOISE:  { v: 0.15,    unit: '×', block: 'Noise', source: 'estimate', note: 'scales every noise source together (0 = silent background)', range: [0, 0.15, 'lin'], mod: 'Circuit noise. The hiss of the old transistors, OTA and output stage; 0.15 is a light hiss, 0 is studio-clean.' },
 
   // --- ProCo RAT
   RAT_CIN: { v: 22e-9,  unit: 'F', block: 'RAT',   source: 'rat', note: 'input coupling into 1M' },
