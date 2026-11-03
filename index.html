@@ -613,6 +613,24 @@ dialog#options .opt-head h2 { text-transform: lowercase; }
 /* touch: no pinch-zoom or page scroll (the screen already fills the window); scroll areas inside still scroll */
 html.fit { touch-action: pan-x pan-y; overscroll-behavior: none; }
 html.fit .pm-pop { max-height: 460px; }
+/* tuning: 12 upright segmented faders, one per note; lit from the zero line up or down to the offset, a ghost of the rest.
+   Readout above and name below, like the dials; a row of temperaments above and the root below, like the sequencer's rows */
+.tupane { --pane-d: flex; display: flex; flex-direction: column; gap: 8px; }
+.tupane[hidden] { display: none; }
+html.fit .tu-top .acts.tu-end { margin-left: auto; }
+#tu-sys button[aria-pressed=true] { background: var(--ink); color: var(--glass); text-shadow: none; }
+.tu-faders { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: center; padding: 4px 0; }
+.tu-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tu-col .val, .tu-col .mname { font-size: var(--fs-s); line-height: 1.2; color: var(--ink); text-transform: lowercase; font-variant-numeric: tabular-nums; }
+.tu-col .val { cursor: pointer; min-width: 5ch; text-align: center; }
+.tu-bar { display: flex; flex-direction: column; gap: 2px; width: 34px; padding: 2px; cursor: ns-resize; touch-action: none; outline-offset: 3px; }
+.tu-bar i { display: block; height: 4px; background: var(--ghost); }
+.tu-bar i.on { background: var(--ink); filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.tu-bar i[data-s="0"] { height: 2px; margin: 1px -4px; background: var(--ink); }
+.tu-bar:focus-visible { outline: 2px dashed var(--ink); }
+.tu-foot .tu-note { margin-left: auto; font-size: var(--fs-s); white-space: nowrap; }
+#tu-root { flex: none; }
+html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; text-transform: lowercase; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -673,6 +691,7 @@ html.fit .pm-pop { max-height: 460px; }
     <button type="button" role="tab" data-pane="seq">Sequencer</button>
     <button type="button" role="tab" data-pane="mods">Mods</button>
     <button type="button" role="tab" data-pane="fx">FX</button>
+    <button type="button" role="tab" data-pane="tune">Tuning</button>
   </div>
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
@@ -728,6 +747,25 @@ html.fit .pm-pop { max-height: 460px; }
   </section>
 
   <div class="pane" data-title="Mods" id="pane-mods" role="tabpanel" aria-label="Mods" hidden><div class="mods" id="mods" aria-label="Common mods"></div></div>
+
+  <div class="pane tupane" data-title="Tuning" id="pane-tune" role="tabpanel" aria-label="Tuning" hidden>
+    <div class="sq-row tu-top">
+      <span class="rlab">tuning</span>
+      <div class="acts" id="tu-sys">
+        <button type="button" data-t="just" aria-pressed="false" title="Pure intervals from the root (5-limit just intonation): thirds and fifths beat-free, far keys sour">Just</button>
+        <button type="button" data-t="pyth" aria-pressed="false" title="Pure fifths from the root: bright, wide major thirds">Pythagorean</button>
+        <button type="button" data-t="mean" aria-pressed="false" title="Quarter-comma meantone from the root: pure major thirds, one howling wolf fifth">Meantone</button>
+        <button type="button" data-t="drift" title="Every note a few cents out at random, like an old unit whose DAC has drifted">Drift</button>
+      </div>
+      <div class="acts tu-end"><button type="button" id="tu-reset" title="Every note back to 0 cents: equal temperament, the stock 303">Reset</button><button type="button" id="tu-undo" disabled>Undo</button></div>
+    </div>
+    <div class="tu-faders" id="tu-faders" role="group" aria-label="Fine tune of each note, in cents, the same in every octave"></div>
+    <div class="sq-row tu-foot">
+      <span class="rlab">root</span>
+      <div class="seg slots" id="tu-root" role="group" aria-label="Root of the temperament"><button type="button" data-r="0" aria-pressed="false">c</button><button type="button" data-r="1" aria-pressed="false">c♯</button><button type="button" data-r="2" aria-pressed="false">d</button><button type="button" data-r="3" aria-pressed="false">d♯</button><button type="button" data-r="4" aria-pressed="false">e</button><button type="button" data-r="5" aria-pressed="false">f</button><button type="button" data-r="6" aria-pressed="false">f♯</button><button type="button" data-r="7" aria-pressed="false">g</button><button type="button" data-r="8" aria-pressed="false">g♯</button><button type="button" data-r="9" aria-pressed="false">a</button><button type="button" data-r="10" aria-pressed="false">a♯</button><button type="button" data-r="11" aria-pressed="false">b</button></div>
+      <span class="hint tu-note">±100 cents a note, every octave · shift for fine · double-click for 0</span>
+    </div>
+  </div>
 
   <div class="pane fxpane" data-title="Effects" id="pane-fx" role="tabpanel" aria-label="Effects" hidden>
     <section class="fxb" id="fx-rat" aria-label="ProCo RAT">
@@ -1399,6 +1437,8 @@ class TB303Voice {
     this.cmp = new Compactor(sampleRate);
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
+    // microtuning: an offset per note of the scale (C..B, every octave), in volts on the 1 V/oct CV, so 1 cent = 1/1200 V
+    this.tuneCv = new Float64Array(12);
 
     // state
     this.cvTarget = dacVoltage(33, this.c.VREF, this.c.R_DAC, this.c.R2_DAC);
@@ -1425,6 +1465,8 @@ class TB303Voice {
   setComponent(name, value) { if (name in this.c) { this.c[name] = value; this._derive(); } }
   setFx(name, on) { if (name in this.fx) this.fx[name] = !!on; }
   setKnob(name, value) { if (name in this.knobs) { this.knobs[name] = value; this._derive(); } }
+  // cents: 12 offsets, C first; the next note picks it up (a held note keeps its pitch)
+  setTune(cents) { for (let i = 0; i < 12; i++) { const c = +(cents && cents[i]) || 0; this.tuneCv[i] = c / 1200; } }
 
   _derive() {
     const c = this.c, k = this.knobs;
@@ -1565,7 +1607,7 @@ class TB303Voice {
   // note: 0..63 DAC code (33 = A, 110 Hz)
   noteOn(code, accent, slide) {
     code = Math.max(0, Math.min(63, code | 0));
-    this.cvTarget = dacVoltage(code, this.c.VREF, this.c.R_DAC, this.c.R2_DAC);
+    this.cvTarget = dacVoltage(code, this.c.VREF, this.c.R_DAC, this.c.R2_DAC) + this.tuneCv[code % 12];
     const legato = this.gate && slide;
     this.slide = !!slide;
     if (!legato) {
@@ -1841,7 +1883,7 @@ class DeClick {
 
 // The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
 // The AudioWorklet and the main-thread fallback both run this, so they sound the same.
-// Messages: knob, component, wave, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
+// Messages: knob, component, wave, tune, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
 class TB303Engine {
   constructor(fs, onStep = () => {}) {
     this.fs = fs; this.onStep = onStep;
@@ -1854,6 +1896,7 @@ class TB303Engine {
     if (m.type === 'knob') this.slew.set('k', m.name, m.value);
     else if (m.type === 'component') this.slew.set('c', m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value;
+    else if (m.type === 'tune') v.setTune(m.value);
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
     else if (m.type === 'pattern') this.pattern = m.value;
@@ -1991,6 +2034,7 @@ const state = {
   wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
+  tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
 };
 const SOUND_BUILTIN = {
   'Stock 303': { knobs: {}, parts: {} },
@@ -2029,17 +2073,19 @@ function cleanSettings(x) {
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
   if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
+  if (Array.isArray(x.tune) && x.tune.length === 12) out.tune = x.tune.map(c => typeof c === 'number' && isFinite(c) ? Math.round(Math.min(100, Math.max(-100, c)) * 10) / 10 : 0);
   return out;
 }
 function snapshot() {
   const parts = {};
   for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && partChanged(k)) parts[k] = state.parts[k];
-  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
+  return { knobs: { ...state.knobs }, parts, ...(state.tune.some(c => c) && { tune: [...state.tune] }), wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
   if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly };
+  if (sess.tune) state.tune = sess.tune;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
 }
@@ -3591,7 +3637,7 @@ async function initAudio() {
   document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
+  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   sendDeclick();
   drawScope();
@@ -3777,6 +3823,80 @@ for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = (
   renderFx(); saveSession();
 };
 
+// ---------- tuning: a fine offset for each of the 12 notes, in cents, the same in every octave ----------
+// The offsets add to the pitch CV (1 V/oct, so 1 cent = 1/1200 V) as each note starts; all 0 is the stock 303.
+// They belong to the sound, so presets and the session keep them. The temperaments are laid out from a root note.
+const TUNE_MAX = 100;
+const tuneEl = document.getElementById('tu-faders'), tuneSeg = 20; // segments each side of the zero line, 5 cents each
+const cents = (r) => 1200 * Math.log2(r);
+// each system: cents above the root for the 12 notes of the scale
+const TUNINGS = {
+  just: { name: 'Just intonation', at: [1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8].map(cents) },
+  pyth: { name: 'Pythagorean', at: [1, 256/243, 9/8, 32/27, 81/64, 4/3, 729/512, 3/2, 128/81, 27/16, 16/9, 243/128].map(cents) },
+  // quarter-comma meantone: pure major thirds from fifths of 696.58 cents, from the flat third to the sharp fifth
+  mean: { name: 'Quarter-comma meantone', at: Array.from({ length: 12 }, (_, i) => { const k = [0, 7, 2, -3, 4, -1, 6, 1, 8, 3, -2, 5][i]; return ((k * 1200 * Math.log2(5) / 4) % 1200 + 1200) % 1200; }) },
+};
+const tuneRound = (c) => Math.round(Math.min(TUNE_MAX, Math.max(-TUNE_MAX, c)) * 10) / 10;
+let tuneRoot = Math.min(11, Math.max(0, store.get('tuneRoot', 9) | 0)), tuneSys = '';
+const tuneUndo = [];
+let tuneUndoAt = 0;
+function pushTuneUndo(force) {
+  const now = Date.now(); if (!force && now - tuneUndoAt < 1200) { tuneUndoAt = now; return; } // a run of wheel or key steps is one undo
+  tuneUndoAt = now; tuneUndo.push([...state.tune]); if (tuneUndo.length > 50) tuneUndo.shift();
+  document.getElementById('tu-undo').disabled = false;
+}
+function sendTune() { send({ type: 'tune', value: [...state.tune] }); }
+function setTune(arr, sys = '') {
+  state.tune = arr.map(tuneRound); tuneSys = sys; sendTune(); drawTune(); saveSession();
+}
+function tuneText(c) { return c === 0 ? '0 c' : (c > 0 ? '+' : '−') + Math.abs(c).toFixed(Number.isInteger(c) ? 0 : 1) + ' c'; }
+tuneEl.innerHTML = NOTE.map((n, i) => `<div class="tu-col">
+    <span class="val" data-k="${i}" title="Click to put ${n.toLowerCase()} back to 0">0 c</span>
+    <div class="tu-bar" data-k="${i}" tabindex="0" role="slider" aria-label="${n} fine tune, cents" aria-valuemin="${-TUNE_MAX}" aria-valuemax="${TUNE_MAX}">${
+      Array.from({ length: 2 * tuneSeg + 1 }, (_, j) => `<i data-s="${tuneSeg - j}"></i>`).join('')}</div>
+    <span class="mname">${n.toLowerCase()}</span></div>`).join('');
+const tuneCols = [...tuneEl.querySelectorAll('.tu-col')].map((col) => ({ val: col.querySelector('.val'), bar: col.querySelector('.tu-bar'), segs: [...col.querySelectorAll('i')] }));
+function drawTune() {
+  state.tune.forEach((c, i) => {
+    const t = tuneCols[i], step = TUNE_MAX / tuneSeg;
+    t.val.textContent = tuneText(c); t.val.classList.toggle('changed', c !== 0);
+    t.bar.setAttribute('aria-valuenow', c); t.bar.setAttribute('aria-valuetext', tuneText(c).replace('c', 'cents'));
+    for (const s of t.segs) { const j = +s.dataset.s; s.classList.toggle('on', j === 0 || (j > 0 ? c > (j - 1) * step : c < (j + 1) * step)); }
+  });
+  for (const b of document.querySelectorAll('#tu-root button')) b.setAttribute('aria-pressed', +b.dataset.r === tuneRoot);
+  for (const b of document.querySelectorAll('#tu-sys button')) b.setAttribute('aria-pressed', b.dataset.t === tuneSys);
+}
+bindDial(tuneEl, {
+  pick: (e) => e.target.closest('.tu-bar'), get: (k) => state.tune[k], drag: 1.2, fine: 12, step: 1, page: 10, min: -TUNE_MAX, max: TUNE_MAX, focus: true,
+  start: () => pushTuneUndo(true),
+  set: (k, c, e) => { const t = [...state.tune]; t[k] = e?.shiftKey ? c : Math.round(c); setTune(t); },
+  nudge: (k, d, e) => { pushTuneUndo(); const t = [...state.tune]; t[k] = (e.shiftKey ? d / 10 : d) + t[k]; setTune(t); },
+  reset: (k) => { const t = [...state.tune]; t[k] = 0; setTune(t); },
+});
+tuneEl.addEventListener('click', (e) => { const v = e.target.closest('.val'); if (!v) return; pushTuneUndo(true); const t = [...state.tune]; t[+v.dataset.k] = 0; setTune(t); });
+// a temperament, laid out from the root note; Drift is a slightly out-of-tune old unit (each note a few cents off)
+function applyTuning(sys) {
+  if (sys === 'drift') { setTune(state.tune.map(() => (Math.random() + Math.random() + Math.random() - 1.5) * 8), ''); return; }
+  const at = TUNINGS[sys].at;
+  setTune(Array.from({ length: 12 }, (_, i) => { const d = (i - tuneRoot + 12) % 12; return at[d] - 100 * d; }), sys);
+}
+document.getElementById('tu-sys').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-t]'); if (!b) return;
+  pushTuneUndo(true); applyTuning(b.dataset.t);
+  sqSay(b.dataset.t === 'drift' ? 'Every note a few cents out, like an old unit.' : `${TUNINGS[b.dataset.t].name} from ${NOTE[tuneRoot].toLowerCase()}.`);
+});
+document.getElementById('tu-root').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-r]'); if (!b) return;
+  tuneRoot = +b.dataset.r; store.set('tuneRoot', tuneRoot);
+  if (tuneSys) { pushTuneUndo(true); applyTuning(tuneSys); } else drawTune(); // a temperament still as laid out follows the new root
+});
+document.getElementById('tu-reset').onclick = () => { if (state.tune.some(c => c)) pushTuneUndo(true); setTune(new Array(12).fill(0)); sqSay('Back to equal temperament.'); };
+document.getElementById('tu-undo').onclick = () => {
+  const u = tuneUndo.pop(); if (u) setTune(u);
+  document.getElementById('tu-undo').disabled = !tuneUndo.length;
+};
+drawTune();
+
 // ---------- preset auto-namer ----------
 // Five styles, often mixed: alien word-part mashups, messed-up desserts, cosmology, ancient Greek-ish,
 // and a last pass where each s turns into z 60% of the time.
@@ -3846,13 +3966,14 @@ const NAMER = (() => {
 })();
 
 // ---------- presets ----------
-function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave, fx: x.fx }; }
+function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, ...(x.tune && { tune: x.tune }), wave: x.wave, fx: x.fx }; }
 function patternSnap() { return { bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; }
 function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
   state.wave = c.wave || 'saw';
+  state.tune = c.tune || new Array(12).fill(0); sendTune();
   state.fx = c.fx || { rat: false, lex: false, dly: false };
   for (const n in state.fx) { preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] }); }
   renderFx();
@@ -3860,7 +3981,7 @@ function applySound(x) {
   for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
   drawWave();
-  renderParts(); renderFrontMods(); drawTrim(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
+  renderParts(); renderFrontMods(); drawTrim(); drawTune(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
 function applyPattern(x) {
   const c = cleanSettings(x);
@@ -4223,7 +4344,7 @@ fileEl.addEventListener('change', async () => {
     if (j.version === 3) unmigrateTree(j);
     let ns = 0, np = 0;
     const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
-    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave, fx: c.fx }));
+    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx }));
     add(j.patternPresets, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
     if (j.projectPresets && typeof j.projectPresets === 'object') { for (const [n, x] of Object.entries(j.projectPresets)) { const nm = n.trim().slice(0, 40); if (nm && x && typeof x === 'object') prjBar.user[nm] = x; } prjBar.save(); prjBar.render(''); }
     if (j.presets) { // version 1 files: combined presets

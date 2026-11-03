@@ -128,7 +128,7 @@ fileEl.addEventListener('change', async () => {
     if (j.version === 3) unmigrateTree(j);
     let ns = 0, np = 0;
     const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
-    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave, fx: c.fx }));
+    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx }));
     add(j.patternPresets, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
     if (j.projectPresets && typeof j.projectPresets === 'object') { for (const [n, x] of Object.entries(j.projectPresets)) { const nm = n.trim().slice(0, 40); if (nm && x && typeof x === 'object') prjBar.user[nm] = x; } prjBar.save(); prjBar.render(''); }
     if (j.presets) { // version 1 files: combined presets

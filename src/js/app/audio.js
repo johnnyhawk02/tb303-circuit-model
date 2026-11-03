@@ -19,7 +19,7 @@ async function initAudio() {
   document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
+  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   sendDeclick();
   drawScope();

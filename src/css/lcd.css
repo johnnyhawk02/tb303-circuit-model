@@ -269,3 +269,21 @@ dialog#options .opt-head h2 { text-transform: lowercase; }
 /* touch: no pinch-zoom or page scroll (the screen already fills the window); scroll areas inside still scroll */
 html.fit { touch-action: pan-x pan-y; overscroll-behavior: none; }
 html.fit .pm-pop { max-height: 460px; }
+/* tuning: 12 upright segmented faders, one per note; lit from the zero line up or down to the offset, a ghost of the rest.
+   Readout above and name below, like the dials; a row of temperaments above and the root below, like the sequencer's rows */
+.tupane { --pane-d: flex; display: flex; flex-direction: column; gap: 8px; }
+.tupane[hidden] { display: none; }
+html.fit .tu-top .acts.tu-end { margin-left: auto; }
+#tu-sys button[aria-pressed=true] { background: var(--ink); color: var(--glass); text-shadow: none; }
+.tu-faders { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: center; padding: 4px 0; }
+.tu-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tu-col .val, .tu-col .mname { font-size: var(--fs-s); line-height: 1.2; color: var(--ink); text-transform: lowercase; font-variant-numeric: tabular-nums; }
+.tu-col .val { cursor: pointer; min-width: 5ch; text-align: center; }
+.tu-bar { display: flex; flex-direction: column; gap: 2px; width: 34px; padding: 2px; cursor: ns-resize; touch-action: none; outline-offset: 3px; }
+.tu-bar i { display: block; height: 4px; background: var(--ghost); }
+.tu-bar i.on { background: var(--ink); filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.tu-bar i[data-s="0"] { height: 2px; margin: 1px -4px; background: var(--ink); }
+.tu-bar:focus-visible { outline: 2px dashed var(--ink); }
+.tu-foot .tu-note { margin-left: auto; font-size: var(--fs-s); white-space: nowrap; }
+#tu-root { flex: none; }
+html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; text-transform: lowercase; }
