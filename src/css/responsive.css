@@ -9,7 +9,7 @@
   .sq-ed { margin-left: 0; }
   .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .fxpane { grid-template-columns: minmax(0, 1fr); }
-  .fxb { padding: 12px 0 0; border-left: 0; border-top: 1px solid #2c2c2c; }
+  .fxb { padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--rulec); }
   .fxb:first-child { padding-top: 0; border-top: 0; }
   .opt-head { flex-wrap: wrap; padding-left: 16px; }
   .opt-head h2 { padding-bottom: 0; flex: 1; }
@@ -34,8 +34,8 @@
 @media (orientation: portrait) and (pointer: coarse) and (max-width: 900px) {
   .rotate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; align-content: center; gap: 16px; padding: 24px; text-align: center; background: var(--page); color: var(--fg); }
   .rotate svg { width: 72px; height: 72px; stroke: var(--on); fill: none; stroke-width: 2; animation: tilt 2.4s ease-in-out infinite; }
-  .rotate p { margin: 0; font: 600 15px var(--font-body); }
-  .rotate small { color: var(--mute); font-size: 12px; }
+  .rotate p { margin: 0; font: 21px var(--font-body); }
+  .rotate small { color: var(--mute); font-size: 17px; }
   .main, dialog#options { display: none !important; }
   body { overflow: hidden; }
 }
@@ -72,8 +72,8 @@
   .pm .pm-chip { flex: none; padding: 4px 9px; }
 
   .kn { gap: 1px; }
-  .kn .name, .md .mname, .pk .ref { font-size: 10px; }
-  .kn .val, .md .val, .pk .val { font-size: 9.5px; }
+  .kn .name, .md .mname, .pk .ref { font-size: 14px; }
+  .kn .val, .md .val, .pk .val { font-size: 13.5px; }
   .panel .kn .val { display: none; }
   .wave-kn .switch { margin: 6px 0 4px; }
   .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 2px 4px; }
@@ -90,25 +90,25 @@
   .sq-side { grid-template-columns: 1fr; gap: 4px; }
   .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
   .stp button { height: 20px; }
-  .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 30px repeat(var(--steps, 16), minmax(14px, 1fr)); font-size: 8.5px; }
-  .sq-side .dup { padding: 2px 0; font-size: 9.5px; }
+  .stp .label { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 30px repeat(var(--steps, 16), minmax(14px, 1fr)); font-size: 12px; }
+  .sq-side .dup { padding: 2px 0; font-size: 13.5px; }
 
   .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
-  .md .mdesc { font-size: 9.5px; }
+  .md .mdesc { font-size: 13.5px; }
   .board-info { margin: 0 -8px -8px; padding: 6px 8px; bottom: -8px; }
   .fxpane { --knob: 30px; --kn-w: 62px; gap: 8px 0; }
   .fxpane .fxb:not(.blk-lex) { --kn-w: 48px; }
-  .fxpane .fxb:not(.blk-lex) .kn .name { font-size: 9px; letter-spacing: -.01em; }
+  .fxpane .fxb:not(.blk-lex) .kn .name { font-size: 12.5px; letter-spacing: -.01em; }
   .fxpane .kn .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .cmp-mode button { padding: 1px 5px; font-size: 9px; }
+  .cmp-mode button { padding: 1px 5px; font-size: 12.5px; }
   .fxb { gap: 4px; padding: 0 8px; }
   .blk-lex { padding: 6px 0 0; gap: 6px; }
   .fxh { min-height: 22px; }
   .fxsub { display: none; }
   .fxknobs { gap: 4px 4px; }
-  .lex-progs button { padding: 2px; font-size: 9.5px; }
-  .lex-progs button b { font-size: 11px; }
+  .lex-progs button { padding: 2px; font-size: 13.5px; }
+  .lex-progs button b { font-size: 15.5px; }
   .lex-note { display: none; }
   dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: none; margin: auto; }
 }
