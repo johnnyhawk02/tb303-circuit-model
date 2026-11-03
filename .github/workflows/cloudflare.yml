@@ -2,6 +2,8 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [main]
+    # the plugin is built by plugin.yml; changes to it alone don't redeploy the web app
+    paths-ignore: ['plugin/**', '.github/workflows/plugin.yml']
   workflow_dispatch:
 permissions:
   contents: read
