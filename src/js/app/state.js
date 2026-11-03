@@ -25,6 +25,7 @@ const KNOBS = [
   { id: 'dlylo',     name: 'Low cut',   ref: '20 Hz–1k',   def: 0.3,  fx: 'dly' },
   { id: 'dlyhi',     name: 'High cut',  ref: '1k–20 kHz',  def: 0.55, fx: 'dly' },
   { id: 'dlymix',    name: 'Return',    ref: 'wet level',  def: 0.35, fx: 'dly' },
+  { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
   { id: 'cmpthr',    name: 'Threshold', ref: '-40–0 dB',   def: 0.5,  fx: 'cmp' },
   { id: 'cmprng',    name: 'Range',     ref: '0–200%',     def: 0.5,  fx: 'cmp' },
   { id: 'cmpatk',    name: 'Attack',    ref: 'lookahead',  def: 0.3,  fx: 'cmp' },

@@ -63,7 +63,12 @@ function renderFx() {
 }
 // Compactor detector: Peak, ISP or RMS (stored as the cmpmode knob: 0, 0.5, 1)
 const cmpModeEl = document.getElementById('cmp-mode');
-function drawCmpMode() { const m = Math.round(state.knobs.cmpmode * 2); for (const b of cmpModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === m); }
+const dlyModeEl = document.getElementById('dly-mode');
+function drawCmpMode() {
+  const m = Math.round(state.knobs.cmpmode * 2); for (const b of cmpModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === m);
+  const pp = state.knobs.dlypp >= 0.5 ? 1 : 0; for (const b of dlyModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === pp);
+}
+dlyModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('dlypp', +b.dataset.m); drawCmpMode(); } });
 cmpModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('cmpmode', b.dataset.m / 2); drawCmpMode(); } });
 for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });

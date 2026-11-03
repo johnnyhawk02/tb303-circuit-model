@@ -96,7 +96,7 @@ for (const k of KNOBS) {
   el.addEventListener('dialend', () => wrap.classList.remove('active'));
 }
 function drawKnob(id) {
-  if (id === 'cmpmode') { drawCmpMode(); return; }
+  if (id === 'cmpmode' || id === 'dlypp') { drawCmpMode(); return; }
   const p = state.knobs[id], k = knobEls[id]; if (!k) return;
   k.arc.setAttribute('d', arcPath(p));
   k.ptr.setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);

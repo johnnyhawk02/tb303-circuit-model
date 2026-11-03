@@ -454,14 +454,17 @@ const RAT_OS = 2; // the RAT runs at 2x the voice rate (4x the host rate)
 
 // Simple digital delay (outside the circuit): tempo-synced time, feedback, and a low cut and high cut
 // inside the feedback loop, so every repeat gets thinner and darker. Clean digital repeats, no saturation.
+// Ping-pong (default): the synth goes into the left line only and each line feeds the other, so repeats
+// alternate left, right, left. Mono: one line, the same repeats on both sides.
 const DLY_DIVS = [['1/32', 1 / 8], ['1/16T', 1 / 6], ['1/16', 1 / 4], ['1/8T', 1 / 3], ['1/16D', 3 / 8], ['1/8', 1 / 2], ['1/4T', 2 / 3], ['1/8D', 3 / 4], ['1/4', 1], ['1/4D', 3 / 2], ['1/2', 2]];
 const dlyDiv = (p) => DLY_DIVS[Math.min(DLY_DIVS.length - 1, Math.round(p * (DLY_DIVS.length - 1)))];
 const dlyLo = (p) => 20 * Math.pow(50, p);        // 20 Hz .. 1 kHz
 const dlyHi = (p) => 1000 * Math.pow(20, p);      // 1 kHz .. 20 kHz
 class DigitalDelay {
   constructor(fs) {
-    this.fs = fs; this.buf = new Float32Array(Math.ceil(fs * 2.6)); this.w = 0;
-    this.d = fs * 0.25; this.dT = this.d; this.lp = 0; this.hp = 0; this.hpIn = 0; this.y = 0;
+    this.fs = fs; this.buf = new Float32Array(Math.ceil(fs * 2.6)); this.bufR = new Float32Array(this.buf.length); this.w = 0;
+    this.d = fs * 0.25; this.dT = this.d; this.lp = 0; this.hp = 0; this.hpIn = 0; this.lpR = 0; this.hpR = 0; this.hpInR = 0;
+    this.l = 0; this.r = 0; this.pp = true;
   }
   derive(k, bpm) {
     const fs = this.fs;
@@ -471,18 +474,29 @@ class DigitalDelay {
     this.hpA = Math.exp(-2 * Math.PI * dlyLo(k.dlylo) / fs);
     this.mix = k.dlymix * k.dlymix * 1.2; // return level, roughly even in loudness
     this.slewA = 1 - Math.exp(-1 / (0.06 * fs)); // time changes glide over ~60 ms instead of clicking
+    const pp = k.dlypp >= 0.5; if (pp !== this.pp) { this.pp = pp; this.bufR.fill(0); }
   }
   run(x) {
-    const b = this.buf, N = b.length;
+    const b = this.buf, B = this.bufR, N = b.length;
     this.d += (this.dT - this.d) * this.slewA;
     let r = this.w - this.d; if (r < 0) r += N;
-    const i = Math.floor(r), f = r - i, a = b[i], c = b[i + 1 === N ? 0 : i + 1];
-    let y = a + (c - a) * f;
+    const i = Math.floor(r), f = r - i, j = i + 1 === N ? 0 : i + 1;
+    let y = b[i] + (b[j] - b[i]) * f;
     // tone: one-pole low cut and high cut on what comes back
     this.hp = this.hpA * (this.hp + y - this.hpIn); this.hpIn = y; y = this.hp;
     this.lp = y + this.lpA * (this.lp - y); y = this.lp;
-    b[this.w] = x + this.fb * y; this.w = this.w + 1 === N ? 0 : this.w + 1;
-    return y * this.mix;
+    if (this.pp) {
+      let z = B[i] + (B[j] - B[i]) * f;
+      this.hpR = this.hpA * (this.hpR + z - this.hpInR); this.hpInR = z; z = this.hpR;
+      this.lpR = z + this.lpA * (this.lpR - z); z = this.lpR;
+      b[this.w] = x + this.fb * z; B[this.w] = y; // left takes the input and the right's repeats; right takes the left's
+      this.l = y * this.mix; this.r = z * this.mix;
+    } else {
+      b[this.w] = x + this.fb * y;
+      this.l = this.r = y * this.mix;
+    }
+    this.w = this.w + 1 === N ? 0 : this.w + 1;
+    return this.l;
   }
 }
 
@@ -562,7 +576,7 @@ class TB303Voice {
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
       cmpthr: 0.5, cmprng: 0.5, cmpatk: 0.3, cmphold: 0, cmprel: 0.4, cmpmix: 0.7, cmpmode: 0,
-      dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
+      dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
     this.fx = { rat: false, lex: false, dly: false };
     this.bpm = 128;
     this.lex = new Lexicon224(sampleRate);
@@ -902,7 +916,7 @@ class TB303Voice {
     const lex = this.fx.lex ? this.lex : null, dly = this.fx.dly ? this.dly : null;
     let wl = 0, wr = 0;
     if (lex) { lex.run(y); wl += lex.wet * lex.L; wr += lex.wet * lex.R; }
-    if (dly) { const d = dly.run(y); wl += d; wr += d; }
+    if (dly) { dly.run(y); wl += dly.l; wr += dly.r; }
     const g = this.cmp.run(y, wl, wr);
     out[n] = 0.98 * Math.tanh((y + this.cmp.l * g) / 0.98);
     if (outR) outR[n] = 0.98 * Math.tanh((y + this.cmp.r * g) / 0.98);
