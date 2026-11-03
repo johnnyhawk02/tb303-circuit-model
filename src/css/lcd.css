@@ -38,7 +38,46 @@ select option { background: var(--glass); color: var(--ink); }
 .switch .thumb { background: var(--ink); border-radius: 2px; top: 1px; }
 .switch[aria-checked=true] { background: var(--ink); }
 .switch[aria-checked=true] .thumb { background: var(--glass); }
-.label, .tname, 
+.label, .tname { text-transform: lowercase; letter-spacing: 0; }
+
+/* dials (Johnny's reference, in the orange palette): separate wedge segments lit up to the value, ghost where unlit, the
+   readout above and the label below; no pointer line and no centre number */
+.knob svg { overflow: visible; }
+.knob svg .trk { fill: var(--ghost); stroke: none; }
+.knob svg .arc { fill: var(--ink); stroke: none; filter: drop-shadow(1.5px 1.5px 0 rgb(28 10 0 / .17)); }
+.kn .val, .md .val { order: -2; }
+.kn .name, .md .mname, .pk .ref { order: 1; }
+.pk .val { order: -2; }
+.wave-kn .name, .parts-kn .name { order: -3; } /* the waveform and components cells keep their titles on top */
+.wave-kn .val { order: 1; }
+.knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
+::selection { background: var(--ink); color: var(--glass); }
+
+/* top bar: part of the glass, parted from the rest by a rule */
+.top { position: relative; margin: 0 -16px; background: transparent; border-bottom: 1px solid var(--line); }
+.sq-msg, .fn-menu, .pm-pop { background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; box-shadow: 0 10px 30px rgb(0 0 0 / .45); text-shadow: none; }
+
+/* buttons, fields: outlined in ink, inverted when on */
+button, select, input[type=text] { background: transparent; color: var(--ink); border: 2px solid var(--ink); border-radius: 3px; text-shadow: var(--shadow); text-transform: lowercase; }
+input[type=text] { text-transform: none; background: var(--tint); }
+button:hover:not(:disabled) { background: var(--tint); }
+button:active:not(:disabled) { background: var(--ink); color: var(--glass); text-shadow: none; }
+select option { background: var(--glass); color: var(--ink); }
+.icon svg, .gear svg { fill: var(--ink); }
+.gear { border-color: transparent; }
+.play[aria-pressed=true], .onoff[aria-pressed=true], .seg button[aria-pressed=true], .seg button[aria-checked=true],
+.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true],
+.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-chip[aria-pressed=true], .pm .pm-favf[aria-pressed=true] {
+  background: var(--ink); color: var(--glass); text-shadow: none; }
+.play[aria-pressed=true] svg { fill: var(--glass); }
+.seg { border: 2px solid var(--ink); border-radius: 3px; }
+.seg button { border: 0; border-right: 1px solid var(--rulec); border-radius: 0; text-shadow: var(--shadow); }
+.seg button:last-child { border-right: 0; }
+.switch { background: transparent; border: 2px solid var(--ink); }
+.switch .thumb { background: var(--ink); border-radius: 2px; top: 1px; }
+.switch[aria-checked=true] { background: var(--ink); }
+.switch[aria-checked=true] .thumb { background: var(--glass); }
+
 /* dials: a solid ring, ghost where unlit and ink up to the pointer, and a pointer from the centre to the ring */
 .knob svg { overflow: visible; }
 .knob svg .trk, .knob svg .arc { stroke-width: 7; stroke-linecap: butt; }
@@ -48,6 +87,7 @@ select option { background: var(--glass); color: var(--ink); }
 .knob:focus-visible { outline-offset: 4px; border-radius: 4px; }
 .pk.fixed .knob { opacity: .35; }
 .kn .name, .md .mname, .fxname { text-transform: lowercase; }
+.kn .val, .md .val { min-height: 1.1em; }
 
 /* devices: no grey boxes, just a lowercase heading over an ink rule */
 .dev, .main > .pane { background: transparent; border: 0; border-radius: 0; }

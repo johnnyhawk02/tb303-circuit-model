@@ -79,8 +79,7 @@ const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById
 bpmKnob.innerHTML = knobSVG();
 function drawBpm() {
   const p = (state.bpm - 60) / 140;
-  bpmKnob.querySelector('.arc').setAttribute('d', arcPath(p));
-  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${knobAngle(p)} 32 32)`);
+  knobDraw(bpmKnob, p);
   bpmKnob.setAttribute('aria-valuenow', state.bpm); bpmVal.textContent = state.bpm;
 }
 function setBpm(v) {

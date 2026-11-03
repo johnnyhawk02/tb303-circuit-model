@@ -1,25 +1,28 @@
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
-// solid ring (Johnny): a faint ghost track, lit solid up to the pointer, which runs smoothly over the 300° sweep.
-// The pointer is a plain 4-wide line from the exact centre to the ring's outer edge; the lit arc is a filled band whose
-// end is cut along the pointer's leading edge, so line and arc meet flush as one shape
+// Dial look (Johnny, from his reference): a ring of separate wedge segments that light up to the value, ghost where unlit,
+// the readout above and the label below. No pointer line and no centre number.
+const KNOB_SEGS = 24, KNOB_RI = 17.5, KNOB_RO = 28.5, KNOB_GAP = 2.6; // segments round the 300° sweep; viewBox is 64 units
 const knobAngle = (p) => KNOB_A0 + KNOB_SWEEP * Math.min(1, Math.max(0, p));
+const segPath = (i) => {
+  const w = KNOB_SWEEP / KNOB_SEGS, a0 = KNOB_A0 + i * w + KNOB_GAP / 2, a1 = KNOB_A0 + (i + 1) * w - KNOB_GAP / 2;
+  const pt = (deg, r) => { const t = (deg - 90) * Math.PI / 180; return `${(32 + r * Math.cos(t)).toFixed(2)} ${(32 + r * Math.sin(t)).toFixed(2)}`; };
+  return `M${pt(a0, KNOB_RO)}A${KNOB_RO} ${KNOB_RO} 0 0 1 ${pt(a1, KNOB_RO)}L${pt(a1, KNOB_RI)}A${KNOB_RI} ${KNOB_RI} 0 0 0 ${pt(a0, KNOB_RI)}Z`;
+};
+const SEG_ALL = Array.from({ length: KNOB_SEGS }, (_, i) => segPath(i));
+const SEG_LIT = SEG_ALL.map((_, i) => SEG_ALL.slice(0, i + 1).join(''));
+// segments lit for a value: none at 0, all at 1
+const arcPath = (p) => { const n = Math.round(Math.min(1, Math.max(0, p)) * KNOB_SEGS); return n ? SEG_LIT[n - 1] : ''; };
 function knobSVG() {
-  // LCD dial: a ghost ring, a lit band up to the value, and an ink line from the centre out to the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none"/>
-    <path class="arc" d="" fill="none"/>
-    <line class="ptr" x1="32" y1="32" x2="32" y2="3.5"/>
+    <path class="trk" d="${SEG_ALL.join('')}"/>
+    <path class="arc" d=""/>
   </svg>`;
 }
-const KNOB_RI = 21.5, KNOB_RO = 28.5, KNOB_HW = 2; // ring band and half the pointer width, in the 64-unit viewBox
-function arcPath(p) {
-  const a0 = KNOB_A0, a = knobAngle(p), cx = 32, cy = 32;
-  const pt = (deg, r) => { const t = (deg - 90) * Math.PI / 180; return `${(cx + r * Math.cos(t)).toFixed(2)} ${(cy + r * Math.sin(t)).toFixed(2)}`; };
-  const end = (r) => a + Math.asin(KNOB_HW / r) * 180 / Math.PI; // where the pointer's leading edge crosses radius r
-  const eo = end(KNOB_RO), ei = end(KNOB_RI);
-  return `M${pt(a0, KNOB_RO)} A${KNOB_RO} ${KNOB_RO} 0 ${eo - a0 > 180 ? 1 : 0} 1 ${pt(eo, KNOB_RO)} L${pt(ei, KNOB_RI)} A${KNOB_RI} ${KNOB_RI} 0 ${ei - a0 > 180 ? 1 : 0} 0 ${pt(a0, KNOB_RI)} Z`;
+// redraw one dial's ring for a 0-1 position
+function knobDraw(el, p) {
+  el.querySelector('.arc').setAttribute('d', arcPath(p));
 }
 function knobText(id, p) {
   const c = state.parts;
@@ -28,7 +31,7 @@ function knobText(id, p) {
     case 'cutoff': return (preview.wCut * c.V_CUT * p * 1000).toFixed(1) + ' mV';
     case 'resonance': return 'k = ' + (c.A_Q21 * p).toFixed(1);
     case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
-    case 'dist': return 'gain ×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
+    case 'dist': return '×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
     case 'filter': return fmt(Math.round(1 / (2 * Math.PI * (c.RAT_RF + 100e3 * p) * c.RAT_CFLT)), 'Hz');
     case 'dlytime': return dlyDiv(p)[0];
     case 'dlyfb': return Math.round(95 * p) + '%';
@@ -97,15 +100,14 @@ for (const k of KNOBS) {
     <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
   (k.fx ? document.getElementById('fx-' + k.fx + '-knobs') : panel).appendChild(wrap);
   const el = wrap.querySelector('.knob');
-  knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
+  knobEls[k.id] = { el, val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
   bindDial(el, { get: () => state.knobs[k.id], set: (_, v) => setKnob(k.id, v), min: 0, max: 1, reset: () => setKnob(k.id, k.def), start: () => wrap.classList.add('active') });
   el.addEventListener('dialend', () => wrap.classList.remove('active'));
 }
 function drawKnob(id) {
   if (id === 'cmpmode' || id === 'dlypp') { drawCmpMode(); return; }
   const p = state.knobs[id], k = knobEls[id]; if (!k) return;
-  k.arc.setAttribute('d', arcPath(p));
-  k.ptr.setAttribute('transform', `rotate(${knobAngle(p)} 32 32)`);
+  knobDraw(k.el, p);
   k.el.setAttribute('aria-valuenow', Math.round(p * 100));
   k.val.textContent = knobText(id, p);
   if (id.startsWith('lex')) drawLex();

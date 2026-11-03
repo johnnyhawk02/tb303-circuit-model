@@ -30,8 +30,7 @@ function partRow(k) {
 function drawPartKnob(k) {
   const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL;
   for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
-    el.querySelector('.arc').setAttribute('d', arcPath(t));
-    el.querySelector('.ptr').setAttribute('transform', `rotate(${knobAngle(t)} 32 32)`);
+    knobDraw(el, t);
     el.setAttribute('aria-valuenow', Math.round(t * 100));
   }
 }
