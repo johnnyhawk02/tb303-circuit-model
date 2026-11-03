@@ -1,6 +1,8 @@
 // the waveform switch sits at the left of the voice panel; component randomise and its undo at the right
 panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="name">Waveform</span>
+  <div class="wave-row"><svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 L9 1 V11 L17 1 V11"/></svg>
   <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
+  <svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 V1 H10 V11 H19 V1"/></svg></div>
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
 panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="name">Components</span>
