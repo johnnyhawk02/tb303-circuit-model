@@ -91,7 +91,7 @@
   .acts { gap: 3px; margin-left: 4px; }
   .acts button { padding: 0 6px; font-size: 14px; height: 20px; min-height: 0; }
   .sq-bank .slots button { min-width: 24px; height: 20px; font-size: 14px; }
-  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 30px repeat(var(--steps, 16), minmax(0, 1fr)); font-size: 12px; }
+  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 148px) / 26), 14px); grid-template-columns: 30px repeat(var(--steps, 16), minmax(0, 1fr)); font-size: 12px; }
 
   .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
   .md .mdesc { font-size: 13.5px; }

@@ -1,6 +1,6 @@
 /* LCD glass (v45, the look of Johnny's SH-101 project): the whole instrument is one pane of glass in a bezel.
    Colours and type come from the tokens in base.css; this file draws the glass and turns every control into ink on glass. */
-.main { position: relative; color: var(--ink); text-shadow: var(--shadow); border: 6px solid var(--bezel); border-radius: 12px; padding: 0 16px 16px;
+.main { position: relative; color: var(--ink); text-shadow: var(--shadow); border: 0; border-radius: 0; padding: 0 16px 16px;
   background-color: var(--glass);
   background-image: linear-gradient(170deg, rgb(255 255 255 / .14), rgb(255 255 255 / 0) 38%, rgb(0 0 0 / .05)),
     repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px),
@@ -174,3 +174,5 @@ input[type=checkbox] { accent-color: var(--ink); }
 /* waveform switch: always a light (glass) square sliding on a black ink track, whichever side it is on (Johnny) */
 .switch, .switch[aria-checked=true], button.switch:hover:not(:disabled), button.switch:active:not(:disabled) { background: var(--ink); border-color: var(--ink); }
 .switch .thumb, .switch[aria-checked=true] .thumb { background: var(--glass); }
+/* desktop: no bezel, the orange glass fills the window */
+@media (min-width: 701px) { html, body { background: var(--glass); } body { padding: 0; } .main { max-width: none; min-height: 100dvh; box-shadow: none; } }

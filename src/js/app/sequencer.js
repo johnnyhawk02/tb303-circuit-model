@@ -55,7 +55,7 @@ function paintCell(b) {
   const col = +b.dataset.col, s = state.pattern[col]; if (!s) return false;
   const t = b.dataset.t, v = +b.dataset.v, { o, k } = splitCode(s.code), before = s.code + ':' + s.gate + s.accent + s.slide;
   if (paint.t === 'k') {
-    if (paint.on) { if (t === 'k') { s.code = clampCode(24 + v + 12 * o); s.gate = true; } else if (t === 'o') return false; else s.gate = true; }
+    if (paint.on) { if (t === 'k') { s.code = clampCode(24 + v + 12 * o); s.gate = true; } else return false; }
     else s.gate = false;
   } else if (paint.t === 'o') { if (t !== 'o') return false; s.code = clampCode(24 + k + 12 * paint.oct); }
   else { if (t !== paint.t) return false; s[t] = paint.on; }
@@ -151,6 +151,25 @@ document.querySelector('.sq-side').addEventListener('input', (e) => {
   pu.onclick = () => fu.click();
   new MutationObserver(() => { pu.disabled = fu.disabled; }).observe(fu, { attributes: true, attributeFilter: ['disabled'] });
 }
+// Randomise accents, slides or octaves: each rewrites only its own property on the notes (steps with the gate on) and
+// leaves the notes and the other properties alone; rests are untouched. Tap again for another roll; Undo puts it back.
+const RND_OCT = [[-1, 3], [0, 5], [1, 2], [2, 0.4], [-2, 0.4]]; // octave lane, weight: mostly 0 and -1, some +1, a rare extreme
+const rndOct = () => { let r = Math.random() * RND_OCT.reduce((a, [, w]) => a + w, 0); for (const [o, w] of RND_OCT) if ((r -= w) < 0) return o; return 0; };
+function randomise(kind) {
+  const P = state.pattern; if (!P.some(st => st.gate)) { sqSay('No notes to change: put some notes in first.'); return; }
+  pushUndo();
+  for (const st of P) {
+    if (!st.gate) continue;
+    if (kind === 'accent') st.accent = Math.random() < 0.3;
+    else if (kind === 'slide') st.slide = Math.random() < 0.25;
+    else { const { k } = splitCode(st.code); st.code = clampCode(24 + k + 12 * rndOct()); }
+  }
+  renderSeq(); pushPattern();
+  sqSay(`New random ${kind === 'accent' ? 'accents' : kind === 'slide' ? 'slides' : 'octaves'}. Tap again for another roll; Undo puts it back.`);
+}
+document.getElementById('r-acc').onclick = () => randomise('accent');
+document.getElementById('r-sld').onclick = () => randomise('slide');
+document.getElementById('r-oct').onclick = () => randomise('octave');
 // Duplicate steps: repeat the pattern until it fills the next of 16, 32 or 64 steps (a 5-step riff becomes 16, then 32)
 document.getElementById('p-dup').onclick = () => {
   const P = state.pattern, n = P.length, to = [16, 32, 64].find(x => x > n);
