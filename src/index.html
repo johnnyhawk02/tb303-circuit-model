@@ -108,9 +108,14 @@
       <div class="fxh"><button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button><span class="fxname">ProCo RAT</span></div>
       <div class="fxknobs" id="fx-rat-knobs"></div>
     </section>
-    <section class="fxb" id="fx-duck" aria-label="Ducker" title="Turns the 224 return down while the synth plays, keyed from the dry synth: by however far it is over Threshold, up to the Duck amount">
-      <div class="fxh"><span class="fxname">Ducker</span><span class="fxsub">224 return, keyed by the synth</span></div>
-      <div class="fxknobs" id="fx-duck-knobs"></div>
+    <section class="fxb" id="fx-dly" aria-label="Digital delay">
+      <div class="fxh"><button type="button" class="onoff" id="fx-dly-on" aria-pressed="false">Off</button><span class="fxname">Delay</span><span class="fxsub">tempo synced, tone on the repeats</span></div>
+      <div class="fxknobs" id="fx-dly-knobs"></div>
+    </section>
+    <section class="fxb blk-cmp" id="fx-cmp" aria-label="Compactor sidechain" title="Ducks the delay and 224 returns, keyed from the dry synth. Threshold is the synth level that ducks them to silence; Range shapes how quieter levels count; Attack is lookahead">
+      <div class="fxh"><span class="fxname">Compactor</span><span class="fxsub">returns, keyed by the synth</span>
+        <div class="seg cmp-mode" id="cmp-mode" role="radiogroup" aria-label="Detector"><button type="button" role="radio" data-m="0">Peak</button><button type="button" role="radio" data-m="1">ISP</button><button type="button" role="radio" data-m="2">RMS</button></div></div>
+      <div class="fxknobs" id="fx-cmp-knobs"></div>
     </section>
     <section class="fxb blk-lex" id="fx-lex" aria-label="Lexicon 224">
       <div class="fxh lex-head">

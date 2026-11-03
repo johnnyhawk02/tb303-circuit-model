@@ -51,15 +51,21 @@ function drawLex() {
 }
 
 // ---------- effects ----------
+const FX_UNITS = ['rat', 'dly', 'lex'];
 function renderFx() {
-  for (const n of ['rat', 'lex']) {
+  for (const n of FX_UNITS) {
     const b = document.getElementById('fx-' + n + '-on');
-    b.setAttribute('aria-pressed', state.fx[n]); b.textContent = state.fx[n] ? 'On' : 'Off';
-    document.getElementById('fx-' + n).classList.toggle('on', state.fx[n]);
+    b.setAttribute('aria-pressed', !!state.fx[n]); b.textContent = state.fx[n] ? 'On' : 'Off';
+    document.getElementById('fx-' + n).classList.toggle('on', !!state.fx[n]);
   }
-  document.getElementById('fx-duck').classList.toggle('on', state.fx.lex); // the ducker only acts on the 224 return
+  document.getElementById('fx-cmp').classList.toggle('on', !!(state.fx.lex || state.fx.dly)); // the Compactor acts on the returns
+  drawCmpMode();
 }
-for (const n of ['rat', 'lex']) document.getElementById('fx-' + n + '-on').onclick = () => {
+// Compactor detector: Peak, ISP or RMS (stored as the cmpmode knob: 0, 0.5, 1)
+const cmpModeEl = document.getElementById('cmp-mode');
+function drawCmpMode() { const m = Math.round(state.knobs.cmpmode * 2); for (const b of cmpModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === m); }
+cmpModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('cmpmode', b.dataset.m / 2); drawCmpMode(); } });
+for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
   renderFx(); saveSession();
 };

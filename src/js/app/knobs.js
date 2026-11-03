@@ -24,9 +24,15 @@ function knobText(id, p) {
     case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
     case 'dist': return 'gain ×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
     case 'filter': return fmt(Math.round(1 / (2 * Math.PI * (c.RAT_RF + 100e3 * p) * c.RAT_CFLT)), 'Hz');
-    case 'duck': return p < 0.005 ? 'off' : 'up to ' + Math.round(30 * p) + ' dB';
-    case 'duckthr': return Math.round(-40 + 40 * p) + ' dB';
-    case 'duckrel': { const ms = 20 * Math.pow(50, p); return ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(2) + ' s'; }
+    case 'dlytime': return dlyDiv(p)[0];
+    case 'dlyfb': return Math.round(95 * p) + '%';
+    case 'dlylo': return fmt(Math.round(dlyLo(p)), 'Hz');
+    case 'dlyhi': { const f = dlyHi(p); return f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : Math.round(f) + ' Hz'; }
+    case 'cmpthr': return cmpThrDb(p).toFixed(1) + ' dB';
+    case 'cmprng': return Math.round(200 * p) + '%';
+    case 'cmpatk': return cmpAtkMs(p).toFixed(1) + ' ms';
+    case 'cmphold': return Math.round(cmpHoldMs(p)) + ' ms';
+    case 'cmprel': return Math.round(cmpRelMs(p)) + ' ms';
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
       return Math.round(p * 100) + '%';
@@ -79,6 +85,7 @@ function bindDial(host, { pick = () => host, get, set, nudge = (k, d, e) => set(
 }
 const knobEls = {};
 for (const k of KNOBS) {
+  if (k.hidden) continue;
   const wrap = document.createElement('div'); wrap.className = k.fx ? 'kn small' : 'kn';
   wrap.innerHTML = `<div class="knob" tabindex="0" role="slider" aria-label="${k.name}" aria-valuemin="0" aria-valuemax="100" id="knob-${k.id}">${knobSVG()}</div>
     <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
@@ -89,7 +96,8 @@ for (const k of KNOBS) {
   el.addEventListener('dialend', () => wrap.classList.remove('active'));
 }
 function drawKnob(id) {
-  const p = state.knobs[id], k = knobEls[id];
+  if (id === 'cmpmode') { drawCmpMode(); return; }
+  const p = state.knobs[id], k = knobEls[id]; if (!k) return;
   k.arc.setAttribute('d', arcPath(p));
   k.ptr.setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
   k.el.setAttribute('aria-valuenow', Math.round(p * 100));

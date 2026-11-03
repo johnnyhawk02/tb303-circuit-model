@@ -43,7 +43,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .switch[aria-checked=true] .thumb { left: 22px; background: #161616; }
 .seg { display: inline-flex; border: 1px solid #1a1a1a; border-radius: 2px; overflow: hidden; }
 .seg button { background: #4a4a4a; border: 0; border-right: 1px solid #2a2a2a; border-radius: 0; }
-.seg button[aria-pressed=true] { background: var(--on); color: #161616; }
+.seg button[aria-pressed=true], .seg button[aria-checked=true] { background: var(--on); color: #161616; }
 .onoff { min-width: 52px; }
 .onoff[aria-pressed=true] { background: var(--on); color: #161616; }
 .tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid #1a1a1a; }

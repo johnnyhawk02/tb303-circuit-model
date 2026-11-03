@@ -20,9 +20,18 @@ const KNOBS = [
   { id: 'lexme',     name: 'Mode enh',  ref: 'off, 16–1',  def: 0.5,  fx: 'lex' },
   { id: 'lexpitch',  name: 'Pitch',     ref: '1–16',       def: 0.2,  fx: 'lex' },
   { id: 'lexmix',    name: 'Return',    ref: 'wet level',  def: 0.5,  fx: 'lex' },
-  { id: 'duck',      name: 'Duck',      ref: '0–30 dB',    def: 0.5,  fx: 'duck' },
-  { id: 'duckthr',   name: 'Threshold', ref: '-40–0 dB',   def: 0.35, fx: 'duck' },
-  { id: 'duckrel',   name: 'Release',   ref: '20 ms–1 s',  def: 0.5,  fx: 'duck' },
+  { id: 'dlytime',   name: 'Time',      ref: '1/32–1/2',   def: 0.7,  fx: 'dly' },
+  { id: 'dlyfb',     name: 'Feedback',  ref: '0–95%',      def: 0.35, fx: 'dly' },
+  { id: 'dlylo',     name: 'Low cut',   ref: '20 Hz–1k',   def: 0.3,  fx: 'dly' },
+  { id: 'dlyhi',     name: 'High cut',  ref: '1k–20 kHz',  def: 0.55, fx: 'dly' },
+  { id: 'dlymix',    name: 'Return',    ref: 'wet level',  def: 0.35, fx: 'dly' },
+  { id: 'cmpthr',    name: 'Threshold', ref: '-40–0 dB',   def: 0.5,  fx: 'cmp' },
+  { id: 'cmprng',    name: 'Range',     ref: '0–200%',     def: 0.5,  fx: 'cmp' },
+  { id: 'cmpatk',    name: 'Attack',    ref: 'lookahead',  def: 0.3,  fx: 'cmp' },
+  { id: 'cmphold',   name: 'Hold',      ref: '0–500 ms',   def: 0,    fx: 'cmp' },
+  { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.4,  fx: 'cmp' },
+  { id: 'cmpmix',    name: 'Mix',       ref: '0–100%',     def: 0.7,  fx: 'cmp' },
+  { id: 'cmpmode',   name: 'Mode',      ref: 'Peak/ISP/RMS', def: 0,  fx: 'cmp', hidden: true },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33
@@ -62,7 +71,7 @@ if (store.get('partsVersion', 0) === 3) {
 }
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
-  wave: 'saw', bpm: 128, fx: { rat: false, lex: false }, shuffle: 0, gate: 0.5,
+  wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
 };
@@ -98,7 +107,7 @@ function cleanSettings(x) {
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
-  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex };
+  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex, dly: !!x.fx.dly };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
@@ -113,7 +122,7 @@ function snapshot() {
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
-  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex };
+  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly };
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
 }

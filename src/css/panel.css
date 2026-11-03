@@ -31,6 +31,9 @@
 
 /* effects: one pane, the RAT and the ducker side by side over the 224; dials a size down from the voice */
 .fxpane { --knob: 40px; --kn-w: 64px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; align-content: start; }
+.cmp-mode button { padding: 2px 8px; font: 600 10.5px var(--font-body); }
+.fxpane .fxb:not(.blk-lex) { --kn-w: 56px; }
+#fx-dly .fxsub { display: none; }
 #pane-fx:not(:has(.onoff[aria-pressed=true]))::after { background: #666; }
 .fxb { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 0 20px; border-left: 1px solid #2c2c2c; }
 .fxb:first-child { padding-left: 0; border-left: 0; }

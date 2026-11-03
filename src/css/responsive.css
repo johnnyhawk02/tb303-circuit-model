@@ -97,8 +97,12 @@
   .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
   .md .mdesc { font-size: 9.5px; }
   .board-info { margin: 0 -8px -8px; padding: 6px 8px; bottom: -8px; }
-  .fxpane { --knob: 30px; --kn-w: 58px; gap: 8px 0; }
-  .fxb { gap: 4px; padding: 0 12px; }
+  .fxpane { --knob: 30px; --kn-w: 62px; gap: 8px 0; }
+  .fxpane .fxb:not(.blk-lex) { --kn-w: 48px; }
+  .fxpane .fxb:not(.blk-lex) .kn .name { font-size: 9px; letter-spacing: -.01em; }
+  .fxpane .kn .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .cmp-mode button { padding: 1px 5px; font-size: 9px; }
+  .fxb { gap: 4px; padding: 0 8px; }
   .blk-lex { padding: 6px 0 0; gap: 6px; }
   .fxh { min-height: 22px; }
   .fxsub { display: none; }

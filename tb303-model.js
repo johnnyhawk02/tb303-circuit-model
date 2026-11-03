@@ -452,6 +452,103 @@ function flushTiny(o, depth) {
 
 const RAT_OS = 2; // the RAT runs at 2x the voice rate (4x the host rate)
 
+// Simple digital delay (outside the circuit): tempo-synced time, feedback, and a low cut and high cut
+// inside the feedback loop, so every repeat gets thinner and darker. Clean digital repeats, no saturation.
+const DLY_DIVS = [['1/32', 1 / 8], ['1/16T', 1 / 6], ['1/16', 1 / 4], ['1/8T', 1 / 3], ['1/16D', 3 / 8], ['1/8', 1 / 2], ['1/4T', 2 / 3], ['1/8D', 3 / 4], ['1/4', 1], ['1/4D', 3 / 2], ['1/2', 2]];
+const dlyDiv = (p) => DLY_DIVS[Math.min(DLY_DIVS.length - 1, Math.round(p * (DLY_DIVS.length - 1)))];
+const dlyLo = (p) => 20 * Math.pow(50, p);        // 20 Hz .. 1 kHz
+const dlyHi = (p) => 1000 * Math.pow(20, p);      // 1 kHz .. 20 kHz
+class DigitalDelay {
+  constructor(fs) {
+    this.fs = fs; this.buf = new Float32Array(Math.ceil(fs * 2.6)); this.w = 0;
+    this.d = fs * 0.25; this.dT = this.d; this.lp = 0; this.hp = 0; this.hpIn = 0; this.y = 0;
+  }
+  derive(k, bpm) {
+    const fs = this.fs;
+    this.dT = Math.min(this.buf.length - 4, dlyDiv(k.dlytime)[1] * 60 / bpm * fs);
+    this.fb = 0.95 * k.dlyfb;
+    this.lpA = Math.exp(-2 * Math.PI * Math.min(dlyHi(k.dlyhi), 0.45 * fs) / fs);
+    this.hpA = Math.exp(-2 * Math.PI * dlyLo(k.dlylo) / fs);
+    this.mix = k.dlymix * k.dlymix * 1.2; // return level, roughly even in loudness
+    this.slewA = 1 - Math.exp(-1 / (0.06 * fs)); // time changes glide over ~60 ms instead of clicking
+  }
+  run(x) {
+    const b = this.buf, N = b.length;
+    this.d += (this.dT - this.d) * this.slewA;
+    let r = this.w - this.d; if (r < 0) r += N;
+    const i = Math.floor(r), f = r - i, a = b[i], c = b[i + 1 === N ? 0 : i + 1];
+    let y = a + (c - a) * f;
+    // tone: one-pole low cut and high cut on what comes back
+    this.hp = this.hpA * (this.hp + y - this.hpIn); this.hpIn = y; y = this.hp;
+    this.lp = y + this.lpA * (this.lp - y); y = this.lp;
+    b[this.w] = x + this.fb * y; this.w = this.w + 1 === N ? 0 : this.w + 1;
+    return y * this.mix;
+  }
+}
+
+// Sidechain on the effect returns, after the Kilohearts Compactor (a limiter/ducker that works at sample
+// level). The key is the dry synth. Threshold is the key level that ducks the returns to silence;
+// Range shapes how the key maps onto that (below 100% quieter key levels are ignored, above 100% they
+// duck harder, like a soft clipper on the key). Attack is lookahead: the returns are delayed by it and the
+// ducking ramps in ahead of the transient. Hold keeps full ducking after the key drops, Release brings it
+// back. Mode picks the detector: per-sample Peak, inter-sample peaks (ISP), or RMS. Mix blends in the
+// unducked returns. With Attack and Release at 0 the gain follows the key waveform: ring-mod sidechaining.
+// Our reading of the published control descriptions; Kilohearts does not publish its gain law.
+const CMP_MODES = ['Peak', 'ISP', 'RMS'];
+const cmpThrDb = (p) => -40 + 40 * p;
+const cmpAtkMs = (p) => 10 * p;
+const cmpHoldMs = (p) => 500 * p * p;
+const cmpRelMs = (p) => 1000 * p * p;
+class Compactor {
+  constructor(fs) {
+    this.fs = fs; this.L = new Float32Array(Math.ceil(fs * 0.011)); this.R = new Float32Array(this.L.length); this.w = 0;
+    this.env = 0; this.hold = 0; this.ms = 0; this.k1 = 0; this.k2 = 0; this.k3 = 0; this.l = 0; this.r = 0; this.g = 1;
+  }
+  derive(k) {
+    const fs = this.fs;
+    this.thr = Math.pow(10, cmpThrDb(k.cmpthr) / 20);
+    this.rng = 2 * k.cmprng;
+    this.D = Math.min(this.L.length - 1, Math.round(cmpAtkMs(k.cmpatk) * 1e-3 * fs));
+    this.atkA = this.D > 0 ? 1 - Math.exp(-3 / this.D) : 1;
+    this.holdN = Math.round(cmpHoldMs(k.cmphold) * 1e-3 * fs);
+    const rel = cmpRelMs(k.cmprel) * 1e-3 * fs;
+    this.relA = rel > 0.5 ? Math.exp(-1 / rel) : 0;
+    this.mode = Math.round(k.cmpmode * 2);
+    this.rmsA = Math.exp(-1 / (0.01 * fs));
+    this.mix = k.cmpmix;
+  }
+  // key -> duck amount 0..1 (1 = silence at threshold)
+  _amount(det) {
+    const x = det / this.thr, R = this.rng;
+    let a;
+    if (R <= 1) a = R > 0 ? (x - (1 - R)) / R : 0;
+    else { const s = R - 1; a = (1 - s) * x + s * Math.tanh(3 * x) / 0.99505; }
+    return a <= 0 ? 0 : a >= 1 ? 1 : a;
+  }
+  // key y, returns wl/wr: stores the delayed returns in l/r and gives the gain for them
+  run(y, wl, wr) {
+    let det;
+    if (this.mode === 2) { this.ms = y * y + this.rmsA * (this.ms - y * y); det = Math.sqrt(this.ms * 2); } // sine peak = rms * sqrt 2
+    else {
+      det = Math.abs(y);
+      if (this.mode === 1) { // inter-sample peak: Catmull-Rom midpoint between the last two samples
+        const m = (-this.k3 + 9 * this.k2 + 9 * this.k1 - y) / 16; // Catmull-Rom midpoint of the previous two samples
+        if (Math.abs(m) > det) det = Math.abs(m);
+      }
+      this.k3 = this.k2; this.k2 = this.k1; this.k1 = y;
+    }
+    const a = this._amount(det);
+    if (a >= this.env) { this.env += (a - this.env) * this.atkA; this.hold = this.holdN; }
+    else if (this.hold > 0) this.hold--;
+    else this.env = a + (this.env - a) * this.relA;
+    // lookahead: the returns come out D samples late, so the ramp lands on time
+    const N = this.L.length; let ri = this.w - this.D; if (ri < 0) ri += N;
+    this.L[this.w] = wl; this.R[this.w] = wr; this.l = this.L[ri]; this.r = this.R[ri]; this.w = this.w + 1 === N ? 0 : this.w + 1;
+    this.g = 1 - this.mix * this.env;
+    return this.g;
+  }
+}
+
 class TB303Voice {
   constructor(sampleRate, components) {
     this.fsOut = sampleRate;
@@ -464,10 +561,13 @@ class TB303Voice {
     // front panel (0..1)
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
-      duck: 0.5, duckthr: 0.35, duckrel: 0.5 };
-    this.fx = { rat: false, lex: false };
+      cmpthr: 0.5, cmprng: 0.5, cmpatk: 0.3, cmphold: 0, cmprel: 0.4, cmpmix: 0.7, cmpmode: 0,
+      dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
+    this.fx = { rat: false, lex: false, dly: false };
+    this.bpm = 128;
     this.lex = new Lexicon224(sampleRate);
-    this.duckEnv = 0; this.duckG = 1;
+    this.dly = new DigitalDelay(sampleRate);
+    this.cmp = new Compactor(sampleRate);
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
 
@@ -499,7 +599,7 @@ class TB303Voice {
 
   _derive() {
     const c = this.c, k = this.knobs;
-    this._deriveDuck(k);
+    this.cmp.derive(k); this.dly.derive(k, this.bpm);
     // noise: density * sqrt(bandwidth) at the oversampled rate gives the rms per sample
     const nb = Math.sqrt(this.fs / 2) * c.NOISE;
     this.nVcf = c.EN_VCF * nb; this.nOta = c.EN_OTA * nb; this.nOut = c.EN_OUT * nb;
@@ -796,25 +896,16 @@ class TB303Voice {
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }
 
-  // Sidechain ducker on the 224 return (outside the circuit). The dry synth is the key: a peak follower
-  // (1 ms attack, Release 20 ms to 1 s) and a 1:inf limiter law turn the wet down by however far the key
-  // is over Threshold (-40 to 0 dBFS), but never by more than Amount (0 to 30 dB; 0 is off).
-  _deriveDuck(k) {
-    const fs = this.fsOut;
-    this.duckFloor = Math.pow(10, -30 * k.duck / 20);
-    this.duckThr = Math.pow(10, (-40 + 40 * k.duckthr) / 20);
-    this.duckAtt = Math.exp(-1 / (0.001 * fs));
-    this.duckRel = Math.exp(-1 / (0.02 * Math.pow(50, k.duckrel) * fs));
-  }
-  // the 224 after the dry signal y: wet return ducked by y, summed, then the output soft clip
-  _lexOut(lex, y, out, outR, n) {
-    const a = Math.abs(y), e = this.duckEnv;
-    this.duckEnv = a + (e - a) * (a > e ? this.duckAtt : this.duckRel);
-    this.duckG = this.duckEnv > this.duckThr ? Math.max(this.duckFloor, this.duckThr / this.duckEnv) : 1;
-    lex.run(y);
-    const w = lex.wet * this.duckG;
-    out[n] = 0.98 * Math.tanh((y + w * lex.L) / 0.98);
-    if (outR) outR[n] = 0.98 * Math.tanh((y + w * lex.R) / 0.98);
+  // the effects after the dry signal y: the 224 and the delay are parallel returns, both ducked by the
+  // Compactor keyed from y, summed with y, then the output soft clip
+  _fxOut(y, out, outR, n) {
+    const lex = this.fx.lex ? this.lex : null, dly = this.fx.dly ? this.dly : null;
+    let wl = 0, wr = 0;
+    if (lex) { lex.run(y); wl += lex.wet * lex.L; wr += lex.wet * lex.R; }
+    if (dly) { const d = dly.run(y); wl += d; wr += d; }
+    const g = this.cmp.run(y, wl, wr);
+    out[n] = 0.98 * Math.tanh((y + this.cmp.l * g) / 0.98);
+    if (outR) outR[n] = 0.98 * Math.tanh((y + this.cmp.r * g) / 0.98);
   }
 
   _decimate(x) {
@@ -828,16 +919,16 @@ class TB303Voice {
   // Decaying filter and envelope states eventually reach subnormal floats, which run many times
   // slower on most CPUs (CPU climbed 3x over 15 s of silence). Snap anything that small to zero once
   // per block. 1e-150 is far below any audible level and far below every component value.
-  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); }
+  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.dly, 0); flushTiny(this.cmp, 0); }
 
   // out is mono, or the left channel when outR is given
   process(out, start = 0, end = out.length, outR) {
     this._flush();
-    const lex = this.fx.lex ? this.lex : null;
+    const fx = this.fx.lex || this.fx.dly;
     for (let n = start; n < end; n++) {
       let y = 0;
       for (let o = 0; o < this.os; o++) y = this._decimate(this._tick());
-      if (lex) this._lexOut(lex, y, out, outR, n);
+      if (fx) this._fxOut(y, out, outR, n);
       else { out[n] = y; if (outR) outR[n] = y; }
     }
   }
@@ -897,9 +988,9 @@ class DeClick {
   process(out, start = 0, end = out.length, outR) {
     const v = this.v;
     if (!this.on) { v.process(out, start, end, outR); this.t += end - start; return; }
-    // run the voice dry and do the 224 here, after the fade, so a retrigger never dips the reverb tail
-    const lex = v.fx.lex ? v.lex : null;
-    v.fx.lex = false; v.process(out, start, end); if (lex) v.fx.lex = true;
+    // run the voice dry and do the returns here, after the fade, so a retrigger never dips the reverb or delay tails
+    const lex = v.fx.lex, dly = v.fx.dly, fx = lex || dly;
+    v.fx.lex = v.fx.dly = false; v.process(out, start, end); v.fx.lex = lex; v.fx.dly = dly;
     const D = this.D, F = this.F, L = this.bufL, ev = this.ev;
     for (let n = start; n < end; n++, this.t++) {
       let y = L[this.w]; L[this.w] = out[n]; this.w = this.w + 1 === D ? 0 : this.w + 1;
@@ -913,7 +1004,7 @@ class DeClick {
         }
         y *= g;
       }
-      if (lex) v._lexOut(lex, y, out, outR, n);
+      if (fx) v._fxOut(y, out, outR, n);
       else { out[n] = y; if (outR) outR[n] = y; }
     }
   }
@@ -937,7 +1028,7 @@ class TB303Engine {
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
     else if (m.type === 'pattern') this.pattern = m.value;
-    else if (m.type === 'bpm') this.bpm = m.value;
+    else if (m.type === 'bpm') { this.bpm = m.value; v.bpm = m.value; v.dly.derive(v.knobs, m.value); }
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
     else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
   }
@@ -973,4 +1064,4 @@ class TB303Engine {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, CMP_MODES, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpAtkMs, cmpHoldMs, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
