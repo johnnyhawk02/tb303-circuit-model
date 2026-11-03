@@ -2,23 +2,24 @@
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
 // solid ring (Johnny): a faint ghost track, lit solid up to the pointer, which runs smoothly over the 300° sweep.
-// The pointer is a thin wedge pivoting on the exact centre: its leading edge is the radius at the value and it widens
-// (9°) on the lit side out to the ring's outer edge, so it and the lit arc's square end make one continuous shape
+// The pointer is a plain 4-wide line from the exact centre to the ring's outer edge; the lit arc is a filled band whose
+// end is cut along the pointer's leading edge, so line and arc meet flush as one shape
 const knobAngle = (p) => KNOB_A0 + KNOB_SWEEP * Math.min(1, Math.max(0, p));
 function knobSVG() {
-  // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and an ink pointer from the centre out to the ring
+  // LCD dial: a ghost ring, a lit band up to the value, and an ink line from the centre out to the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none"/>
     <path class="arc" d="" fill="none"/>
-    <path class="ptr" d="M32 32 L32 3.5 A28.5 28.5 0 0 0 27.54 3.85 Z"/>
+    <line class="ptr" x1="32" y1="32" x2="32" y2="3.5"/>
   </svg>`;
 }
+const KNOB_RI = 21.5, KNOB_RO = 28.5, KNOB_HW = 2; // ring band and half the pointer width, in the 64-unit viewBox
 function arcPath(p) {
-  const a0 = KNOB_A0, a = knobAngle(p), r = 25, cx = 32, cy = 32;
-  const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
-  const [x0, y0] = pt(a0), [x1, y1] = pt(a);
-  if (a - a0 < 0.3) return '';
-  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${a - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  const a0 = KNOB_A0, a = knobAngle(p), cx = 32, cy = 32;
+  const pt = (deg, r) => { const t = (deg - 90) * Math.PI / 180; return `${(cx + r * Math.cos(t)).toFixed(2)} ${(cy + r * Math.sin(t)).toFixed(2)}`; };
+  const end = (r) => a + Math.asin(KNOB_HW / r) * 180 / Math.PI; // where the pointer's leading edge crosses radius r
+  const eo = end(KNOB_RO), ei = end(KNOB_RI);
+  return `M${pt(a0, KNOB_RO)} A${KNOB_RO} ${KNOB_RO} 0 ${eo - a0 > 180 ? 1 : 0} 1 ${pt(eo, KNOB_RO)} L${pt(ei, KNOB_RI)} A${KNOB_RI} ${KNOB_RI} 0 ${ei - a0 > 180 ? 1 : 0} 0 ${pt(a0, KNOB_RI)} Z`;
 }
 function knobText(id, p) {
   const c = state.parts;
