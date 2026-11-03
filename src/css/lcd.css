@@ -124,8 +124,6 @@ dialog#options { background: var(--glass); color: var(--ink); border: 6px solid 
 .otabs button { background: transparent; border: 2px solid var(--ink); border-bottom: 0; text-transform: lowercase; color: var(--ink); }
 canvas { background: transparent; border: 2px solid var(--ink); }
 .dot, .pk.mod::after { background: var(--ink); border-radius: 0; }
-.board-info { background: var(--glass); border-top: 1px solid var(--line); }
-.board { text-shadow: none; }
 .rotate { background: var(--glass); color: var(--ink); border: 6px solid var(--bezel); }
 .rotate svg { stroke: var(--ink); }
 

@@ -95,7 +95,6 @@
 
   .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
   .md .mdesc { font-size: 13.5px; }
-  .board-info { margin: 0 -8px -8px; padding: 6px 8px; bottom: -8px; }
   .fxpane { --knob: 30px; --kn-w: 62px; gap: 8px 0; }
   .fxpane .fxb:not(.blk-lex) { --kn-w: 48px; }
   .fxpane .fxb:not(.blk-lex) .kn .name { font-size: 12.5px; letter-spacing: -.01em; }
