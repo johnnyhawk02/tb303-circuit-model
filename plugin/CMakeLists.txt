@@ -47,8 +47,9 @@ target_sources(TB303CircuitModel PRIVATE
   Source/PluginEditor.cpp
   Source/SeqModel.cpp)
 
-# the web app's factory patterns, the source material for Generate and Refill
-juce_add_binary_data(TB303Data SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../patterns.json)
+# the web app's factory patterns (the source material for Generate and Refill) and the VT323 pixel font
+# (SIL Open Font License, Resources/VT323-OFL.txt) for the LCD look
+juce_add_binary_data(TB303Data SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../patterns.json ${CMAKE_CURRENT_SOURCE_DIR}/Resources/VT323-Regular.ttf)
 
 target_compile_definitions(TB303CircuitModel PUBLIC
   JUCE_WEB_BROWSER=0

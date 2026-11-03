@@ -2,9 +2,17 @@
 #include "PluginProcessor.h"
 
 namespace ui {
-// the web app's dark DAW theme: grey panels, amber = on, cyan = values
-const juce::Colour bg { 0xff1f1f1f }, panel { 0xff2b2b2b }, panelHead { 0xff353535 }, edge { 0xff151515 },
-    text { 0xffc9c9c9 }, dim { 0xff8a8a8a }, amber { 0xfff6a623 }, cyan { 0xff5fd3ea }, cell { 0xff2a2a2a }, cellAlt { 0xff232323 };
+// The Shyoy LCD look: one pane of yellow-green backlit LCD glass in a black bezel, one ink for the segments,
+// a faint ghost of the unlit ones, the offset shadow LCD type casts on its backplane, and a pixel font (VT323).
+// Buttons are outlined boxes that invert when on; dials are rings of segments lit up to the value.
+const juce::Colour glass { 0xffc3d83a }, ink { 0xff0a0f04 }, caseCol { 0xff161815 }, bezel { 0xff0b0c0a };
+const juce::Colour text = ink, dim = ink.withAlpha(0.74f), amber = ink, cyan = ink, edge = ink.withAlpha(0.45f),
+    ghost = ink.withAlpha(0.13f), tint = ink.withAlpha(0.08f), shadow = ink.withAlpha(0.17f),
+    cell = ghost, cellAlt = ink.withAlpha(0.2f), bg = glass, panel = juce::Colours::transparentBlack, panelHead = juce::Colours::transparentBlack;
+
+juce::FontOptions lcd(float h);   // VT323 at a size that matches the old layout's text
+// text with the LCD's backplane shadow
+void lcdText(juce::Graphics&, const juce::String&, juce::Rectangle<float>, juce::Justification, juce::Colour = ink, bool shadowed = true);
 
 class LookAndFeel : public juce::LookAndFeel_V4 {
 public:
@@ -12,7 +20,16 @@ public:
     void drawRotarySlider(juce::Graphics&, int x, int y, int w, int h, float pos, float a0, float a1, juce::Slider&) override;
     void drawButtonBackground(juce::Graphics&, juce::Button&, const juce::Colour&, bool over, bool down) override;
     void drawButtonText(juce::Graphics&, juce::TextButton&, bool over, bool down) override;
-    juce::Font getTextButtonFont(juce::TextButton&, int h) override { return juce::FontOptions(juce::jmin(13.0f, h * 0.6f)); }
+    juce::Font getTextButtonFont(juce::TextButton&, int h) override { return lcd(juce::jmin(13.5f, h * 0.62f)); }
+    juce::Font getLabelFont(juce::Label& l) override { return l.getFont(); }
+    void drawLabel(juce::Graphics&, juce::Label&) override;
+    juce::Font getPopupMenuFont() override { return lcd(14.0f); }
+    juce::Font getAlertWindowMessageFont() override { return lcd(14.0f); }
+    juce::Font getAlertWindowTitleFont() override { return lcd(17.0f); }
+    juce::Typeface::Ptr getTypefaceForFont(const juce::Font&) override;
+    void fillTextEditorBackground(juce::Graphics&, int, int, juce::TextEditor&) override {}
+    void drawTextEditorOutline(juce::Graphics&, int w, int h, juce::TextEditor&) override;
+    void drawPopupMenuBackground(juce::Graphics&, int w, int h) override;
 };
 
 // a rotary slider that can snap (E24 / E12 part values; Shift moves freely)
@@ -176,7 +193,7 @@ public:
 private:
     void timerCallback() override;
     void showTab(int t);
-    void say(const juce::String& s) { status = s; statusUntil = juce::Time::getMillisecondCounter() + 9000; repaint(0, getHeight() - 24, getWidth(), 24); }
+    void say(const juce::String& s) { status = s; statusUntil = juce::Time::getMillisecondCounter() + 9000; repaint(0, getHeight() - 28, getWidth(), 28); }
     void seqChanged();                         // after any sequencer edit: publish and redraw
     void seqDo(const std::function<juce::String()>& fn); // run a model change under the lock
     void refreshSeqSide();
@@ -237,6 +254,7 @@ private:
     juce::Component aboutPage; juce::Label aboutText;
     std::vector<std::unique_ptr<juce::Component>> owned;
 
+    juce::Image glassImg; // the LCD pane, drawn once per size
     tb303::Voice preview { 44100 };
     std::unique_ptr<juce::FileChooser> chooser;
     juce::String status; juce::uint32 statusUntil = 0;
