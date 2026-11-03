@@ -1,14 +1,16 @@
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
-// solid ring (Johnny): a faint ghost track, lit solid up to the pointer, which runs smoothly over the 300° sweep
+// solid ring (Johnny): a faint ghost track, lit solid up to the pointer, which runs smoothly over the 300° sweep.
+// The pointer is a bar whose leading edge is the radius at the value, on the lit side, out to the ring's outer edge,
+// so it and the lit arc's square end make one continuous shape
 const knobAngle = (p) => KNOB_A0 + KNOB_SWEEP * Math.min(1, Math.max(0, p));
 function knobSVG() {
   // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and an ink pointer from the centre out to the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none"/>
     <path class="arc" d="" fill="none"/>
-    <line class="ptr" x1="32" y1="32" x2="32" y2="11"/>
+    <path class="ptr" d="M32 33.5 L32 3.6 L28 3.6 L28 33.5 Z"/>
   </svg>`;
 }
 function arcPath(p) {
