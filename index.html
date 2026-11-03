@@ -499,31 +499,6 @@ select option { background: var(--glass); color: var(--ink); }
 .knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
 ::selection { background: var(--ink); color: var(--glass); }
 
-/* top bar: part of the glass, parted from the rest by a rule */
-.top { position: relative; margin: 0 -16px; background: transparent; border-bottom: 1px solid var(--line); }
-.sq-msg, .fn-menu, .pm-pop { background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; box-shadow: 0 10px 30px rgb(0 0 0 / .45); text-shadow: none; }
-
-/* buttons, fields: outlined in ink, inverted when on */
-button, select, input[type=text] { background: transparent; color: var(--ink); border: 2px solid var(--ink); border-radius: 3px; text-shadow: var(--shadow); text-transform: lowercase; }
-input[type=text] { text-transform: none; background: var(--tint); }
-button:hover:not(:disabled) { background: var(--tint); }
-button:active:not(:disabled) { background: var(--ink); color: var(--glass); text-shadow: none; }
-select option { background: var(--glass); color: var(--ink); }
-.icon svg, .gear svg { fill: var(--ink); }
-.gear { border-color: transparent; }
-.play[aria-pressed=true], .onoff[aria-pressed=true], .seg button[aria-pressed=true], .seg button[aria-checked=true],
-.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true],
-.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-chip[aria-pressed=true], .pm .pm-favf[aria-pressed=true] {
-  background: var(--ink); color: var(--glass); text-shadow: none; }
-.play[aria-pressed=true] svg { fill: var(--glass); }
-.seg { border: 2px solid var(--ink); border-radius: 3px; }
-.seg button { border: 0; border-right: 1px solid var(--rulec); border-radius: 0; text-shadow: var(--shadow); }
-.seg button:last-child { border-right: 0; }
-.switch { background: transparent; border: 2px solid var(--ink); }
-.switch .thumb { background: var(--ink); border-radius: 2px; top: 1px; }
-.switch[aria-checked=true] { background: var(--ink); }
-.switch[aria-checked=true] .thumb { background: var(--glass); }
-
 /* dials: a solid ring, ghost where unlit and ink up to the pointer, and a pointer from the centre to the ring */
 .knob svg { overflow: visible; }
 .knob svg .trk, .knob svg .arc { stroke-width: 7; stroke-linecap: butt; }
@@ -656,6 +631,112 @@ html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 
 html.fit .main > .pane { grid-row: 4; grid-column: 1; min-height: 0; overflow: auto; }
 html.fit .main > .pane[hidden] { display: var(--pane-d, block) !important; visibility: hidden; pointer-events: none; }
 .fxpane { --pane-d: grid; }
+
+/* ---- design pass (Nov 2026): one fixed 1000 x 647 screen (MacBook Pro shape), one type scale, one control height ----
+   type: 14px small print (dial readouts and names, row labels, notes), 16px controls, 18px headings
+   controls in the pages: 26px tall, 2px ink outline, uppercase spaced labels; tabs and headings stay lowercase
+   spacing: 6px between controls in a row, 8px between rows, 16px screen margin */
+:root { --fs-s: 14px; --fs-m: 16px; --fs-l: 18px; --ctl-h: 26px; --row-h: 13px; }
+
+/* dials: crisp wedges only. The ghost track used to carry a 7-unit ghost stroke (a soft halo that filled the gaps
+   between segments) and the lit wedges a drop shadow; both gone, so every edge is sharp at any scale */
+.knob svg { shape-rendering: geometricPrecision; }
+.knob svg .trk, .main .knob svg .trk { fill: var(--ghost); stroke: none !important; filter: none; }
+.knob svg .arc, .main .knob svg .arc { fill: var(--ink); stroke: none !important; filter: none; }
+
+/* the screen */
+html.fit .main { width: 1000px; height: 647px; padding: 0 16px 12px; gap: 8px; grid-template-rows: auto auto auto minmax(0, 1fr); align-content: stretch; }
+html.fit .main > .pane { padding: 12px 16px 0; overflow: hidden; }
+html.fit .top { padding: 8px 16px; gap: 10px 12px; min-height: 0; }
+html.fit .top button, html.fit .top .bpm-read output, html.fit .pm .pm-btn { height: 30px; }
+html.fit .dev { padding: 30px 16px 8px; }
+html.fit .dev::before { height: 26px; font-size: var(--fs-l); }
+html.fit .mtabs { margin: 0 -16px -8px; }
+html.fit .mtabs button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
+
+/* one size for small print and one for controls, everywhere */
+html.fit .kn .val, html.fit .md .val, html.fit .kn .name, html.fit .md .mname, html.fit .trim .tname, html.fit .trim .tval,
+html.fit .label, html.fit .md .mdesc, html.fit .sq-row > .rlab { font-size: var(--fs-s); }
+html.fit .sld, html.fit .sld output, html.fit .fxname, html.fit .lex-lcd { font-size: var(--fs-m); }
+html.fit .pane button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button { height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; }
+html.fit .pane .seg button { min-width: 30px; }
+
+/* sequencer: pattern and edit rows above the roll, shape and generate rows below; one label column */
+html.fit .sq-body { gap: 6px; }
+html.fit .sq-row { flex-wrap: nowrap; gap: 6px; min-height: var(--ctl-h); }
+html.fit .sq-row > .rlab { width: 72px; color: var(--mute); }
+html.fit .sq-row > .rlab-in { width: auto; margin-left: 22px; margin-right: 4px; }
+html.fit .sq-row .acts { margin-left: 0; gap: 6px; }
+html.fit .sq-row .acts + .acts, html.fit .sq-row .slots + .acts, html.fit .sq-row .chain-read + .acts { margin-left: 16px; }
+html.fit .sq-bank .slots button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; }
+html.fit .sld { grid-template-columns: 64px 84px 36px; gap: 6px; margin-right: 12px; }
+html.fit .sq-side .sld:last-child { margin-right: 0; }
+html.fit .seqwrap { display: grid; grid-template-columns: minmax(0, 1fr) 24px; gap: 4px; overflow: visible; }
+html.fit .seq { grid-auto-rows: var(--row-h); font-size: 13px; }
+/* nudge arrows, beside the octave lanes and the note rows: rows line up with the roll's (2px outline, then the step row) */
+.nudge { display: grid; grid-template-rows: 2px repeat(19, var(--row-h, 16px)); align-content: start; }
+.nudge button { min-width: 0; padding: 0; margin: 1px 0; font-size: 10px; line-height: 1; letter-spacing: 0; text-shadow: none; box-shadow: none !important; }
+.nu-oct-up { grid-row: 3 / 5; } .nu-oct-dn { grid-row: 5 / 7; }
+.nu-key-up { grid-row: 7 / 13; } .nu-key-dn { grid-row: 13 / 19; }
+
+/* effects: RAT, delay and Compactor in one row over the 224 */
+html.fit .fxpane { --knob: 40px; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; }
+html.fit .fxpane .fxb:not(.blk-lex) { --kn-w: 56px; padding: 0 16px; }
+html.fit .fxpane .fxb:first-child { padding-left: 0; }
+html.fit .fxpane .fxb:nth-child(3) { padding-right: 0; }
+html.fit .fxknobs { flex-wrap: nowrap; gap: 6px; }
+html.fit .fxknobs .kn { width: var(--kn-w); }
+html.fit .fxb { gap: 8px; }
+html.fit .fxh { height: 30px; flex-wrap: nowrap; gap: 10px; }
+html.fit .fxsub { display: none; }
+html.fit .blk-lex { --kn-w: 64px; padding-top: 12px; gap: 8px; }
+html.fit .lex-progs button { height: 38px; padding: 0 4px; font-size: 13px; line-height: 1.1; }
+html.fit .lex-progs button b { font-size: var(--fs-m); line-height: 1.1; }
+html.fit .lex-note { max-width: none; margin: 0; font-size: var(--fs-s); line-height: 1.25; }
+
+/* mods: two even rows */
+html.fit .mods { gap: 16px 10px; padding-top: 4px; }
+
+/* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
+html.fit dialog#options { width: 960px; height: 600px; max-height: none; margin: auto; transform: scale(var(--k, 1)); }
+dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
+dialog#options .opt-head h2 { font-size: var(--fs-l); }
+dialog#options .kn .val, dialog#options .pk .val, dialog#options .pk .ref, dialog#options .readouts, dialog#options .hint, dialog#options .legend, dialog#options .detail, dialog#options .dclk-fade { font-size: var(--fs-s); }
+dialog#options .notes, dialog#options .dclk-txt { font-size: var(--fs-m); }
+dialog#options input[type=range] { --f: 0; height: 22px; }
+dialog#options input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; }
+dialog#options input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+
+/* popovers (Preset, Functions): the same controls as the pages */
+.pm-foot button, .pm-foot input[type=text] { height: 30px; font-size: var(--fs-m); }
+.pm-foot button { padding: 0 10px; line-height: 1; }
+
+/* dial cells stack from the top, so a long description never pushes its dial out of line with the row */
+.kn, .md, .pk { align-content: start; }
+html.fit .fxh .seg button { height: 22px; }
+/* the voice panel: the components buttons a size down so the panel is no taller than its dials */
+html.fit .parts-kn .mini { height: 22px; padding: 0 4px; font-size: var(--fs-s); }
+html.fit .panel { row-gap: 0; }
+/* names lowercase everywhere, like every other dial name */
+.trim .tname { text-transform: lowercase; letter-spacing: 0; }
+.wave-kn .val { text-transform: lowercase; }
+/* waveform switch: a saw glyph at the saw end, a square glyph at the square end, drawn in ink like the segments */
+.wave-row { display: flex; align-items: center; gap: 6px; margin: 14px 0 12px; }
+.wave-row .switch { margin: 0; }
+.wglyph { width: 18px; height: 11px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: miter; stroke-linecap: square; overflow: visible; }
+/* mods: the two rows of dials share the page's height, rather than leaving a gap at the bottom */
+html.fit .mods { gap: 30px 10px; padding-top: 10px; }
+/* the Options sheet: the screen's fine pixel grid too, and a lowercase title like every other heading */
+dialog#options { background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px); }
+dialog#options .opt-head h2 { text-transform: lowercase; }
 </style>
 <div class="rotate" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn your device sideways</p><small>This instrument is laid out for landscape.</small></div>
 <div class="main">
@@ -720,20 +801,37 @@ html.fit .main > .pane[hidden] { display: var(--pane-d, block) !important; visib
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- three rows, one kind of control each: the pattern and what you do to it, its shape, and Generate -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (its shape, and Generate);
+           a label column on the left so every row lines up -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
         <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
         <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
+      </div>
+      <div class="sq-row sq-edit">
+        <span class="rlab">edit</span>
         <div class="acts">
           <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
           <button type="button" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle</button>
           <button type="button" id="p-clear">Clear</button>
           <button type="button" id="p-undo" disabled>Undo</button>
         </div>
+        <span class="rlab rlab-in">randomise</span>
+        <div class="acts">
+          <button type="button" id="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
+          <button type="button" id="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Slides</button>
+          <button type="button" id="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Octaves</button>
+        </div>
       </div>
+      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div>
+        <div class="nudge" role="group" aria-label="Shift the notes">
+          <button type="button" class="nu-oct-up" data-nudge="12" title="Every note up an octave" aria-label="Octaves up">▲</button>
+          <button type="button" class="nu-oct-dn" data-nudge="-12" title="Every note down an octave" aria-label="Octaves down">▼</button>
+          <button type="button" class="nu-key-up" data-nudge="1" title="Every note up a semitone" aria-label="Notes up a semitone">▲</button>
+          <button type="button" class="nu-key-dn" data-nudge="-1" title="Every note down a semitone" aria-label="Notes down a semitone">▼</button>
+        </div></div>
       <div class="sq-row sq-side">
         <span class="rlab">shape</span>
         <label class="sld"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
@@ -750,15 +848,6 @@ html.fit .main > .pane[hidden] { display: var(--pane-d, block) !important; visib
           <button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button>
         </div>
       </div>
-      <div class="sq-row sq-rnd">
-        <span class="rlab">randomise</span>
-        <div class="acts">
-          <button type="button" id="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
-          <button type="button" id="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Slides</button>
-          <button type="button" id="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Octaves</button>
-        </div>
-      </div>
-      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
     </div>
   </section>
 
@@ -3202,6 +3291,20 @@ document.getElementById('rand').onclick = () => {
   sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
 };
 
+
+// Arrows on the right of the roll: move every note up or down a semitone (the note rows) or an octave (the octave rows).
+// A real transpose, so B up a semitone becomes C in the next octave lane. If any note would go past the top or bottom
+// of the range nothing moves (so the riff keeps its shape) and a message says so; rests just follow, clamped.
+document.querySelector('.nudge').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-nudge]'); if (!b) return;
+  const d = +b.dataset.nudge, P = state.pattern, notes = P.filter(st => st.gate);
+  if (!notes.length) { sqSay('No notes to move: put some notes in first.'); return; }
+  if (notes.some(st => st.code + d < 0 || st.code + d > 59)) { sqSay(`Already at the ${d > 0 ? 'top' : 'bottom'} of the range.`); return; }
+  pushUndo();
+  for (const st of P) st.code = clampCode(st.code + d);
+  renderSeq(); pushPattern();
+});
+
 // ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
@@ -3684,7 +3787,9 @@ bindDial(bpmKnob, { get: () => state.bpm, set: (_, v) => setBpm(v), drag: 2, fin
 
 // the waveform switch sits at the left of the voice panel; component randomise and its undo at the right
 panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="name">Waveform</span>
+  <div class="wave-row"><svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 L9 1 V11 L17 1 V11"/></svg>
   <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
+  <svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 V1 H10 V11 H19 V1"/></svg></div>
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
 panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="name">Components</span>
@@ -4303,18 +4408,19 @@ showPane(store.get('mainTab', 'seq'));
 renderFx(); renderSeq(); renderBank(); renderParts(); renderFrontMods(); readouts();
 
 // ---------- fit the screen to the window (the Elixir Synth way) ----------
-// On a desktop window the screen is laid out once at 1000px wide and scaled as a whole to fit, with the dark case round it,
-// so it reads the same at any window size. Phones and short windows keep their own compact layout.
+// On a desktop window the screen is a fixed 1000 x 647 pane (the shape of Johnny's MacBook Pro display, 1.545:1),
+// scaled as a whole to fill the window with the dark case round it, so every page reads the same at any window size
+// and nothing moves when you switch tabs. The scale goes on the root, so the Options sheet scales with the screen.
+// Phones and short windows keep their own compact layout.
 (() => {
-  const main = document.querySelector('.main'), root = document.documentElement, W = 1000, PAD = 28;
+  const main = document.querySelector('.main'), root = document.documentElement, W = 1000, H = 647, PAD = 16;
   const mq = matchMedia('(min-width: 701px) and (min-height: 521px)');
   const fit = () => {
     root.classList.toggle('fit', mq.matches);
-    if (!mq.matches) { main.style.removeProperty('--k'); return; }
-    const k = Math.min((innerWidth - PAD) / W, (innerHeight - PAD) / main.offsetHeight, 2.2);
-    main.style.setProperty('--k', k.toFixed(4));
+    if (!mq.matches) { root.style.removeProperty('--k'); return; }
+    const k = Math.min((innerWidth - PAD) / W, (innerHeight - PAD) / H, 2.2);
+    root.style.setProperty('--k', k.toFixed(4));
   };
-  new ResizeObserver(fit).observe(main);
   addEventListener('resize', fit); mq.addEventListener('change', fit); fit();
 })();
 

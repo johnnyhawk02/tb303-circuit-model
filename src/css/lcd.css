@@ -53,31 +53,6 @@ select option { background: var(--glass); color: var(--ink); }
 .knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
 ::selection { background: var(--ink); color: var(--glass); }
 
-/* top bar: part of the glass, parted from the rest by a rule */
-.top { position: relative; margin: 0 -16px; background: transparent; border-bottom: 1px solid var(--line); }
-.sq-msg, .fn-menu, .pm-pop { background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; box-shadow: 0 10px 30px rgb(0 0 0 / .45); text-shadow: none; }
-
-/* buttons, fields: outlined in ink, inverted when on */
-button, select, input[type=text] { background: transparent; color: var(--ink); border: 2px solid var(--ink); border-radius: 3px; text-shadow: var(--shadow); text-transform: lowercase; }
-input[type=text] { text-transform: none; background: var(--tint); }
-button:hover:not(:disabled) { background: var(--tint); }
-button:active:not(:disabled) { background: var(--ink); color: var(--glass); text-shadow: none; }
-select option { background: var(--glass); color: var(--ink); }
-.icon svg, .gear svg { fill: var(--ink); }
-.gear { border-color: transparent; }
-.play[aria-pressed=true], .onoff[aria-pressed=true], .seg button[aria-pressed=true], .seg button[aria-checked=true],
-.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true],
-.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-chip[aria-pressed=true], .pm .pm-favf[aria-pressed=true] {
-  background: var(--ink); color: var(--glass); text-shadow: none; }
-.play[aria-pressed=true] svg { fill: var(--glass); }
-.seg { border: 2px solid var(--ink); border-radius: 3px; }
-.seg button { border: 0; border-right: 1px solid var(--rulec); border-radius: 0; text-shadow: var(--shadow); }
-.seg button:last-child { border-right: 0; }
-.switch { background: transparent; border: 2px solid var(--ink); }
-.switch .thumb { background: var(--ink); border-radius: 2px; top: 1px; }
-.switch[aria-checked=true] { background: var(--ink); }
-.switch[aria-checked=true] .thumb { background: var(--glass); }
-
 /* dials: a solid ring, ghost where unlit and ink up to the pointer, and a pointer from the centre to the ring */
 .knob svg { overflow: visible; }
 .knob svg .trk, .knob svg .arc { stroke-width: 7; stroke-linecap: butt; }
@@ -210,3 +185,109 @@ html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 
 html.fit .main > .pane { grid-row: 4; grid-column: 1; min-height: 0; overflow: auto; }
 html.fit .main > .pane[hidden] { display: var(--pane-d, block) !important; visibility: hidden; pointer-events: none; }
 .fxpane { --pane-d: grid; }
+
+/* ---- design pass (Nov 2026): one fixed 1000 x 647 screen (MacBook Pro shape), one type scale, one control height ----
+   type: 14px small print (dial readouts and names, row labels, notes), 16px controls, 18px headings
+   controls in the pages: 26px tall, 2px ink outline, uppercase spaced labels; tabs and headings stay lowercase
+   spacing: 6px between controls in a row, 8px between rows, 16px screen margin */
+:root { --fs-s: 14px; --fs-m: 16px; --fs-l: 18px; --ctl-h: 26px; --row-h: 13px; }
+
+/* dials: crisp wedges only. The ghost track used to carry a 7-unit ghost stroke (a soft halo that filled the gaps
+   between segments) and the lit wedges a drop shadow; both gone, so every edge is sharp at any scale */
+.knob svg { shape-rendering: geometricPrecision; }
+.knob svg .trk, .main .knob svg .trk { fill: var(--ghost); stroke: none !important; filter: none; }
+.knob svg .arc, .main .knob svg .arc { fill: var(--ink); stroke: none !important; filter: none; }
+
+/* the screen */
+html.fit .main { width: 1000px; height: 647px; padding: 0 16px 12px; gap: 8px; grid-template-rows: auto auto auto minmax(0, 1fr); align-content: stretch; }
+html.fit .main > .pane { padding: 12px 16px 0; overflow: hidden; }
+html.fit .top { padding: 8px 16px; gap: 10px 12px; min-height: 0; }
+html.fit .top button, html.fit .top .bpm-read output, html.fit .pm .pm-btn { height: 30px; }
+html.fit .dev { padding: 30px 16px 8px; }
+html.fit .dev::before { height: 26px; font-size: var(--fs-l); }
+html.fit .mtabs { margin: 0 -16px -8px; }
+html.fit .mtabs button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
+
+/* one size for small print and one for controls, everywhere */
+html.fit .kn .val, html.fit .md .val, html.fit .kn .name, html.fit .md .mname, html.fit .trim .tname, html.fit .trim .tval,
+html.fit .label, html.fit .md .mdesc, html.fit .sq-row > .rlab { font-size: var(--fs-s); }
+html.fit .sld, html.fit .sld output, html.fit .fxname, html.fit .lex-lcd { font-size: var(--fs-m); }
+html.fit .pane button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button { height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; }
+html.fit .pane .seg button { min-width: 30px; }
+
+/* sequencer: pattern and edit rows above the roll, shape and generate rows below; one label column */
+html.fit .sq-body { gap: 6px; }
+html.fit .sq-row { flex-wrap: nowrap; gap: 6px; min-height: var(--ctl-h); }
+html.fit .sq-row > .rlab { width: 72px; color: var(--mute); }
+html.fit .sq-row > .rlab-in { width: auto; margin-left: 22px; margin-right: 4px; }
+html.fit .sq-row .acts { margin-left: 0; gap: 6px; }
+html.fit .sq-row .acts + .acts, html.fit .sq-row .slots + .acts, html.fit .sq-row .chain-read + .acts { margin-left: 16px; }
+html.fit .sq-bank .slots button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; }
+html.fit .sld { grid-template-columns: 64px 84px 36px; gap: 6px; margin-right: 12px; }
+html.fit .sq-side .sld:last-child { margin-right: 0; }
+html.fit .seqwrap { display: grid; grid-template-columns: minmax(0, 1fr) 24px; gap: 4px; overflow: visible; }
+html.fit .seq { grid-auto-rows: var(--row-h); font-size: 13px; }
+/* nudge arrows, beside the octave lanes and the note rows: rows line up with the roll's (2px outline, then the step row) */
+.nudge { display: grid; grid-template-rows: 2px repeat(19, var(--row-h, 16px)); align-content: start; }
+.nudge button { min-width: 0; padding: 0; margin: 1px 0; font-size: 10px; line-height: 1; letter-spacing: 0; text-shadow: none; box-shadow: none !important; }
+.nu-oct-up { grid-row: 3 / 5; } .nu-oct-dn { grid-row: 5 / 7; }
+.nu-key-up { grid-row: 7 / 13; } .nu-key-dn { grid-row: 13 / 19; }
+
+/* effects: RAT, delay and Compactor in one row over the 224 */
+html.fit .fxpane { --knob: 40px; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; }
+html.fit .fxpane .fxb:not(.blk-lex) { --kn-w: 56px; padding: 0 16px; }
+html.fit .fxpane .fxb:first-child { padding-left: 0; }
+html.fit .fxpane .fxb:nth-child(3) { padding-right: 0; }
+html.fit .fxknobs { flex-wrap: nowrap; gap: 6px; }
+html.fit .fxknobs .kn { width: var(--kn-w); }
+html.fit .fxb { gap: 8px; }
+html.fit .fxh { height: 30px; flex-wrap: nowrap; gap: 10px; }
+html.fit .fxsub { display: none; }
+html.fit .blk-lex { --kn-w: 64px; padding-top: 12px; gap: 8px; }
+html.fit .lex-progs button { height: 38px; padding: 0 4px; font-size: 13px; line-height: 1.1; }
+html.fit .lex-progs button b { font-size: var(--fs-m); line-height: 1.1; }
+html.fit .lex-note { max-width: none; margin: 0; font-size: var(--fs-s); line-height: 1.25; }
+
+/* mods: two even rows */
+html.fit .mods { gap: 16px 10px; padding-top: 4px; }
+
+/* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
+html.fit dialog#options { width: 960px; height: 600px; max-height: none; margin: auto; transform: scale(var(--k, 1)); }
+dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
+dialog#options .opt-head h2 { font-size: var(--fs-l); }
+dialog#options .kn .val, dialog#options .pk .val, dialog#options .pk .ref, dialog#options .readouts, dialog#options .hint, dialog#options .legend, dialog#options .detail, dialog#options .dclk-fade { font-size: var(--fs-s); }
+dialog#options .notes, dialog#options .dclk-txt { font-size: var(--fs-m); }
+dialog#options input[type=range] { --f: 0; height: 22px; }
+dialog#options input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; }
+dialog#options input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+
+/* popovers (Preset, Functions): the same controls as the pages */
+.pm-foot button, .pm-foot input[type=text] { height: 30px; font-size: var(--fs-m); }
+.pm-foot button { padding: 0 10px; line-height: 1; }
+
+/* dial cells stack from the top, so a long description never pushes its dial out of line with the row */
+.kn, .md, .pk { align-content: start; }
+html.fit .fxh .seg button { height: 22px; }
+/* the voice panel: the components buttons a size down so the panel is no taller than its dials */
+html.fit .parts-kn .mini { height: 22px; padding: 0 4px; font-size: var(--fs-s); }
+html.fit .panel { row-gap: 0; }
+/* names lowercase everywhere, like every other dial name */
+.trim .tname { text-transform: lowercase; letter-spacing: 0; }
+.wave-kn .val { text-transform: lowercase; }
+/* waveform switch: a saw glyph at the saw end, a square glyph at the square end, drawn in ink like the segments */
+.wave-row { display: flex; align-items: center; gap: 6px; margin: 14px 0 12px; }
+.wave-row .switch { margin: 0; }
+.wglyph { width: 18px; height: 11px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: miter; stroke-linecap: square; overflow: visible; }
+/* mods: the two rows of dials share the page's height, rather than leaving a gap at the bottom */
+html.fit .mods { gap: 30px 10px; padding-top: 10px; }
+/* the Options sheet: the screen's fine pixel grid too, and a lowercase title like every other heading */
+dialog#options { background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px); }
+dialog#options .opt-head h2 { text-transform: lowercase; }
