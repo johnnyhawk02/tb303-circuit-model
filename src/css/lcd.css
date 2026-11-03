@@ -175,4 +175,4 @@ input[type=checkbox] { accent-color: var(--ink); }
 .switch, .switch[aria-checked=true], button.switch:hover:not(:disabled), button.switch:active:not(:disabled) { background: var(--ink); border-color: var(--ink); }
 .switch .thumb, .switch[aria-checked=true] .thumb { background: var(--glass); }
 /* desktop: no bezel, the orange glass fills the window */
-@media (min-width: 701px) { html, body { background: var(--glass); } body { padding: 0; } .main { max-width: none; min-height: 100dvh; box-shadow: none; align-content: start; } }
+@media (min-width: 701px) and (min-height: 521px) { html, body { background: var(--glass); } body { padding: 0; } .main { max-width: none; min-height: 100dvh; box-shadow: none; align-content: start; } }
