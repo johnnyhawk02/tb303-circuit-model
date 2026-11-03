@@ -91,3 +91,9 @@ function toggleChain(b) {
   if (chain.length === 1 && chain[0] === slotKey(sel.g, sel.n) && pos >= 0) chain = [];
   store.set('chain', chain); sendPattern(); renderChain();
 }
+// number keys 1-8 pick that pattern slot in the current bank (Johnny), except while typing
+document.addEventListener('keydown', (e) => {
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || !/^Digit[1-8]$/.test(e.code)) return;
+  if (e.target.closest?.('input[type=text], textarea, select, [contenteditable=""], [contenteditable=true]') || document.getElementById('options').open) return;
+  e.preventDefault(); document.querySelector(`#bk-n [data-n="${+e.code.slice(5) - 1}"]`)?.click();
+});

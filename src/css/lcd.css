@@ -105,9 +105,6 @@ canvas { background: transparent; border: 2px solid var(--ink); }
   .mtabs button { padding: 2px 12px; }
   .lex-progs button { padding: 1px 2px; line-height: 1; }
   .lex-progs button b { line-height: 1; }
-  .sq-side { gap: 3px; }
-  .sq-side .rnd { margin-top: 0; padding: 2px 0; }
-  .stp button { height: 18px; }
   button, select, input[type=text] { border-width: 1.5px; }
   .seq { border-width: 1.5px; }
 }
@@ -125,5 +122,16 @@ input[type=checkbox] { accent-color: var(--ink); }
 .switch { border-radius: 3px; }
 .switch .thumb { border-radius: 1px; box-shadow: none; }
 /* steppers: the value reads like a segment display between two ink keys */
-.stp output { font-size: 20px; }
-.stp output.unit { font-size: 15px; }
+.stp output { font-size: 18px; }
+
+/* step grid as in the Shyoy: square ink blocks, no rounding; slides and accents solid like notes */
+.seq > * { border-radius: 0; text-shadow: none; }
+.seq button:hover:not(:disabled) { background: var(--tint2); }
+.seq .cell.on, .seq [data-t=slide].on, .seq [data-t=accent].on { background: var(--ink); }
+.seq .rh.blk, .seq .blk { background: var(--tint); }
+@media (orientation: landscape) and (max-height: 520px) {
+  input[type=range] { height: 16px; }
+  input[type=range]::-webkit-slider-runnable-track { height: 8px; border-width: 1.5px; }
+  input[type=range]::-webkit-slider-thumb { width: 9px; height: 15px; margin-top: -5px; }
+  .sq-bank .seg button, .sq-ed button { padding: 0 6px; min-height: 0; }
+}

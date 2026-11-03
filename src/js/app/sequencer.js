@@ -105,28 +105,52 @@ seq.addEventListener('keydown', (e) => {
 });
 
 // ---------- side controls ----------
+const sideIn = Object.fromEntries([...document.querySelectorAll('.sq-side input[data-a]')].map(el => [el.dataset.a, el]));
 function renderSide() {
-  document.getElementById('o-len').textContent = state.pattern.length;
+  document.getElementById('o-len').textContent = sideIn.len.value = state.pattern.length;
+  sideIn.gate.value = Math.round(state.gate * 100);
   document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
-  const codes = state.pattern.map(s => s.code), lo = Math.min(...codes), hi = Math.max(...codes);
-    for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
 }
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-document.querySelector('.sq-side').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-a]'); if (!b) return;
-  const d = +b.dataset.d, P = state.pattern;
-  switch (b.dataset.a) {
-    case 'len':
-      if (d < 0 && P.length > 1) tail.unshift(P.pop());
-      else if (d > 0) extendTo(P.length + 1);
-      break;
-    case 'gate': state.gate = Math.min(0.95, Math.max(0.1, Math.round((state.gate + d * 0.05) * 100) / 100)); sendGroove(); break;
-    case 'shift': if (d > 0) P.unshift(P.pop()); else P.push(P.shift()); break;
-    case 'tr': if (P.every(s => s.code + d >= 0 && s.code + d <= 59)) for (const s of P) s.code += d; break;
+// sliders, as in the Shyoy: Length and Step len set values; Shift and Transpose spring back to centre when let go
+let sprBase = null;
+const sprReset = () => { sprBase = null; for (const a of ['shift', 'tr']) { sideIn[a].value = 0; document.getElementById('o-' + a).textContent = '0'; } };
+for (const a of ['shift', 'tr']) {
+  const el = sideIn[a];
+  const grab = () => { if (!sprBase) { pushUndo(); sprBase = state.pattern.map(st => ({ ...st })); } };
+  el.addEventListener('pointerdown', grab); el.addEventListener('focus', grab);
+  el.addEventListener('change', () => { if (el.matches(':focus-visible')) return; sprReset(); });
+  el.addEventListener('pointerup', sprReset); el.addEventListener('pointercancel', sprReset); el.addEventListener('blur', sprReset);
+}
+document.querySelector('.sq-side').addEventListener('input', (e) => {
+  const el = e.target.closest('input[data-a]'); if (!el) return;
+  const v = +el.value, P = state.pattern;
+  switch (el.dataset.a) {
+    case 'len': while (P.length > v && P.length > 1) tail.unshift(P.pop()); extendTo(v); break;
+    case 'gate': state.gate = v / 100; sendGroove(); break;
+    case 'shift': {
+      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
+      const n = sprBase.length, k = ((v % n) + n) % n;
+      state.pattern = sprBase.map((_, i) => ({ ...sprBase[(i - k + n) % n] }));
+      renderSeq(); pushPattern(); document.getElementById('o-shift').textContent = (v > 0 ? '+' : '') + v; return;
+    }
+    case 'tr': {
+      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
+      const codes = sprBase.map(st => st.code), lo = Math.min(...codes), hi = Math.max(...codes);
+      const d = Math.max(-lo, Math.min(59 - hi, v));
+      state.pattern = sprBase.map(st => ({ ...st, code: st.code + d }));
+      renderSeq(); pushPattern(); document.getElementById('o-tr').textContent = (d > 0 ? '+' : '') + d; return;
+    }
   }
   renderSeq(); pushPattern();
 });
+// Undo next to the pattern tools: the same undo as Functions › Undo
+{
+  const fu = document.getElementById('fn-undo'), pu = document.getElementById('p-undo');
+  pu.onclick = () => fu.click();
+  new MutationObserver(() => { pu.disabled = fu.disabled; }).observe(fu, { attributes: true, attributeFilter: ['disabled'] });
+}
 // Duplicate steps: repeat the pattern until it fills the next of 16, 32 or 64 steps (a 5-step riff becomes 16, then 32)
 document.getElementById('p-dup').onclick = () => {
   const P = state.pattern, n = P.length, to = [16, 32, 64].find(x => x > n);

@@ -13,13 +13,19 @@
 .chain-read button { padding: 0 7px; font-size: 19.5px; line-height: 20px; }
 .sq-ed { display: flex; gap: 6px; margin-left: auto; }
 .sq-ed button { padding: 5px 10px; font-size: 17px; }
-.sq-body { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 16px; align-items: start; }
-.sq-side { display: grid; gap: 8px; }
-.stp { display: grid; grid-template-columns: 1fr 24px 42px 24px; gap: 0 2px; align-items: center; }
+.sq-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: start; }
+/* the Shyoy layout (Johnny): one strip of sliders and pattern tools, then the bank row, then the roll at full width */
+.sq-side { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.sld { display: grid; grid-template-columns: auto 120px 40px; align-items: center; gap: 0 8px; font-size: 18px; text-transform: lowercase; }
+.sld output { text-align: right; font-size: 18px; font-variant-numeric: tabular-nums; }
+.sld input { width: 100%; }
+.acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.acts button { padding: 1px 10px; font-size: 18px; }
+.bk-lab { font-size: 17px; text-transform: lowercase; }
+.stp { display: grid; grid-template-columns: auto 24px 42px 24px; gap: 0 4px; align-items: center; }
 .stp button { padding: 0; height: 24px; font-size: 14px; border-width: 1.5px; border-radius: 0; }
 .stp output { text-align: center; font: 17px/1 var(--font-body); color: var(--hi); background: var(--well); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 5px 0; }
 .stp output.unit { color: var(--mute); font-size: 14px; }
-.sq-side .rnd { margin-top: 4px; padding: 6px 0; font-size: 17px; }
 .seqwrap { overflow-x: auto; scrollbar-width: thin; }
 .seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(22px, 1fr)); grid-auto-rows: 16px; width: max-content; min-width: 100%;
   font: 14px var(--font-body); border: 1px solid var(--ink); background: var(--well); user-select: none; }
@@ -43,4 +49,3 @@
 .seq .hd.ghost { opacity: .5; }
 .seq .cell.ghost:hover { opacity: .6; }
 .seq .end { border-right: 2px solid var(--hi); }
-.sq-side .dup { padding: 4px 0; font-size: 15.5px; }

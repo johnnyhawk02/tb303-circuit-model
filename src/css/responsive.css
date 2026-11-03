@@ -4,8 +4,6 @@
   .top .hp .label { min-width: 7ch; }
   .pm-pop { min-width: 0; }
   .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .sq-body { grid-template-columns: 1fr; }
-  .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
   .sq-ed { margin-left: 0; }
   .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .fxpane { grid-template-columns: minmax(0, 1fr); }
@@ -86,13 +84,20 @@
   .sq-bank .seg button { padding: 3px 6px; min-width: 22px; }
   .sq-ed { margin-left: auto; }
   .sq-ed button { padding: 3px 7px; }
-  .sq-body { grid-template-columns: 128px minmax(0, 1fr); gap: 8px; }
-  .sq-side { grid-template-columns: 1fr; gap: 4px; }
-  .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
-  .stp button { height: 20px; }
+  .sq-body { gap: 3px; }
+  .sq-side { gap: 3px 10px; }
+  .sld { grid-template-columns: auto 64px 26px; gap: 0 4px; font-size: 14px; }
+  .sld output { font-size: 14px; }
+  .sld input { height: 16px; }
+  .sld input::-webkit-slider-runnable-track { height: 8px; border-width: 1.5px; }
+  .sld input::-webkit-slider-thumb { width: 9px; height: 15px; margin-top: -5px; }
+  .acts { gap: 3px; }
+  .acts button { padding: 0 6px; font-size: 14px; min-height: 0; }
+  .bk-lab { display: none; }
+  .stp { grid-template-columns: auto 18px 28px 18px; gap: 0 2px; }
+  .stp button { height: 18px; }
   .stp .label { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 30px repeat(var(--steps, 16), minmax(14px, 1fr)); font-size: 12px; }
-  .sq-side .dup { padding: 2px 0; font-size: 13.5px; }
 
   .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
   .md .mdesc { font-size: 13.5px; }
