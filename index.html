@@ -707,8 +707,8 @@ input[type=checkbox] { accent-color: var(--ink); }
       </div>
       <div class="sq-bank">
         <span class="bk-lab">pattern</span>
-        <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
-      <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
+        <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
+      <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
       <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
       <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
       </div>
@@ -3140,7 +3140,8 @@ document.getElementById('rand').onclick = () => {
 // ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
-if (!'ABCD'.includes(sel.g) || !(sel.n >= 0 && sel.n < 12)) sel = { g: 'A', n: 0 };
+// eight patterns, 1-8 (Johnny): they live in what was bank A; other old slots stay in storage but are not shown
+if (sel.g !== 'A' || !(sel.n >= 0 && sel.n < 8)) sel = { g: 'A', n: 0 };
 const slotKey = (g, n) => g + (n + 1);
 let clip = store.get('clip', null);
 function blankPattern(len = 16) { return Array.from({ length: len }, () => restStep(24)); }
@@ -3153,7 +3154,7 @@ function storeSlot() {
 // slots that are empty, or still hold an untouched random pick, get a random preset
 function fillSlots(force) {
   const cur = slotKey(sel.g, sel.n); let n = 0;
-  for (const g of 'ABCD') for (let i = 0; i < 12; i++) {
+  for (const g of 'A') for (let i = 0; i < 8; i++) {
     const k = slotKey(g, i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
@@ -3191,7 +3192,7 @@ document.getElementById('p-clear').onclick = () => { state.pattern = blankPatter
 function pushPattern() { store.set('pattern', state.pattern); storeSlot(); sendPattern(); renderBank(); saveSession(); }
 
 // ---------- chains: right-click slots to play several patterns in a row ----------
-let chain = (store.get('chain', null) || []).filter(k => /^[A-D]([1-9]|1[0-2])$/.test(k));
+let chain = (store.get('chain', null) || []).filter(k => /^A[1-8]$/.test(k));
 let chainOffs = []; // start step of each chained pattern in the joined sequence
 const slotPattern = (k) => cleanSettings(banks[k]).pattern || blankPattern();
 function sendPattern() {
@@ -4050,12 +4051,12 @@ function pmTags(v) {
   return t;
 }
 
-// ---------- projects: everything at once (sound, effects, tempo, all 48 bank slots, chain) ----------
-const SLOT_RE = /^[A-D]([1-9]|1[0-2])$/;
+// ---------- projects: everything at once (sound, effects, tempo, the 8 pattern slots, chain) ----------
+const SLOT_RE = /^A[1-8]$/;
 function projectSnap() {
   storeSlot();
   return { sound: soundSnap(), bpm: state.bpm, sel: { ...sel }, chain: [...chain],
-    banks: Object.fromEntries(Object.entries(banks).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
+    banks: Object.fromEntries(Object.entries(banks).filter(([k]) => SLOT_RE.test(k)).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
 }
 // a preset is a whole project, or (folded in from the old separate lists) just a sound or just a pattern
 const sndOnlyEl = document.getElementById('prj-sndonly');
@@ -4080,7 +4081,7 @@ function applyProject(x) {
     }
     store.set('banks', banks);
   }
-  if (x.sel && 'ABCD'.includes(x.sel.g) && x.sel.n >= 0 && x.sel.n < 12) sel = { g: x.sel.g, n: x.sel.n | 0 };
+  if (x.sel && x.sel.g === 'A' && x.sel.n >= 0 && x.sel.n < 8) sel = { g: 'A', n: x.sel.n | 0 }; else sel = { g: 'A', n: 0 };
   store.set('bankSel', sel);
   chain = Array.isArray(x.chain) ? x.chain.filter(k => SLOT_RE.test(k)) : [];
   store.set('chain', chain); playingSlot = '';

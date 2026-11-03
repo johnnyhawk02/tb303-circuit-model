@@ -2,7 +2,7 @@
 
 A JavaScript simulation of the TB-303 bass voice, modelled at component level from the Roland main board schematic (Feb 1982). Values that sheet doesn't show clearly were taken from the Behringer TD-3 schematic.
 
-Open `index.html` in a browser to play it. It has a step sequencer, one Preset menu (sound, effects, tempo, all 48 bank slots and the chain, with a Sound only option and an auto-namer for saves), the front panel knobs, a scope, and a parts list you can edit while it plays.
+Open `index.html` in a browser to play it. It has a step sequencer, one Preset menu (sound, effects, tempo, the 8 pattern slots (keys 1-8 pick them) and the chain, with a Sound only option and an auto-namer for saves), the front panel knobs, a scope, and a parts list you can edit while it plays.
 
 ## Files
 - `tb303-model.js`: the voice (`TB303Voice`) and its parts table (`COMPONENTS`). It has no dependencies and runs in Node, in a browser, or in an AudioWorklet.

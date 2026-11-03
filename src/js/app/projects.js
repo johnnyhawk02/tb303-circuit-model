@@ -1,9 +1,9 @@
-// ---------- projects: everything at once (sound, effects, tempo, all 48 bank slots, chain) ----------
-const SLOT_RE = /^[A-D]([1-9]|1[0-2])$/;
+// ---------- projects: everything at once (sound, effects, tempo, the 8 pattern slots, chain) ----------
+const SLOT_RE = /^A[1-8]$/;
 function projectSnap() {
   storeSlot();
   return { sound: soundSnap(), bpm: state.bpm, sel: { ...sel }, chain: [...chain],
-    banks: Object.fromEntries(Object.entries(banks).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
+    banks: Object.fromEntries(Object.entries(banks).filter(([k]) => SLOT_RE.test(k)).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
 }
 // a preset is a whole project, or (folded in from the old separate lists) just a sound or just a pattern
 const sndOnlyEl = document.getElementById('prj-sndonly');
@@ -28,7 +28,7 @@ function applyProject(x) {
     }
     store.set('banks', banks);
   }
-  if (x.sel && 'ABCD'.includes(x.sel.g) && x.sel.n >= 0 && x.sel.n < 12) sel = { g: x.sel.g, n: x.sel.n | 0 };
+  if (x.sel && x.sel.g === 'A' && x.sel.n >= 0 && x.sel.n < 8) sel = { g: 'A', n: x.sel.n | 0 }; else sel = { g: 'A', n: 0 };
   store.set('bankSel', sel);
   chain = Array.isArray(x.chain) ? x.chain.filter(k => SLOT_RE.test(k)) : [];
   store.set('chain', chain); playingSlot = '';

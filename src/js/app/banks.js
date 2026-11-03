@@ -1,7 +1,8 @@
 // ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
-if (!'ABCD'.includes(sel.g) || !(sel.n >= 0 && sel.n < 12)) sel = { g: 'A', n: 0 };
+// eight patterns, 1-8 (Johnny): they live in what was bank A; other old slots stay in storage but are not shown
+if (sel.g !== 'A' || !(sel.n >= 0 && sel.n < 8)) sel = { g: 'A', n: 0 };
 const slotKey = (g, n) => g + (n + 1);
 let clip = store.get('clip', null);
 function blankPattern(len = 16) { return Array.from({ length: len }, () => restStep(24)); }
@@ -14,7 +15,7 @@ function storeSlot() {
 // slots that are empty, or still hold an untouched random pick, get a random preset
 function fillSlots(force) {
   const cur = slotKey(sel.g, sel.n); let n = 0;
-  for (const g of 'ABCD') for (let i = 0; i < 12; i++) {
+  for (const g of 'A') for (let i = 0; i < 8; i++) {
     const k = slotKey(g, i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
@@ -52,7 +53,7 @@ document.getElementById('p-clear').onclick = () => { state.pattern = blankPatter
 function pushPattern() { store.set('pattern', state.pattern); storeSlot(); sendPattern(); renderBank(); saveSession(); }
 
 // ---------- chains: right-click slots to play several patterns in a row ----------
-let chain = (store.get('chain', null) || []).filter(k => /^[A-D]([1-9]|1[0-2])$/.test(k));
+let chain = (store.get('chain', null) || []).filter(k => /^A[1-8]$/.test(k));
 let chainOffs = []; // start step of each chained pattern in the joined sequence
 const slotPattern = (k) => cleanSettings(banks[k]).pattern || blankPattern();
 function sendPattern() {
