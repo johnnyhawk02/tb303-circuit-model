@@ -79,20 +79,37 @@
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- three rows, one kind of control each: the pattern and what you do to it, its shape, and Generate -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (its shape, and Generate);
+           a label column on the left so every row lines up -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
         <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
         <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
+      </div>
+      <div class="sq-row sq-edit">
+        <span class="rlab">edit</span>
         <div class="acts">
           <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
           <button type="button" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle</button>
           <button type="button" id="p-clear">Clear</button>
           <button type="button" id="p-undo" disabled>Undo</button>
         </div>
+        <span class="rlab rlab-in">randomise</span>
+        <div class="acts">
+          <button type="button" id="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
+          <button type="button" id="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Slides</button>
+          <button type="button" id="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Octaves</button>
+        </div>
       </div>
+      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div>
+        <div class="nudge" role="group" aria-label="Shift the notes">
+          <button type="button" class="nu-oct-up" data-nudge="12" title="Every note up an octave" aria-label="Octaves up">▲</button>
+          <button type="button" class="nu-oct-dn" data-nudge="-12" title="Every note down an octave" aria-label="Octaves down">▼</button>
+          <button type="button" class="nu-key-up" data-nudge="1" title="Every note up a semitone" aria-label="Notes up a semitone">▲</button>
+          <button type="button" class="nu-key-dn" data-nudge="-1" title="Every note down a semitone" aria-label="Notes down a semitone">▼</button>
+        </div></div>
       <div class="sq-row sq-side">
         <span class="rlab">shape</span>
         <label class="sld"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
@@ -109,15 +126,6 @@
           <button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button>
         </div>
       </div>
-      <div class="sq-row sq-rnd">
-        <span class="rlab">randomise</span>
-        <div class="acts">
-          <button type="button" id="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
-          <button type="button" id="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Slides</button>
-          <button type="button" id="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Octaves</button>
-        </div>
-      </div>
-      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
     </div>
   </section>
 

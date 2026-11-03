@@ -203,3 +203,16 @@ document.getElementById('rand').onclick = () => {
   sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
 };
 
+
+// Arrows on the right of the roll: move every note up or down a semitone (the note rows) or an octave (the octave rows).
+// A real transpose, so B up a semitone becomes C in the next octave lane. If any note would go past the top or bottom
+// of the range nothing moves (so the riff keeps its shape) and a message says so; rests just follow, clamped.
+document.querySelector('.nudge').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-nudge]'); if (!b) return;
+  const d = +b.dataset.nudge, P = state.pattern, notes = P.filter(st => st.gate);
+  if (!notes.length) { sqSay('No notes to move: put some notes in first.'); return; }
+  if (notes.some(st => st.code + d < 0 || st.code + d > 59)) { sqSay(`Already at the ${d > 0 ? 'top' : 'bottom'} of the range.`); return; }
+  pushUndo();
+  for (const st of P) st.code = clampCode(st.code + d);
+  renderSeq(); pushPattern();
+});
