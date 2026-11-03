@@ -3821,7 +3821,7 @@ function presetMenu(host) {
     } else if (e.key === 'Enter' && act >= 0 && items[act]) { e.preventDefault(); items[act].click(); }
   });
   document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !host.contains(e.target)) hide(); });
-  sel.addEventListener('sync', () => { build(); sync(); }); sel.addEventListener('change', sync);
+  sel.addEventListener('sync', () => { build(); sync(); if (!pop.hidden) { const y = list.scrollTop; draw(); list.scrollTop = y; } }); sel.addEventListener('change', sync);
   build(); sync();
 }
 // pattern tags, worked out from the notes themselves
