@@ -11,9 +11,9 @@ sndOnlyEl.checked = !!store.get('prjSoundOnly', false);
 sndOnlyEl.onchange = () => store.set('prjSoundOnly', sndOnlyEl.checked);
 function applyPreset(x) {
   if (!x || typeof x !== 'object') return;
-  if (x.kind === 'pattern') { if (!sndOnlyEl.checked) { applyPattern(x.pattern); storeSlot(); renderBank(); saveSession(); } return; }
+  if (x.kind === 'pattern') { if (!sndOnlyEl.checked) { applyPattern({ ...x.pattern, bpm: undefined }); storeSlot(); renderBank(); saveSession(); } return; }
   if (x.kind === 'sound' || sndOnlyEl.checked) { applySound(x.sound || {}); return; }
-  applyProject(x);
+  applyProject({ ...x, bpm: undefined }); // presets keep the current tempo (Johnny)
 }
 function applyProject(x) {
   if (!x || typeof x !== 'object') return;

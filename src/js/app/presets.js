@@ -90,7 +90,7 @@ function presetMenu(host) {
   const isPat = pre === 'pat';
   host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span></button>`
     + `<button type="button" class="pm-step" data-d="-1" aria-label="Previous preset">◀</button><button type="button" class="pm-step" data-d="1" aria-label="Next preset">▶</button>`
-    + `<div class="pm-pop" hidden><div class="pm-head"><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets">`
+    + `<div class="pm-pop" hidden><div class="pm-head"><div class="pm-qrow"><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets"><button type="button" class="pm-favf" aria-pressed="false" title="Show favourites only">★</button></div>`
     + (isPat ? `<div class="pm-chips" role="group" aria-label="Filter">${PM_TAGS.map(t => `<button type="button" class="pm-chip" data-t="${t.k}" aria-pressed="false" title="${t.tip}">${t.label}</button>`).join('')}</div>` : '')
     + `</div><div class="pm-list" role="listbox" aria-label="${sel.getAttribute('aria-label')}"></div></div>`;
   host.querySelector('.pm-pop').appendChild(host.parentElement.querySelector('.pm-foot'));
@@ -99,7 +99,7 @@ function presetMenu(host) {
   const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   const favKey = 'fav.' + pre, recKey = 'recent.' + pre, openKey = 'pmOpen.' + pre;
   const fav = new Set(store.get(favKey, [])), open = new Set(store.get(openKey, ['fav', 'rec', 'my', 'built']));
-  let recent = store.get(recKey, []), chips = new Set(), act = -1, tree = null, order = [], byV = new Map();
+  let recent = store.get(recKey, []), chips = new Set(), act = -1, tree = null, order = [], byV = new Map(), favOnly = !!store.get('favOnly.' + pre, false);
 
   // every option becomes an item with a folder path: My presets, Built-in, or source > author > song
   function build() {
@@ -164,18 +164,15 @@ function presetMenu(host) {
   }
   function draw() {
     const term = q.value.trim().toLowerCase(); let h = '';
-    if (term || chips.size) {
-      const hits = order.filter(it => (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)) && [...chips].every(t => pmTags(it.v).has(t)));
-      h = hits.slice(0, 300).map(it => row(it, 0, true)).join('');
-      h = (hits.length ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
+    if (term || chips.size || favOnly) {
+      const hits = order.filter(it => (!favOnly || fav.has(it.v)) && (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)) && [...chips].every(t => pmTags(it.v).has(t)));
+      h = hits.slice(0, 300).map(it => row(it, 0, byV.size > 14)).join('');
+      h = (hits.length && (term || chips.size) ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
     } else {
-      const favs = order.filter(it => fav.has(it.v)), recs = recent.map(v => byV.get(v)).filter(Boolean);
-      if (favs.length) h += folder('fav', '★ Favourites', favs.length, 0) + (open.has('fav') ? favs.map(it => row(it, 1, true)).join('') : '');
-      if (recs.length) h += folder('rec', 'Recent', recs.length, 0) + (open.has('rec') ? recs.map(it => row(it, 1, true)).join('') : '');
-      if (small()) h += (h ? '<div class="pm-sep"></div>' : '') + order.map(it => row(it, 0)).join('');
+      if (small()) h = order.map(it => row(it, 0)).join('');
       else for (const t of tree) h += drawNode(t, 0);
     }
-    list.innerHTML = h || `<div class="pm-none">${byV.size ? 'Nothing matches.' : 'No presets yet. Save one below.'}</div>`;
+    list.innerHTML = h || `<div class="pm-none">${!byV.size ? 'No presets yet. Save one below.' : favOnly && !term ? 'No favourites yet. Tap ☆ on a preset to add it.' : 'Nothing matches.'}</div>`;
     act = -1;
   }
   function show() {
@@ -193,9 +190,9 @@ function presetMenu(host) {
   }
   btn.onclick = () => (pop.hidden ? show() : hide());
   host.querySelectorAll('.pm-step').forEach(b => b.onclick = () => {
-    build(); if (!order.length) return;
-    const d = +b.dataset.d, i = order.findIndex(it => it.v === sel.value);
-    choose(order[i < 0 ? (d > 0 ? 0 : order.length - 1) : (i + d + order.length) % order.length].v);
+    build(); const L = favOnly && order.some(it => fav.has(it.v)) ? order.filter(it => fav.has(it.v)) : order; if (!L.length) return;
+    const d = +b.dataset.d, i = L.findIndex(it => it.v === sel.value);
+    choose(L[i < 0 ? (d > 0 ? 0 : L.length - 1) : (i + d + L.length) % L.length].v);
   });
   list.addEventListener('click', (e) => {
     const g = e.target.closest('.pm-g');
@@ -209,6 +206,9 @@ function presetMenu(host) {
     chips.has(c.dataset.t) ? chips.delete(c.dataset.t) : chips.add(c.dataset.t); c.setAttribute('aria-pressed', chips.has(c.dataset.t)); draw();
   });
   q.addEventListener('input', draw);
+  const favBtn = host.querySelector('.pm-favf');
+  favBtn.setAttribute('aria-pressed', favOnly);
+  favBtn.onclick = () => { favOnly = !favOnly; favBtn.setAttribute('aria-pressed', favOnly); store.set('favOnly.' + pre, favOnly); draw(); };
   pop.addEventListener('keydown', (e) => {
     const items = [...list.querySelectorAll('.pm-i, .pm-g')];
     if (e.key === 'Escape') { e.preventDefault(); hide(true); return; }
