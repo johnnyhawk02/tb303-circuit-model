@@ -191,3 +191,8 @@ html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815)
 .main button:not(.mtabs button) { text-transform: uppercase; letter-spacing: .06em; }
 .main .seq .cell.on, .main input[type=range]::-webkit-slider-thumb { filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
 .main button:active:not(:disabled), .main button[aria-pressed="true"], .main button[aria-selected="true"] { text-shadow: none; }
+/* fit-to-window (see fit.js): a 1000px screen scaled as a whole, centred on the dark case, nothing scrolls */
+html.fit, html.fit body { height: 100dvh; overflow: hidden; }
+html.fit body { padding: 0; position: relative; }
+html.fit .main { position: absolute; left: 50%; top: 50%; width: 1000px; max-width: none; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
+html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 72px 34px; gap: 6px; }

@@ -670,6 +670,11 @@ html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815)
 .main button:not(.mtabs button) { text-transform: uppercase; letter-spacing: .06em; }
 .main .seq .cell.on, .main input[type=range]::-webkit-slider-thumb { filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
 .main button:active:not(:disabled), .main button[aria-pressed="true"], .main button[aria-selected="true"] { text-shadow: none; }
+/* fit-to-window (see fit.js): a 1000px screen scaled as a whole, centred on the dark case, nothing scrolls */
+html.fit, html.fit body { height: 100dvh; overflow: hidden; }
+html.fit body { padding: 0; position: relative; }
+html.fit .main { position: absolute; left: 50%; top: 50%; width: 1000px; max-width: none; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
+html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 72px 34px; gap: 6px; }
 </style>
 <div class="rotate" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn your device sideways</p><small>This instrument is laid out for landscape.</small></div>
 <div class="main">
@@ -4422,5 +4427,21 @@ mtabs.addEventListener('keydown', (e) => {
 showPane(store.get('mainTab', 'seq'));
 
 renderFx(); renderSeq(); renderBank(); renderParts(); renderFrontMods(); readouts();
+
+// ---------- fit the screen to the window (the Elixir Synth way) ----------
+// On a desktop window the screen is laid out once at 1000px wide and scaled as a whole to fit, with the dark case round it,
+// so it reads the same at any window size. Phones and short windows keep their own compact layout.
+(() => {
+  const main = document.querySelector('.main'), root = document.documentElement, W = 1000, PAD = 28;
+  const mq = matchMedia('(min-width: 701px) and (min-height: 521px)');
+  const fit = () => {
+    root.classList.toggle('fit', mq.matches);
+    if (!mq.matches) { main.style.removeProperty('--k'); return; }
+    const k = Math.min((innerWidth - PAD) / W, (innerHeight - PAD) / main.offsetHeight, 2.2);
+    main.style.setProperty('--k', k.toFixed(4));
+  };
+  new ResizeObserver(fit).observe(main);
+  addEventListener('resize', fit); mq.addEventListener('change', fit); fit();
+})();
 })();
 </script>
