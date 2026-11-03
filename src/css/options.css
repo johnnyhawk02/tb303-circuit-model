@@ -2,7 +2,7 @@
 dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: fit-content; min-height: 0; max-height: min(720px, calc(100dvh - 32px)); margin: clamp(16px, 9vh, 90px) auto auto; padding: 0;
   flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); }
 dialog#options[open] { display: flex; }
-dialog#options::backdrop { background: rgb(10 15 4 / .3); }
+dialog#options::backdrop { background: rgb(28 10 0 / .3); }
 .opt-head { flex: none; display: flex; align-items: flex-end; gap: 8px 26px; padding: 14px 14px 0 22px; background: var(--glass); border-bottom: 1px solid var(--ink); }
 .opt-head h2 { font: 21px var(--font-body); letter-spacing: .04em; padding-bottom: 8px; }
 .opt-head .otabs { border-bottom: 0; flex: 1; min-width: 0; }

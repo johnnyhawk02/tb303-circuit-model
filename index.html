@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>303 Circuit Model</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#161815">
+<meta name="theme-color" content="#181412">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,24 +15,24 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
 <style>
 /* Layout: one quiet instrument page (knobs, transport, steps); everything else lives in the Options sheet.
-   Look (v45, from Johnny's SH-101 project): one pane of backlit yellow-green LCD glass in a black bezel on a dark case.
+   Look (v45, from Johnny's SH-101 project): one pane of backlit orange LCD glass in a black bezel on a dark case.
    One ink for the segments, a faint ghost of unlit ones, the offset shadow LCD type casts, a pixel font throughout.
    Buttons are outlined boxes that invert when on. Deliberately single-theme: it is a lit LCD either way. */
 :root {
-  --case: #161815;
+  --case: #181412;
   --bezel: #0b0c0a;
-  --glass: #c3d83a;     /* yellow-green backlit LCD */
-  --ink: #0a0f04;
-  --ghost: rgb(10 15 4 / .13);
-  --tint: rgb(10 15 4 / .08);
-  --tint2: rgb(10 15 4 / .2);
-  --rulec: rgb(10 15 4 / .4);
-  --shadow: 2px 2px 0 rgb(10 15 4 / .17);
+  --glass: #f7962f;     /* orange backlit LCD */
+  --ink: #1c0a00;
+  --ghost: rgb(28 10 0 / .13);
+  --tint: rgb(28 10 0 / .08);
+  --tint2: rgb(28 10 0 / .2);
+  --rulec: rgb(28 10 0 / .4);
+  --shadow: 2px 2px 0 rgb(28 10 0 / .17);
   --page: var(--case);
   --bg: transparent;    /* device panel: the glass shows through */
   --fg: var(--ink);
-  --mute: rgb(10 15 4 / .72);
-  --line: rgb(10 15 4 / .45);
+  --mute: rgb(28 10 0 / .72);
+  --line: rgb(28 10 0 / .45);
   --soft: var(--tint);
   --on: var(--ink);     /* switched on, selected: segments lit */
   --hi: var(--ink);     /* values, playhead */
@@ -45,7 +45,7 @@
   color-scheme: light;
 }
 * { box-sizing: border-box; }
-html { background: var(--case) radial-gradient(120% 60% at 50% 0%, #2a2d28, var(--case)) no-repeat; color: var(--fg); min-height: 100%; }
+html { background: var(--case) radial-gradient(120% 60% at 50% 0%, #2d2622, var(--case)) no-repeat; color: var(--fg); min-height: 100%; }
 body { margin: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px;
   font-family: var(--font-body); font-size: 17px; line-height: 1.5; color: var(--fg); background: transparent; }
 .main { max-width: 1060px; margin: 0 auto; display: grid; gap: 10px; }
@@ -111,14 +111,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .top .fn > button { font: 17px/1.2 var(--font-body); padding: 5px 10px; }
 .top .fn > button::after { content: " ▾"; font-size: 19.5px; }
 .fn-menu { position: absolute; z-index: 40; top: calc(100% + 4px); right: 0; min-width: 220px; display: grid; padding: 4px 0;
-  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(10 15 4 / .3); }
+  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .fn-menu[hidden] { display: none; }
 .fn-menu button { border: 0; background: transparent; text-align: left; padding: 6px 12px; font: 17px/1.4 var(--font-body); white-space: nowrap; }
 .fn-menu button:disabled { opacity: .4; }
 .fn-menu button:not(:disabled):hover, .fn-menu button:focus-visible { background: var(--hi) !important; color: var(--glass) !important; outline: 0; }
 /* short messages from Functions, Generate and the like, under the bar */
 .sq-msg { position: absolute; right: 16px; top: calc(100% + 6px); max-width: min(560px, calc(100% - 32px)); padding: 6px 10px; font: 17px/1.4 var(--font-body); color: var(--fg); pointer-events: none;
-  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(10 15 4 / .3); }
+  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .sq-msg:empty { display: none; }
 .ver { font: 14.5px var(--font-body); color: var(--mute); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
 .gear { background: transparent; border-color: transparent; }
@@ -134,7 +134,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .pm .pm-step { padding: 0 8px; font-size: 12.5px; border-left-width: 0; }
 .pm-pop { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 280px; max-height: min(62vh, 460px);
   display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(10 15 4 / .3); }
+  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .pm-pop[hidden] { display: none; }
 #pat-bar .pm-pop { left: auto; right: 0; }
 .pm-head { display: grid; min-width: 0; }
@@ -323,7 +323,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: fit-content; min-height: 0; max-height: min(720px, calc(100dvh - 32px)); margin: clamp(16px, 9vh, 90px) auto auto; padding: 0;
   flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); }
 dialog#options[open] { display: flex; }
-dialog#options::backdrop { background: rgb(10 15 4 / .3); }
+dialog#options::backdrop { background: rgb(28 10 0 / .3); }
 .opt-head { flex: none; display: flex; align-items: flex-end; gap: 8px 26px; padding: 14px 14px 0 22px; background: var(--glass); border-bottom: 1px solid var(--ink); }
 .opt-head h2 { font: 21px var(--font-body); letter-spacing: .04em; padding-bottom: 8px; }
 .opt-head .otabs { border-bottom: 0; flex: 1; min-width: 0; }
@@ -493,11 +493,11 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid var(--ink
   background-color: var(--glass);
   background-image: linear-gradient(170deg, rgb(255 255 255 / .14), rgb(255 255 255 / 0) 38%, rgb(0 0 0 / .05)),
     repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px),
-    radial-gradient(60% 30% at 10% 100%, rgb(255 252 195 / .55), rgb(255 252 200 / 0) 70%),
-    radial-gradient(50% 28% at 90% 102%, rgb(250 255 200 / .4), rgb(250 255 205 / 0) 70%),
-    radial-gradient(38% 20% at 70% 30%, rgb(40 50 25 / .14), rgb(40 50 25 / 0) 70%),
-    linear-gradient(180deg, rgb(30 38 20 / .2) 0%, rgb(30 38 20 / 0) 22%),
-    radial-gradient(130% 100% at 50% 60%, rgb(0 0 0 / 0) 60%, rgb(20 26 12 / .28) 100%);
+    radial-gradient(60% 30% at 10% 100%, rgb(255 228 175 / .55), rgb(255 228 180 / 0) 70%),
+    radial-gradient(50% 28% at 90% 102%, rgb(255 222 170 / .4), rgb(255 222 175 / 0) 70%),
+    radial-gradient(38% 20% at 70% 30%, rgb(70 28 5 / .14), rgb(70 28 5 / 0) 70%),
+    linear-gradient(180deg, rgb(60 22 4 / .2) 0%, rgb(60 22 4 / 0) 22%),
+    radial-gradient(130% 100% at 50% 60%, rgb(0 0 0 / 0) 60%, rgb(45 15 0 / .28) 100%);
   box-shadow: inset 0 6px 14px rgb(0 0 0 / .35), inset -4px 0 10px rgb(0 0 0 / .15), 0 18px 40px rgb(0 0 0 / .5); }
 body { padding-block: 20px 40px; font-size: 17px; line-height: 1.2; }
 :focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
@@ -533,7 +533,7 @@ select option { background: var(--glass); color: var(--ink); }
 .knob svg { overflow: visible; }
 .knob svg .trk, .knob svg .arc { stroke-width: 8; stroke-linecap: butt; stroke-dasharray: 3.25 2.204; }
 .knob svg .trk { stroke: var(--ghost); }
-.knob svg .arc { stroke: var(--ink); filter: drop-shadow(2px 2px 0 rgb(10 15 4 / .17)); }
+.knob svg .arc { stroke: var(--ink); filter: drop-shadow(2px 2px 0 rgb(28 10 0 / .17)); }
 .knob svg .hub { fill: none; stroke: var(--ink); stroke-width: 2.5; }
 .knob svg .ptr { stroke: var(--ink); stroke-width: 4; stroke-linecap: butt; }
 .knob:focus-visible { outline-offset: 4px; border-radius: 4px; }
@@ -554,10 +554,10 @@ select option { background: var(--glass); color: var(--ink); }
 
 /* sequencer: ink cells on glass */
 .seq { background: transparent; border: 2px solid var(--ink); text-shadow: none; }
-.seq > * { border-right-color: rgb(10 15 4 / .25); border-bottom-color: rgb(10 15 4 / .25); color: var(--ink); }
+.seq > * { border-right-color: rgb(28 10 0 / .25); border-bottom-color: rgb(28 10 0 / .25); color: var(--ink); }
 .seq .rh { background: transparent; border-right: 2px solid var(--ink); text-transform: lowercase; }
-.seq .bar { border-right-color: rgb(10 15 4 / .6); }
-.seq .gap { border-bottom: 2px solid rgb(10 15 4 / .6); }
+.seq .bar { border-right-color: rgb(28 10 0 / .6); }
+.seq .gap { border-bottom: 2px solid rgb(28 10 0 / .6); }
 .seq .hd { background: transparent; }
 .seq .hd.cur { background: var(--ink); color: var(--glass); }
 .seq .cell.on { background: var(--ink); box-shadow: none; }
