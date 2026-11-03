@@ -2821,7 +2821,7 @@ function fmt(v, unit) {
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
-const KNOB_SEGS = 24; // the ring is 24 LCD segments; the lit arc snaps to whole segments
+// the ring is 24 LCD segments (dash pattern in lcd.css); the lit arc ends exactly at the pointer
 function knobSVG() {
   // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and an ink pointer from the centre out to the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
@@ -2831,7 +2831,7 @@ function knobSVG() {
   </svg>`;
 }
 function arcPath(p) {
-  p = Math.ceil(Math.min(1, Math.max(0, p)) * KNOB_SEGS - 0.001) / KNOB_SEGS;
+  p = Math.min(1, Math.max(0, p));
   const a0 = KNOB_A0, a = a0 + KNOB_SWEEP * p, r = 25, cx = 32, cy = 32;
   const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
   const [x0, y0] = pt(a0), [x1, y1] = pt(a);
