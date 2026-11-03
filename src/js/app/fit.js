@@ -1,16 +1,17 @@
 // ---------- fit the screen to the window (the Elixir Synth way) ----------
-// On a desktop window the screen is laid out once at 1000px wide and scaled as a whole to fit, with the dark case round it,
-// so it reads the same at any window size. Phones and short windows keep their own compact layout.
+// On a desktop window the screen is a fixed 1000 x 647 pane (the shape of Johnny's MacBook Pro display, 1.545:1),
+// scaled as a whole to fill the window with the dark case round it, so every page reads the same at any window size
+// and nothing moves when you switch tabs. The scale goes on the root, so the Options sheet scales with the screen.
+// Phones and short windows keep their own compact layout.
 (() => {
-  const main = document.querySelector('.main'), root = document.documentElement, W = 1000, PAD = 28;
+  const main = document.querySelector('.main'), root = document.documentElement, W = 1000, H = 647, PAD = 16;
   const mq = matchMedia('(min-width: 701px) and (min-height: 521px)');
   const fit = () => {
     root.classList.toggle('fit', mq.matches);
-    if (!mq.matches) { main.style.removeProperty('--k'); return; }
-    const k = Math.min((innerWidth - PAD) / W, (innerHeight - PAD) / main.offsetHeight, 2.2);
-    main.style.setProperty('--k', k.toFixed(4));
+    if (!mq.matches) { root.style.removeProperty('--k'); return; }
+    const k = Math.min((innerWidth - PAD) / W, (innerHeight - PAD) / H, 2.2);
+    root.style.setProperty('--k', k.toFixed(4));
   };
-  new ResizeObserver(fit).observe(main);
   addEventListener('resize', fit); mq.addEventListener('change', fit); fit();
 })();
 
