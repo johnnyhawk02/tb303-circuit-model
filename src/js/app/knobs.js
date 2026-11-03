@@ -1,12 +1,11 @@
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
-// the ring is 25 LCD segments, so there is one at the centre (dash pattern 3.1 on, 2.136 off in lcd.css: 25 periods round the 300° arc).
-// The pointer sits on the centre of the segment nearest the value, and the ring is lit up to and including it,
-// so pointer and lit segments always line up (Johnny)
-const KNOB_SEGS = 25, KNOB_END = (1.068 + 3.1) / (3.1 + 2.136); // each dash is centred in its period (dashoffset 4.168)
-const knobSeg = (p) => Math.round(Math.min(1, Math.max(0, p)) * (KNOB_SEGS - 1));
-const knobAngle = (p) => KNOB_A0 + KNOB_SWEEP * (knobSeg(p) + 0.5) / KNOB_SEGS;
+// the ring is 25 LCD segments, each dash centred in its period (dash pattern 3.1 on, 2.136 off, offset 4.168 in lcd.css),
+// so one sits exactly at the top. The pointer moves smoothly from the centre of the first segment (0) through the top one
+// (0.5) to the centre of the last (1), and the lit ring ends exactly at the pointer (Johnny)
+const KNOB_SEGS = 25;
+const knobAngle = (p) => KNOB_A0 + KNOB_SWEEP * (0.5 + Math.min(1, Math.max(0, p)) * (KNOB_SEGS - 1)) / KNOB_SEGS;
 function knobSVG() {
   // LCD dial: a ring of unlit ghost segments, lit ones up to the value, and an ink pointer from the centre out to the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
@@ -16,7 +15,7 @@ function knobSVG() {
   </svg>`;
 }
 function arcPath(p) {
-  const a0 = KNOB_A0, a = a0 + KNOB_SWEEP * (knobSeg(p) + KNOB_END) / KNOB_SEGS, r = 25, cx = 32, cy = 32;
+  const a0 = KNOB_A0, a = knobAngle(p), r = 25, cx = 32, cy = 32;
   const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
   const [x0, y0] = pt(a0), [x1, y1] = pt(a);
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${a - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
