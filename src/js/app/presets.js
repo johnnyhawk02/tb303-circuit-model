@@ -43,7 +43,7 @@ function presetBar(pre, storeKey, builtins, snap, apply, autoName) {
     const opt = (g, n) => `<option value="${g}:${esc(n)}">${esc(n.split(' / ').pop())}</option>`;
     const names = Object.keys(bar.user).sort((a, b) => a.localeCompare(b));
     const groups = {};
-    for (const n of Object.keys(builtins)) (groups[n.includes(' / ') ? n.split(' / ')[0] : 'Built-in'] ||= []).push(n);
+    for (const n of Object.keys(builtins)) (groups[n.includes(' / ') ? n.split(' / ')[0] : 'Factory'] ||= []).push(n);
     sel.innerHTML = '<option value="">Choose…</option>'
       + Object.entries(groups).map(([g, ns]) => `<optgroup label="${esc(g)}">` + ns.map(n => opt('b', n)).join('') + '</optgroup>').join('')
       + (names.length ? '<optgroup label="Saved">' + names.map(n => opt('u', n)).join('') + '</optgroup>' : '');
@@ -131,7 +131,7 @@ function presetMenu(host) {
       for (const c of n.kids.values()) if (!c.song) songs(c);
     };
     for (const c of root.kids.values()) if (c.key !== 'my' && c.key !== 'built') songs(c);
-    const LABEL = { my: 'My presets', built: 'Built-in' };
+    const LABEL = { my: 'My presets', built: 'Factory' };
     for (const [k, c] of root.kids) if (LABEL[k]) c.label = LABEL[k];
     const sortN = (n) => { n.items.sort((a, b) => coll.compare(a.label, b.label)); for (const c of n.kids.values()) sortN(c); };
     sortN(root);
@@ -146,7 +146,7 @@ function presetMenu(host) {
     recent = recent.filter(v => byV.has(v)); for (const v of [...fav]) if (!byV.has(v)) fav.delete(v);
   }
   const small = () => byV.size <= 14;
-  const pathText = (it) => it.path.map(k => ({ my: 'My presets', built: 'Built-in' }[k] || k)).join(' › ');
+  const pathText = (it) => it.path.map(k => ({ my: 'My presets', built: 'Factory' }[k] || k)).join(' › ');
   function sync() {
     const it = byV.get(sel.value);
     btn.querySelector('.cur').textContent = it ? it.name : 'Choose…';

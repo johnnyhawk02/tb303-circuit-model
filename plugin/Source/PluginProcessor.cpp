@@ -719,6 +719,21 @@ juce::StringArray TB303Processor::userPresetNames() const {
     return s;
 }
 juce::var TB303Processor::userPreset(const juce::String& n) const { return userData.getProperty("presets", {}).getProperty(n, {}); }
+static const juce::var& factoryData() {
+    static const juce::var j = juce::JSON::parse(juce::String::fromUTF8(BinaryData::factorypresets_json, BinaryData::factorypresets_jsonSize));
+    return j;
+}
+juce::StringArray TB303Processor::factoryPresetNames() {
+    juce::StringArray s;
+    if (auto* o = factoryData().getDynamicObject()) for (auto& kv : o->getProperties()) if (kv.value.isObject()) s.add(kv.name.toString());
+    s.sortNatural();
+    return s;
+}
+juce::var TB303Processor::factoryPreset(const juce::String& n) { return factoryData().getProperty(n, {}); }
+juce::var TB303Processor::anyPreset(const juce::String& n) const {
+    const auto u = userPreset(n);
+    return u.isObject() ? u : factoryPreset(n);
+}
 void TB303Processor::savePreset(const juce::String& n) {
     if (n.isEmpty()) return;
     loadUserData();

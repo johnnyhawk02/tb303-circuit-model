@@ -718,7 +718,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     nextBtn.onClick = [this] { stepPreset(1); };
     favBtn.onClick = [this] {
         const auto n = proc.lastPresetName;
-        if (n.isEmpty() || !proc.userPresetNames().contains(n)) { say("Load or save a preset first, then star it."); return; }
+        if (n.isEmpty() || !proc.anyPreset(n).isObject()) { say("Load or save a preset first, then star it."); return; }
         proc.setFavourite(n, !proc.isFavourite(n));
         say(proc.isFavourite(n) ? U("★ ") + n + " is a favourite." : n + " is no longer a favourite.");
         setPresetName(n);
@@ -1047,7 +1047,10 @@ void TB303Editor::showTab(int t) {
 juce::StringArray TB303Editor::visiblePresets() const {
     juce::StringArray out;
     const auto q = search.getText().trim();
-    for (auto& n : proc.userPresetNames())
+    const auto user = proc.userPresetNames();
+    auto all = proc.factoryPresetNames(); all.removeValuesIn(user); // factory first, then saved ones
+    all.addArray(user);
+    for (auto& n : all)
         if ((!favOnly || proc.isFavourite(n)) && (q.isEmpty() || n.containsIgnoreCase(q))) out.add(n);
     return out;
 }
@@ -1059,7 +1062,7 @@ void TB303Editor::setPresetName(const juce::String& n) {
     favBtn.setTooltip("Star the current preset");
 }
 void TB303Editor::loadPreset(const juce::String& n) {
-    const auto x = proc.userPreset(n);
+    const auto x = proc.anyPreset(n);
     if (!x.isObject()) return;
     proc.applyPreset(x);
     proc.lastPresetName = n;
@@ -1078,9 +1081,13 @@ void TB303Editor::showPresetMenu() {
     juce::PopupMenu m;
     const auto list = visiblePresets();
     const auto q = search.getText().trim();
-    m.addSectionHeader(q.isNotEmpty() ? "Presets matching \"" + q + "\"" : favOnly ? U("★ Favourites") : juce::String("My presets"));
-    if (list.isEmpty()) m.addItem(proc.userPresetNames().isEmpty() ? "None yet: save one, or File > Import your web app favourites" : "Nothing matches", false, false, [] {});
+    const bool grouped = q.isEmpty() && !favOnly;
+    const auto user = proc.userPresetNames();
+    m.addSectionHeader(q.isNotEmpty() ? "Presets matching \"" + q + "\"" : favOnly ? U("★ Favourites") : juce::String("Factory"));
+    if (list.isEmpty()) m.addItem("Nothing matches", false, false, [] {});
+    bool mine = false;
     for (auto& n : list) {
+        if (grouped && !mine && user.contains(n)) { mine = true; m.addSectionHeader("My presets"); }
         juce::PopupMenu::Item it((proc.isFavourite(n) ? U("★ ") : juce::String()) + n);
         it.setTicked(n == proc.lastPresetName);
         it.setAction([this, n] { loadPreset(n); });

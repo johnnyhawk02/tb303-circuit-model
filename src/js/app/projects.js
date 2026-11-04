@@ -36,8 +36,8 @@ function applyProject(x) {
   state.pattern = c.pattern || blankPattern(); state.shuffle = c.shuffle ?? 0; state.gate = c.gate ?? 0.5;
   tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank(); saveSession();
 }
-// no factory presets: Johnny starts from scratch (the old list is in git history before v42)
-const PROJECT_BUILTIN = {};
+// factory presets: whole projects from factory-presets.json (build.js puts the file here; the old list is in git history before v42)
+const PROJECT_BUILTIN = /*@factory*/{};
 // the old sound and pattern bars stay hidden in the page so Options' Export all / Import keep their lists
 const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
 const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);

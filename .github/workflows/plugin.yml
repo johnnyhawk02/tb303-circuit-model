@@ -1,9 +1,9 @@
 name: Plugin (VST3 / AU)
 on:
   push:
-    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'irs/**', '.github/workflows/plugin.yml']
+    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'factory-presets.json', 'irs/**', '.github/workflows/plugin.yml']
   pull_request:
-    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'irs/**', '.github/workflows/plugin.yml']
+    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'factory-presets.json', 'irs/**', '.github/workflows/plugin.yml']
   workflow_dispatch:
 permissions:
   contents: read

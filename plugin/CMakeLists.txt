@@ -51,7 +51,7 @@ target_sources(TB303CircuitModel PRIVATE
 # (SIL Open Font License, Resources/VT323-OFL.txt) for the LCD look
 # and the Conv reverb's recorded impulse responses (../irs, credits in irs/CREDITS.md)
 file(GLOB TB303_IRS ${CMAKE_CURRENT_SOURCE_DIR}/../irs/*.flac)
-juce_add_binary_data(TB303Data SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../patterns.json ${CMAKE_CURRENT_SOURCE_DIR}/Resources/VT323-Regular.ttf ${TB303_IRS})
+juce_add_binary_data(TB303Data SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../patterns.json ${CMAKE_CURRENT_SOURCE_DIR}/../factory-presets.json ${CMAKE_CURRENT_SOURCE_DIR}/Resources/VT323-Regular.ttf ${TB303_IRS})
 
 target_compile_definitions(TB303CircuitModel PUBLIC
   JUCE_WEB_BROWSER=0

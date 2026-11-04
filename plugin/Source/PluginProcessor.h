@@ -85,6 +85,10 @@ public:
     // user presets, favourites and Sound only: one file shared by every instance
     juce::StringArray userPresetNames() const;
     juce::var userPreset(const juce::String& name) const;
+    // factory presets: factory-presets.json (the web app's Factory list), embedded; a saved preset of the same name wins
+    static juce::StringArray factoryPresetNames();
+    static juce::var factoryPreset(const juce::String& name);
+    juce::var anyPreset(const juce::String& name) const;
     void savePreset(const juce::String& name);
     void removeUserPreset(const juce::String& name);
     bool isFavourite(const juce::String& name) const;
