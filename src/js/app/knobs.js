@@ -37,10 +37,7 @@ function knobText(id, p) {
     case 'dlyfb': return Math.round(95 * p) + '%';
     case 'dlylo': return fmt(Math.round(dlyLo(p)), 'Hz');
     case 'dlyhi': { const f = dlyHi(p); return f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : Math.round(f) + ' Hz'; }
-    case 'cmpthr': return cmpThrDb(p).toFixed(1) + ' dB';
-    case 'cmprng': return Math.round(200 * p) + '%';
-    case 'cmpatk': return cmpAtkMs(p).toFixed(1) + ' ms';
-    case 'cmphold': return Math.round(cmpHoldMs(p)) + ' ms';
+    case 'cmpamt': return p <= 0 ? 'off' : Math.round(100 * p) + '%';
     case 'cmprel': return Math.round(cmpRelMs(p)) + ' ms';
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
@@ -112,7 +109,7 @@ for (const k of KNOBS) {
   el.addEventListener('dialend', () => wrap.classList.remove('active'));
 }
 function drawKnob(id) {
-  if (id === 'cmpmode' || id === 'dlypp') { drawCmpMode(); return; }
+  if (id === 'dlypp') { drawDlyMode(); return; }
   const p = state.knobs[id], k = knobEls[id]; if (!k) return;
   knobDraw(k.el, p);
   k.el.setAttribute('aria-valuenow', Math.round(p * 100));

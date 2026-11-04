@@ -26,13 +26,8 @@ const KNOBS = [
   { id: 'dlyhi',     name: 'High cut',  ref: '1k–20 kHz',  def: 0.55, fx: 'dly' },
   { id: 'dlymix',    name: 'Return',    ref: 'wet level',  def: 0.35, fx: 'dly' },
   { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
-  { id: 'cmpthr',    name: 'Threshold', ref: '-40–0 dB',   def: 0.5,  fx: 'cmp' },
-  { id: 'cmprng',    name: 'Range',     ref: '0–200%',     def: 0.5,  fx: 'cmp' },
-  { id: 'cmpatk',    name: 'Attack',    ref: 'lookahead',  def: 0.3,  fx: 'cmp' },
-  { id: 'cmphold',   name: 'Hold',      ref: '0–500 ms',   def: 0,    fx: 'cmp' },
+  { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.5, fx: 'cmp' },
   { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.4,  fx: 'cmp' },
-  { id: 'cmpmix',    name: 'Mix',       ref: '0–100%',     def: 0.7,  fx: 'cmp' },
-  { id: 'cmpmode',   name: 'Mode',      ref: 'Peak/ISP/RMS', def: 0,  fx: 'cmp', hidden: true },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33
@@ -106,6 +101,9 @@ function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return 
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
   if (!x || typeof x !== 'object') return out;
+  // sounds saved with the old six-control Compactor: map them onto Amount and Release
+  if (x.knobs && typeof x.knobs === 'object' && !('cmpamt' in x.knobs) && ['cmpthr', 'cmprng', 'cmpatk', 'cmphold', 'cmpmix', 'cmpmode'].some(k => k in x.knobs))
+    x = { ...x, knobs: { ...x.knobs, ...cmpFromOld(x.knobs) } };
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
