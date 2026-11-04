@@ -149,7 +149,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
             case K::platemod: txt = [](float v, int) { return String(juce::roundToInt(200 * v)) + "%"; }; break;
             case K::dsdist: txt = [](float v, int) { return String(juce::roundToInt(1 + PP::DS_VR1 * v / PP::DS_R13)) + "x"; }; break;
             case K::tsdrive: txt = [](float v, int) { return String(juce::roundToInt(1 + (PP::TS_R6 + PP::TS_P1 * audioTaper(v)) / PP::TS_R4)) + "x"; }; break;
-            case K::fldtimbre: txt = [](float v, int) { return String(0.5 + 9.5 * v * v, 1) + "x"; }; break;
+            case K::fldtimbre: txt = [](float v, int) { return String(0.5 + 9.5 * v * v, 1) + " V"; }; break;
             case K::fldsym: txt = [](float v, int) { const double x = (v - 0.5) * 4; return (x >= 0 ? "+" : "") + String(x, 1) + " V"; }; break;
             case K::cnvwidth: txt = [](float v, int) { return String(juce::roundToInt(150 * v)) + "%"; }; break;
             default: break;

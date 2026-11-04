@@ -41,7 +41,7 @@ function knobText(id, p) {
     case 'cmprel': return Math.round(cmpRelMs(p)) + ' ms';
     case 'dsdist': return '×' + Math.round(1 + PEDAL_PARTS.DS_VR1 * p / PEDAL_PARTS.DS_R13);                    // op-amp stage gain
     case 'tsdrive': return '×' + Math.round(1 + (PEDAL_PARTS.TS_R6 + PEDAL_PARTS.TS_P1 * Math.pow(p, 2.74)) / PEDAL_PARTS.TS_R4);
-    case 'fldtimbre': return '×' + (0.5 + 9.5 * p * p).toFixed(1);
+    case 'fldtimbre': return (0.5 + 9.5 * p * p).toFixed(1) + ' V';   // peak at the folding cells for a full-level note
     case 'fldsym': { const v = (p - 0.5) * 4; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' V'; }
     default: {
       if (id.startsWith('lex')) return lexText(id, p);

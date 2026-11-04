@@ -875,7 +875,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     onBtn(fold, "fx_fold"); fold.sub = "Buchla 259"; addKnobs(fold, { "fldtimbre", "fldsym", "fldlevel" }, 70);
     {
         auto* kt = dynamic_cast<ui::Knob*>(owned[owned.size() - 3].get()), *ks = dynamic_cast<ui::Knob*>(owned[owned.size() - 2].get());
-        kt->valueText = [kv] { const double p = kv("fldtimbre"); return U("×") + juce::String(0.5 + 9.5 * p * p, 1); };
+        kt->valueText = [kv] { const double p = kv("fldtimbre"); return juce::String(0.5 + 9.5 * p * p, 1) + " V"; };
         ks->valueText = [kv] { const double v = (kv("fldsym") - 0.5) * 4; return (v >= 0 ? "+" : "") + juce::String(v, 1) + " V"; };
     }
     // the drive slot (fx_rat switches it on): ProCo RAT, Boss DS-1 or Ibanez TS808, drvtype picks the pedal
