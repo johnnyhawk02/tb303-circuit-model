@@ -288,3 +288,11 @@ html.fit .tu-top .acts.tu-end { margin-left: auto; }
 .tu-foot .tu-note { margin-left: auto; font-size: var(--fs-s); white-space: nowrap; }
 #tu-root { flex: none; }
 html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; text-transform: lowercase; }
+
+/* status line: the last row of the screen, under a rule, for every message and tooltip (statusline.js) */
+html.fit .main { grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding-bottom: 0; }
+.sline { grid-row: 5; grid-column: 1 / -1; margin: 0 -16px; padding: 0 16px; height: 24px; display: flex; align-items: center; border-top: 1px solid var(--line); }
+.sl-text { font-size: var(--fs-s); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-text.msg { color: var(--ink); }
+/* the old popup message boxes are now only sources for the line */
+.sq-msg, .pm-foot .hint[role=status] { display: none !important; }
