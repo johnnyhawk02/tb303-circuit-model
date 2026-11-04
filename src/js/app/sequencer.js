@@ -175,7 +175,7 @@ document.getElementById('p-dup').onclick = () => {
   pushUndo();
   state.pattern = Array.from({ length: to }, (_, i) => ({ ...P[i % n] })); tail = [];
   renderSeq(); pushPattern();
-  sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Functions › Undo puts it back.`);
+  sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Undo puts it back.`);
 };
 // Shuffle notes: deal the steps out in a new random order (each note keeps its accent and slide); tap again for another
 function shuffleSteps() {
@@ -198,7 +198,7 @@ document.getElementById('rand').onclick = () => {
   const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
   state.pattern = g.pattern; tail = []; renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
-  sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
+  sqSay(`From ${g.src}: ${d}. Undo puts the old one back.`);
 };
 
 

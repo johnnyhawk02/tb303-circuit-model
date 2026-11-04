@@ -662,6 +662,32 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
 
 /* ---- a lighter glass (Johnny, Nov 2026): the same look as before, just a paler orange backlight, halfway between the original #f7962f and #fcab55 ---- */
 :root { --glass: #faa142; --panel-rgb: 250 161 66; }
+
+/* ---- consistency pass (Johnny, Nov 2026): every page, menu and the Options sheet on the same sizes ----
+   controls 16px (--fs-m) everywhere, the top bar included; a segmented group is as tall as a button (26px outside);
+   every dropdown item (Functions, Randomise, Tools, the FX type and program menus, the preset list) one height,
+   one indent and no button shadow; headings lowercase in the Options sheet like the FX units */
+:root { --menu-h: 22px; }
+html.fit .top .fn > button, html.fit .pm .pm-btn, .pm-opt, .pm .pm-q, .pm-foot input[type=text] { font-size: var(--fs-m); }
+.top .fn > button::after { font-size: inherit; }
+html.fit .pane .seg button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button, html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); }
+html.fit .fn-menu button, html.fit .pane .fn-menu button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit #pane-fx .tmenu .fn-menu button {
+  height: var(--menu-h); padding: 0 12px 0 22px; font-size: var(--fs-m); line-height: 1; box-shadow: none !important; }
+.fn-menu { padding: 4px 0 6px; }
+.fn-menu button { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.tmenu .fn-menu button[aria-checked=true]::before { left: 8px; }
+.fn-menu kbd { font: var(--fs-s)/1 var(--font-mono); color: var(--mute); text-transform: uppercase; }
+.fn-menu button:not(:disabled):hover kbd, .fn-menu button:focus-visible kbd { color: var(--glass); }
+.pm-pop .pm-foot input[type=text] { flex: 1 1 260px; }
+html.fit .pm .pm-i { height: var(--menu-h); line-height: var(--menu-h); padding-top: 0; padding-bottom: 0; font-size: var(--fs-m); box-shadow: none !important; }
+html.fit .pm .pm-star { height: var(--menu-h); font-size: var(--fs-m); box-shadow: none !important; }
+.pm .pm-g, .pm-sum, .pm-path { font-size: var(--fs-s); }
+/* Options: the circuit block tabs outlined like the section tabs above them; Monitor's headings like the FX unit names */
+dialog#options #ptabs button { border-width: 2px; border-bottom-width: 0; }
+.dclk-txt strong { font-weight: 400; text-transform: lowercase; font-size: var(--fs-m); }
+.dclk-fade { text-transform: lowercase; }
+#midi-status { margin: 0; }
+#midi-map dd { text-transform: lowercase; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -687,7 +713,7 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
     </div>
-    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
+    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button><button type="button" role="menuitem" data-fn="install" id="fn-install" title="Install the synth as an app, so it opens in its own window and works offline">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" title="Undo the last change to a pattern" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
     <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
@@ -857,9 +883,9 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
     <section class="osec" id="osec-file" role="tabpanel" aria-label="File" hidden>
       <div class="presets">
         <button type="button" id="preset-export">Export all</button>
-        <button type="button" id="preset-import">Import</button>
+        <button type="button" id="preset-import">Import file</button>
         <input type="file" id="preset-file" accept=".json,application/json" hidden>
-        <span class="hint">Every preset under My presets, as one JSON file (the same as Export all in the Preset menu). Import also takes older settings files.</span>
+        <span class="hint">Every preset under My presets, as one JSON file (the same as Export all in the Preset menu). Import file also takes older settings files.</span>
       </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
@@ -2624,7 +2650,7 @@ const KNOBS = [
   { id: 'fldtimbre', name: 'Timbre',    ref: '0.5–10 V',    def: 0.5,  fx: 'fold' },
   { id: 'fldsym',    name: 'Symmetry',  ref: '±2 V',       def: 0.5,  fx: 'fold' },
   { id: 'fldlevel',  name: 'Level',     ref: 'output',     def: 0.5,  fx: 'fold' },
-  { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex' },
+  { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex', hidden: true },
   { id: 'lexbass',   name: 'Bass',      ref: '0.6–70 s',   def: 0.3,  fx: 'lex' },
   { id: 'lexmid',    name: 'Mid',       ref: '0.6–70 s',   def: 0.27, fx: 'lex' },
   { id: 'lexxover',  name: 'Crossover', ref: '100 Hz–10.9k', def: 0.443, fx: 'lex' },
@@ -3878,7 +3904,7 @@ document.getElementById('p-dup').onclick = () => {
   pushUndo();
   state.pattern = Array.from({ length: to }, (_, i) => ({ ...P[i % n] })); tail = [];
   renderSeq(); pushPattern();
-  sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Functions › Undo puts it back.`);
+  sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Undo puts it back.`);
 };
 // Shuffle notes: deal the steps out in a new random order (each note keeps its accent and slide); tap again for another
 function shuffleSteps() {
@@ -3901,7 +3927,7 @@ document.getElementById('rand').onclick = () => {
   const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
   state.pattern = g.pattern; tail = []; renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
-  sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
+  sqSay(`From ${g.src}: ${d}. Undo puts the old one back.`);
 };
 
 
@@ -4092,7 +4118,7 @@ const FUNCTIONS = {
     }
     renderSeq(); pushPattern();
     const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
-    sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
+    sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Undo puts it back.');
   },
   // New machine: like building a real unit, each part lands somewhere inside its tolerance (triangular, so most land near the middle).
   // Messed up: circuit-bent; every part swings a quarter of its knob travel either way and about a third swing up to 60%.
@@ -4197,6 +4223,11 @@ document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPatte
     const k = keyName(a), tip = el.getAttribute('title') || el.dataset.tip || el.textContent.trim();
     el.title = `${tip} (key ${k})`;
     if (el.closest('.fn-menu')) el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
+  }
+  // the Functions menu's Join and Undo are the same actions, so they show the same keys as the Tools items
+  for (const [sel, id] of [['#fn-menu [data-fn="join"]', 'join'], ['#fn-undo', 'p-undo']]) {
+    const el = document.querySelector(sel); if (!el) continue;
+    const k = keyName(ACTS[id]); el.title = `${el.title} (key ${k})`; el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
   }
   // the nudge arrows beside the roll show their keys too
   for (const [d, id] of [['1', 'nu-up'], ['-1', 'nu-dn'], ['12', 'nu-oup'], ['-12', 'nu-odn']]) {
@@ -4478,7 +4509,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault(); document.getElementById('p-copy').click(); sqSay(`Copied ${sel.g}${sel.n + 1}.`);
   } else if (k === 'v') {
     if (!clip) return;
-    e.preventDefault(); document.getElementById('p-paste').click(); sqSay(`Pasted into ${sel.g}${sel.n + 1}. Functions › Undo puts it back.`);
+    e.preventDefault(); document.getElementById('p-paste').click(); sqSay(`Pasted into ${sel.g}${sel.n + 1}. Undo puts it back.`);
   }
 });
 const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById('bpm-val');

@@ -21,7 +21,7 @@ const KNOBS = [
   { id: 'fldtimbre', name: 'Timbre',    ref: '0.5–10 V',    def: 0.5,  fx: 'fold' },
   { id: 'fldsym',    name: 'Symmetry',  ref: '±2 V',       def: 0.5,  fx: 'fold' },
   { id: 'fldlevel',  name: 'Level',     ref: 'output',     def: 0.5,  fx: 'fold' },
-  { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex' },
+  { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex', hidden: true },
   { id: 'lexbass',   name: 'Bass',      ref: '0.6–70 s',   def: 0.3,  fx: 'lex' },
   { id: 'lexmid',    name: 'Mid',       ref: '0.6–70 s',   def: 0.27, fx: 'lex' },
   { id: 'lexxover',  name: 'Crossover', ref: '100 Hz–10.9k', def: 0.443, fx: 'lex' },

@@ -322,3 +322,29 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
 
 /* ---- a lighter glass (Johnny, Nov 2026): the same look as before, just a paler orange backlight, halfway between the original #f7962f and #fcab55 ---- */
 :root { --glass: #faa142; --panel-rgb: 250 161 66; }
+
+/* ---- consistency pass (Johnny, Nov 2026): every page, menu and the Options sheet on the same sizes ----
+   controls 16px (--fs-m) everywhere, the top bar included; a segmented group is as tall as a button (26px outside);
+   every dropdown item (Functions, Randomise, Tools, the FX type and program menus, the preset list) one height,
+   one indent and no button shadow; headings lowercase in the Options sheet like the FX units */
+:root { --menu-h: 22px; }
+html.fit .top .fn > button, html.fit .pm .pm-btn, .pm-opt, .pm .pm-q, .pm-foot input[type=text] { font-size: var(--fs-m); }
+.top .fn > button::after { font-size: inherit; }
+html.fit .pane .seg button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button, html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); }
+html.fit .fn-menu button, html.fit .pane .fn-menu button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit #pane-fx .tmenu .fn-menu button {
+  height: var(--menu-h); padding: 0 12px 0 22px; font-size: var(--fs-m); line-height: 1; box-shadow: none !important; }
+.fn-menu { padding: 4px 0 6px; }
+.fn-menu button { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.tmenu .fn-menu button[aria-checked=true]::before { left: 8px; }
+.fn-menu kbd { font: var(--fs-s)/1 var(--font-mono); color: var(--mute); text-transform: uppercase; }
+.fn-menu button:not(:disabled):hover kbd, .fn-menu button:focus-visible kbd { color: var(--glass); }
+.pm-pop .pm-foot input[type=text] { flex: 1 1 260px; }
+html.fit .pm .pm-i { height: var(--menu-h); line-height: var(--menu-h); padding-top: 0; padding-bottom: 0; font-size: var(--fs-m); box-shadow: none !important; }
+html.fit .pm .pm-star { height: var(--menu-h); font-size: var(--fs-m); box-shadow: none !important; }
+.pm .pm-g, .pm-sum, .pm-path { font-size: var(--fs-s); }
+/* Options: the circuit block tabs outlined like the section tabs above them; Monitor's headings like the FX unit names */
+dialog#options #ptabs button { border-width: 2px; border-bottom-width: 0; }
+.dclk-txt strong { font-weight: 400; text-transform: lowercase; font-size: var(--fs-m); }
+.dclk-fade { text-transform: lowercase; }
+#midi-status { margin: 0; }
+#midi-map dd { text-transform: lowercase; }

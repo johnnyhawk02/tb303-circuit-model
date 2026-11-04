@@ -47,6 +47,11 @@
     el.title = `${tip} (key ${k})`;
     if (el.closest('.fn-menu')) el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
   }
+  // the Functions menu's Join and Undo are the same actions, so they show the same keys as the Tools items
+  for (const [sel, id] of [['#fn-menu [data-fn="join"]', 'join'], ['#fn-undo', 'p-undo']]) {
+    const el = document.querySelector(sel); if (!el) continue;
+    const k = keyName(ACTS[id]); el.title = `${el.title} (key ${k})`; el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
+  }
   // the nudge arrows beside the roll show their keys too
   for (const [d, id] of [['1', 'nu-up'], ['-1', 'nu-dn'], ['12', 'nu-oup'], ['-12', 'nu-odn']]) {
     const b = document.querySelector(`.nudge [data-nudge="${d}"]`); if (b) b.title = `${b.title} (key ${keyName(ACTS[id])})`;

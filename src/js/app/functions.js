@@ -56,7 +56,7 @@ const FUNCTIONS = {
     }
     renderSeq(); pushPattern();
     const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
-    sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Functions › Undo puts it back.');
+    sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Undo puts it back.');
   },
   // New machine: like building a real unit, each part lands somewhere inside its tolerance (triangular, so most land near the middle).
   // Messed up: circuit-bent; every part swings a quarter of its knob travel either way and about a third swing up to 60%.
