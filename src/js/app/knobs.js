@@ -148,6 +148,7 @@ function drawKnob(id) {
   }
   if (REV_IDS.has(id)) drawLex();
   if (id === 'drvtype') drawDrv();
+  if (id === 'drvtype' || id === 'revtype' || id === 'fxorder' || id === 'fxret') drawRoute();
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;

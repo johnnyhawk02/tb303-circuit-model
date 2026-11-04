@@ -65,6 +65,9 @@ const KNOBS = [
   { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
   { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.4, fx: 'cmp' },
   { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.14142, fx: 'cmp' }, // 20 ms
+  // FX routing (the block diagram on the FX page): folder/drive order, and how the delay and reverb returns connect
+  { id: 'fxorder',   name: 'Order',     ref: 'folder→drive / drive→folder', def: 0, fx: 'route', hidden: true },
+  { id: 'fxret',     name: 'Returns',   ref: 'parallel / delay→reverb / reverb→delay', def: 0, fx: 'route', hidden: true },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33

@@ -15,7 +15,8 @@
     { "at": 6, "knobs": { "revtype": 0.3333333333333333, "plateprog": 0.75, "platedecay": 0.6, "platemod": 0.8 } },
     { "at": 6.75, "fx": { "fold": true }, "knobs": { "fldtimbre": 0.8, "fldsym": 0.3 } },
     { "at": 7.5, "knobs": { "revtype": 0.6666666666666666, "sprprog": 1, "sprtension": 0.8, "sprdwell": 0.7 } },
-    { "at": 9, "knobs": { "revtype": 1, "cnvprog": 0.875, "cnvdecay": 0.6, "cnvpre": 0.4 } },
+    { "at": 8.25, "knobs": { "fxret": 0.5, "fxorder": 1 } },
+    { "at": 9, "knobs": { "fxret": 1, "revtype": 1, "cnvprog": 0.875, "cnvdecay": 0.6, "cnvpre": 0.4 } },
     { "at": 10.5, "knobs": { "cnvprog": 1, "cnvdecay": 0.5 } },
     { "at": 11.25, "knobs": { "drvtype": 0, "fldlevel": 0.7 } }
   ]

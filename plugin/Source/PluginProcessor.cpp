@@ -86,6 +86,7 @@ static juce::String groupName(const char* g) {
     if (s == "ds") return "DS-1 ";
     if (s == "ts") return "TS808 ";
     if (s == "fold") return "Folder ";
+    if (s == "route") return "Routing ";
     return {};
 }
 
@@ -94,6 +95,8 @@ static int revSteps(int k) {
     switch (k) {
     case K::revtype: return 4;
     case K::drvtype: return 3;
+    case K::fxorder: return 2;
+    case K::fxret: return 3;
     case K::plateprog: return (int)platePrograms().size();
     case K::sprprog: return (int)springPrograms().size();
     case K::cnvprog: return (int)cnvPrograms().size();
@@ -115,6 +118,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
             StringArray names;
             if (k == K::revtype) names = { "Lexicon 224", "Plate", "Spring", "Convolution" };
             else if (k == K::drvtype) names = { "ProCo RAT", "Boss DS-1", "Ibanez TS808" };
+            else if (k == K::fxorder) names = { "Folder > Drive", "Drive > Folder" };
+            else if (k == K::fxret) names = { "Parallel", "Delay > Reverb", "Reverb > Delay" };
             else if (k == K::plateprog) for (auto& p : platePrograms()) names.add(p.shortName);
             else if (k == K::sprprog) for (auto& p : springPrograms()) names.add(p.shortName);
             else for (auto& p : cnvPrograms()) names.add(p.shortName);

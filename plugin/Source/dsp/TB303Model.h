@@ -1108,6 +1108,7 @@ public:
     bool square = false;
     double bpm = 128;
     BossDS1 ds; TubeScreamer ts; Buchla259 b259; int drvT = 0;
+    bool fxSwap = false; int retMode = 0; // FX routing: drive before folder; returns 0 parallel, 1 delay->reverb, 2 reverb->delay
     Lexicon224 lex; DattorroPlate plate; SpringReverb spring; ConvReverb conv; DigitalDelay dly; Compactor cmp;
     int revT = 0;
     // the unit on the reverb slot (fxLex switches it on)
@@ -1197,8 +1198,16 @@ public:
     // the effects after the dry signal y
     void fxOut(double y, float* out, float* outR, int n) {
         double wl = 0, wr = 0;
-        if (fxLex) revRun(y, wl, wr);
-        if (fxDly) { dly.run(y); wl += dly.l; wr += dly.r; }
+        if (fxLex && fxDly && retMode == 1) { // delay into reverb
+            dly.run(y); wl += dly.l; wr += dly.r;
+            revRun(y + 0.5 * (dly.l + dly.r), wl, wr);
+        } else if (fxLex && fxDly && retMode == 2) { // reverb into delay
+            double rl = 0, rr = 0; revRun(y, rl, rr); wl += rl; wr += rr;
+            dly.run(y + 0.5 * (rl + rr)); wl += dly.l; wr += dly.r;
+        } else {
+            if (fxLex) revRun(y, wl, wr);
+            if (fxDly) { dly.run(y); wl += dly.l; wr += dly.r; }
+        }
         const double g = cmp.run(y, wl, wr);
         out[n] = (float)(0.98 * std::tanh((y + cmp.l * g) / 0.98));
         if (outR) outR[n] = (float)(0.98 * std::tanh((y + cmp.r * g) / 0.98));
@@ -1278,6 +1287,8 @@ private:
         ratLevel = audioTaper(knobs[K::ratvol]) * 6;
         ds.derive(knobs); ts.derive(knobs); b259.derive(knobs);
         drvT = (int)std::max(0.0, std::min(2.0, jsRound(knobs[K::drvtype] * 2))); // drive slot: 0 = RAT, 1 = DS-1, 2 = TS808
+        fxSwap = knobs[K::fxorder] >= 0.5;
+        retMode = (int)std::max(0.0, std::min(2.0, jsRound(knobs[K::fxret] * 2)));
         lex.derive(c, knobs); plate.derive(knobs); spring.derive(knobs); conv.derive(knobs);
         const int t = revType(knobs);
         if (t != revT) { revT = t; if (t == 1) plate.reset(); else if (t == 2) spring.reset(); else if (t == 3) conv.reset(); }
@@ -1500,8 +1511,13 @@ private:
         const double vout = iout * c[P::R_OTA];
         hp38 = hp38A * (hp38 + vout - hp38In); hp38In = vout;
         double o = hp38 * vol * OUT_TRIM + nX * 4.0;
-        if (fxFold) o = b259.run(o);                                  // Buchla 259 folder, ahead of the drive slot
-        if (fxRat) o = drvT == 1 ? ds.run(o) : drvT == 2 ? ts.run(o) : rat(o);
+        if (fxSwap) { // routing: drive slot first, then the folder
+            if (fxRat) o = drvT == 1 ? ds.run(o) : drvT == 2 ? ts.run(o) : rat(o);
+            if (fxFold) o = b259.run(o);
+        } else {
+            if (fxFold) o = b259.run(o);                              // Buchla 259 folder, ahead of the drive slot
+            if (fxRat) o = drvT == 1 ? ds.run(o) : drvT == 2 ? ts.run(o) : rat(o);
+        }
         return 0.95 * std::tanh(o / 0.95);
     }
 
@@ -1519,7 +1535,7 @@ private:
 class ParamSlew {
 public:
     ParamSlew(Voice& v, double fs, double tau = 0.015) : v(v), fs(fs), tau(tau) {}
-    static bool instant(bool isKnob, int i) { return isKnob ? (i == K::lexprog || i == K::revtype || i == K::plateprog || i == K::sprprog || i == K::cnvprog || i == K::drvtype) : i >= P::LEX_FS; }
+    static bool instant(bool isKnob, int i) { return isKnob ? (i == K::lexprog || i == K::revtype || i == K::plateprog || i == K::sprprog || i == K::cnvprog || i == K::drvtype || i == K::fxorder || i == K::fxret) : i >= P::LEX_FS; }
     void set(bool isKnob, int i, double value) {
         if (instant(isKnob, i) || !std::isfinite(value)) {
             erase(isKnob, i);

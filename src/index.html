@@ -172,6 +172,14 @@
       <div class="fxknobs" id="fx-lex-knobs"></div>
       <p class="hint lex-note" id="lex-note"></p>
     </section>
+    <section class="fxb blk-route" id="fx-route" aria-label="FX routing">
+      <span class="fxname">routing</span>
+      <svg class="route-dia" id="route-dia" viewBox="0 0 560 60" role="group" aria-label="Signal path through the effects. Click a block to switch it on or off."></svg>
+      <div class="route-ctl">
+        <div class="seg" id="route-order" role="radiogroup" aria-label="Folder and drive order"><button type="button" role="radio" data-v="0" title="The folder first, then the drive pedal (the stock order)">fold → drive</button><button type="button" role="radio" data-v="1" title="The drive pedal first, then the folder: folds the clipped wave">drive → fold</button></div>
+        <div class="seg" id="route-ret" role="radiogroup" aria-label="Delay and reverb routing"><button type="button" role="radio" data-v="0" title="Delay and reverb both fed from the synth, side by side (the stock routing)">parallel</button><button type="button" role="radio" data-v="0.5" title="The delay feeds the reverb: the echoes are reverberated">dly → rev</button><button type="button" role="radio" data-v="1" title="The reverb feeds the delay: the reverb tail is echoed">rev → dly</button></div>
+      </div>
+    </section>
   </div>
 </div>
 
