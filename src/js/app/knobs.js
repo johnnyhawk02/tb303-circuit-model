@@ -169,7 +169,7 @@ function readouts() {
     ['Env decay to 10%', (2.3026 * rd * c.C62 * 1000).toFixed(0) + ' ms'],
     ['Accent decay to 10%', (2.3026 * c.R138 * c.C62 * 1000).toFixed(0) + ' ms'],
     ['Slide time constant', (c.R93 * c.C35 * 1000).toFixed(1) + ' ms'],
-    ['Square HPF corner', fmt(+(1 / (2 * Math.PI * c.C10 * c.R_SQB)).toFixed(1), 'Hz')],
+    ['Square lead network', fmt(Math.round(1 / (2 * Math.PI * c.C10 * (c.R_SQS + c.R_SQB))), 'Hz') + ' to ' + fmt(Math.round(1 / (2 * Math.PI * c.C10 * c.R_SQS)), 'Hz')],
   ];
   document.getElementById('readouts').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
 }

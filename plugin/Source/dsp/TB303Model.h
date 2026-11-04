@@ -23,6 +23,8 @@ namespace tb303 {
 
 constexpr double VT = 0.02585; // thermal voltage at ~300 K
 constexpr double PI = 3.14159265358979323846;
+constexpr int SQ_SUB = 4;      // Q8 shaper steps per voice sample
+constexpr double SQ_BR = 4;     // 2SA733 reverse current gain (only matters in saturation)
 
 // JavaScript's Math.round (halves go up)
 inline double jsRound(double x) { return std::floor(x + 0.5); }
@@ -1093,7 +1095,7 @@ public:
         rng = noiseSeed;
         cvTarget = dacVoltage(33, c[P::VREF], c[P::R_DAC], c[P::R2_DAC]);
         cv = cvTarget;
-        vSaw = c[P::V_LO]; sawDelay = vSaw; sqPrevIn = c[P::V_LO];
+        vSaw = c[P::V_LO]; sawDelay = vSaw;
         makeDecimator();
         derive();
     }
@@ -1132,9 +1134,8 @@ public:
         swing = c[P::V_HI] - c[P::V_LO];
         iVcoRef = c[P::F_TUNE] * c[P::C33] * swing;
         tuneOct = (k[K::tuning] - 0.5) * 2;
-        sqA = std::exp(-1 / (c[P::C10] * c[P::R_SQB] * fs));
-        sqGain = c[P::R_SQC] / c[P::R_SQE];
-        sqLpA = std::exp(-2 * PI * 18000 / fs);
+        { const double hs = h / SQ_SUB; sqG10 = c[P::C10] / hs; sqG11 = c[P::C_SQE] / hs; }
+        sqInA = std::exp(-1 / (c[P::C_IN] * (c[P::R_IN] + c[P::R98]) * fs));
         slideA = std::exp(-1 / (c[P::R93] * c[P::C35] * fs));
         C[0] = c[P::C18]; C[1] = c[P::C19]; C[2] = c[P::C24]; C[3] = c[P::C26];
         inAtt = c[P::R98] / (c[P::R_IN] + c[P::R98]);
@@ -1203,7 +1204,7 @@ public:
         auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; };
         for (auto& x : v) f(x);
         f(fbLp); f(envVcf); f(envVca); f(vAcc); f(vWowC); f(vWow); f(hp14); f(hp14In); f(hp38); f(hp38In); f(hp49); f(hp49In); f(hp76); f(hp76In);
-        f(sqHp); f(sqLp); f(rt.hin); f(rt.xin); f(rt.h1); f(rt.h2); f(rt.x1); f(rt.fb); f(rt.y); f(rt.hc); f(rt.xc); f(rt.v); f(rt.f); f(rt.xp); f(rt.dco); f(rt.dci);
+        f(sq.hp); f(sq.hpIn); f(rt.hin); f(rt.xin); f(rt.h1); f(rt.h2); f(rt.x1); f(rt.fb); f(rt.y); f(rt.hc); f(rt.xc); f(rt.v); f(rt.f); f(rt.xp); f(rt.dco); f(rt.dci);
         for (auto& s : decim) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
         for (auto& s : ratLP) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
         if (fxLex) lex.flush(); plate.flush(); spring.flush(); conv.flush(); dly.flush(); cmp.flush(); ds.flush(); ts.flush(); b259.flush();
@@ -1228,7 +1229,8 @@ private:
     double fsOut, fs, h;
     RatState rt;
     double cvTarget, cv; bool slide = false, accentNote = false;
-    double vSaw, sawDelay, sqHp = 0, sqPrevIn, sqLp = 0;
+    double vSaw, sawDelay;
+    struct SqState { double s = 0, e = 0, vc = 0, b = 0, col = 0, hp = 0, hpIn = 0; } sq; // Q8 shaper: ramp in, C11, C10, base, collector, C_IN coupling
     double v[4] = { 0, 0, 0, 0 }; double fbLp = 0;
     double envVcf = 0; int envAttack = 0; double envVca = 0; int vcaAttack = 0;
     double vAcc = 0, vWowC = 0, vWow = 0;
@@ -1238,7 +1240,7 @@ private:
     bool ratLPMade = false; std::array<Biquad, 3> ratLP {};
     // derived
     double nVcf = 0, nOta = 0, nOut = 0; bool noiseOn = false;
-    double swing = 0, iVcoRef = 0, tuneOct = 0, sqA = 0, sqGain = 0, sqLpA = 0, slideA = 0;
+    double swing = 0, iVcoRef = 0, tuneOct = 0, sqG10 = 0, sqG11 = 0, sqInA = 0, slideA = 0;
     double C[4] = {}; double inAtt = 0, kFb = 0, fbA = 0, wCut = 0, wEnv = 0, wAcc = 0, wKt = 0, vCutPot = 0, envModFrac = 0;
     double envDecA = 0, envDecAccA = 0, envAtkA = 0, vcaAtkA = 0, vcaSoftA = 0, vcaDecA = 0, vcaRelA = 0;
     double accFrac = 0, accChgK = 0, accDisA = 0; WowTap wowOn {}, wowOff {};
@@ -1369,6 +1371,54 @@ private:
         return (a - 2) * 1.7320508;
     }
 
+    // Q8 square shaper, one backward-Euler step (see _sqStep in tb303-model.js)
+    double sqStep(double S, double g10, double g11) {
+        const double IS = c[P::IS_Q8], bf = 1 / c[P::BF_Q8], br = 1 / SQ_BR;
+        const double g34 = 1 / c[P::R_SQS], gy = g10 * g34 / (g10 + g34), g35 = 1 / c[P::R_SQB], g45 = 1 / c[P::R_SQV], g36 = 1 / c[P::R_SQC];
+        const double sy = S - sq.vc, e0 = sq.e;
+        double B = sq.b, E = sq.e, C = sq.col;
+        for (int it = 0; it < 50; it++) {
+            const double xe = std::exp(std::min((E - B) / VT, 40.0)), xc = std::exp(std::min((C - B) / VT, 40.0));
+            const double Icc = IS * (xe - xc), Ibf = IS * bf * (xe - 1), Ibr = IS * br * (xc - 1);
+            const double ge = IS * xe / VT, gc = IS * xc / VT;
+            const double fB = gy * (sy - B) + g35 * (S - B) + Ibf + Ibr;
+            const double fE = g45 * (c[P::V_SQ] - E) - Icc - Ibf - g11 * (E - e0);
+            const double fC = Icc - Ibr - g36 * (C - c[P::VREF]);
+            const double bE = ge * bf, bC = gc * br, eE = ge * (1 + bf), cC = gc * (1 + br);
+            const double a00 = -gy - g35 - bE - bC, a01 = bE, a02 = bC;
+            const double a10 = eE - gc, a11 = -g45 - g11 - eE, a12 = gc;
+            const double a20 = cC - ge, a21 = ge, a22 = -cC - g36;
+            const double r0 = -fB, r1 = -fE, r2 = -fC;
+            const double det = a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20);
+            double dB = (r0 * (a11 * a22 - a12 * a21) - a01 * (r1 * a22 - a12 * r2) + a02 * (r1 * a21 - a11 * r2)) / det;
+            double dE = (a00 * (r1 * a22 - a12 * r2) - r0 * (a10 * a22 - a12 * a20) + a02 * (a10 * r2 - r1 * a20)) / det;
+            double dC = (a00 * (a11 * r2 - r1 * a21) - a01 * (a10 * r2 - r1 * a20) + r0 * (a10 * a21 - a11 * a20)) / det;
+            const double m = std::max(std::max(std::abs(dB), std::abs(dE)), std::abs(dC));
+            if (m > 0.2) { const double k = 0.2 / m; dB *= k; dE *= k; dC *= k; }
+            B += dB; E += dE; C += dC;
+            if (m < 1e-9) break;
+        }
+        sq.vc = S - (B + gy * (sy - B) / g34);
+        sq.b = B; sq.e = E; sq.col = C;
+        return C;
+    }
+    // bring the shaper to its running state when the square comes in (see _sqSettle in tb303-model.js)
+    void sqSettle(double s1) {
+        sq.e = c[P::V_SQ] - 3; sq.b = s1; sq.vc = 0; sq.col = c[P::VREF];
+        const double f = iVcoRef * std::pow(2.0, cv - c[P::CV_TUNE] + tuneOct) / (c[P::C33] * swing);
+        const double hs = 1 / (20 * f), g10 = c[P::C10] / hs, g11 = c[P::C_SQE] / hs; const int tail = 20;
+        const int n = std::max((int)std::ceil(0.08 * f), 3) * 20; const double dr = swing * f * hs;
+        double r = s1 + std::fmod(n * dr, swing), sum = 0;
+        if (r > c[P::V_HI]) r -= swing;
+        sq.s = r;
+        for (int i = 0; i < n; i++) {
+            r -= dr; if (r <= c[P::V_LO]) r += swing;
+            const double v = sqStep(r, g10, g11);
+            if (i >= n - tail) sum += v;
+        }
+        sq.s = r; sq.hp = 0; sq.hpIn = sum / tail;
+    }
+
     // one sample at the oversampled rate
     double tick() {
         if (slide) cv = cvTarget + slideA * (cv - cvTarget);
@@ -1388,16 +1438,17 @@ private:
 
         double wave;
         if (square) {
-            sqHp = sqA * (sqHp + saw - sqPrevIn);
-            sqPrevIn = saw;
-            const double sw = c[P::SQ_HI] - c[P::SQ_LO];
-            const double lin = 0.5 - sqHp * sqGain / sw;
-            const double sat = lin <= 0 ? 0 : lin >= 1 ? 1 : lin * lin * (3 - 2 * lin);
-            const double out = c[P::SQ_LO] + sw * sat;
-            sqLp = out + sqLpA * (sqLp - out);
-            wave = sqLp - (c[P::SQ_LO] + c[P::SQ_HI]) / 2;
+            // the real ramp falls from V_HI to V_LO and jumps back up (this model's saw rises; the filter can't tell)
+            const double s1 = c[P::V_LO] + c[P::V_HI] - saw;
+            if (!(sq.e > 0)) sqSettle(s1);
+            double acc = 0;
+            for (int j = 1; j <= SQ_SUB; j++) acc += sqStep(sq.s + (s1 - sq.s) * j / SQ_SUB, sqG10, sqG11);
+            sq.s = s1;
+            const double vout = acc / SQ_SUB;
+            sq.hp = sqInA * (sq.hp + vout - sq.hpIn); sq.hpIn = vout;
+            wave = sq.hp;
         } else {
-            sqPrevIn = saw;
+            sq.e = 0;
             wave = saw - (c[P::V_LO] + c[P::V_HI]) / 2;
         }
 

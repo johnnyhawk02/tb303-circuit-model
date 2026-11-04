@@ -1,10 +1,10 @@
 {
   "plugin/tests/scenario.json": {
-    "sha256": "60838985fbe372c42d3dd7bbcaaf1cdb8d15adb019ab04d6b8b1cbad8d054bab",
-    "rmsDb": -8.93
+    "sha256": "c62b0951f6edfb080fe9eb7d526d4fedd42a192357fa2210bb60aecc41c4694b",
+    "rmsDb": -8.95
   },
   "plugin/tests/scenario-44k.json": {
-    "sha256": "2e2cb18911b07d9e2adc98b06feda268920a87a1458a60f470f36b016ec11245",
-    "rmsDb": -23.45
+    "sha256": "4a96fa061f613c67d1ef057e63d956684dac55eb2b3242ce5a70a59091963865",
+    "rmsDb": -23.38
   }
 }

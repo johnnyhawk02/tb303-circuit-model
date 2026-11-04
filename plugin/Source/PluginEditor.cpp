@@ -1282,7 +1282,11 @@ void TB303Editor::timerCallback() {
         row("Env decay to 10%", juce::String(juce::roundToInt(2.3026 * rd * P[P::C62] * 1000)) + " ms");
         row("Accent decay to 10%", juce::String(juce::roundToInt(2.3026 * P[P::R138] * P[P::C62] * 1000)) + " ms");
         row("Slide time constant", juce::String(P[P::R93] * P[P::C35] * 1000, 1) + " ms");
-        row("Square HPF corner", TB303Processor::formatPart(std::round(10 / (2 * juce::MathConstants<double>::pi * P[P::C10] * P[P::R_SQB])) / 10, "Hz"));
+        {
+            const double tp = 2 * juce::MathConstants<double>::pi * P[P::C10];
+            row("Square lead network", TB303Processor::formatPart(std::round(1 / (tp * (P[P::R_SQS] + P[P::R_SQB]))), "Hz") + " to "
+                + TB303Processor::formatPart(std::round(1 / (tp * P[P::R_SQS])), "Hz"));
+        }
         readouts.setText(a, juce::dontSendNotification); readoutVals.setText(b, juce::dontSendNotification);
     }
     const bool cmpLit = Kn[0] >= 0 && (proc.apvts.getRawParameterValue("fx_lex")->load() > 0.5f || proc.apvts.getRawParameterValue("fx_dly")->load() > 0.5f);
