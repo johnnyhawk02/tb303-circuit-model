@@ -37,12 +37,14 @@ function presetBar(pre, storeKey, builtins, snap, apply, autoName) {
   const delBtn = document.getElementById(pre + '-del'), msg = document.getElementById(pre + '-msg');
   const bar = { user: loadStore(storeKey), say: (t) => { msg.textContent = t; clearTimeout(bar.t); bar.t = setTimeout(() => { msg.textContent = ''; }, 4000); } };
   let armed = '';
+  // factory presets can't be removed from the file, so "deleting" one hides it (restorable)
+  const hidKey = 'hidden.' + pre, hidden = new Set(store.get(hidKey, []));
   const esc = (n) => n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   bar.render = (selected) => {
     const opt = (g, n) => `<option value="${g}:${esc(n)}">${esc(n.split(' / ').pop())}</option>`;
     const names = Object.keys(bar.user).sort((a, b) => a.localeCompare(b));
     const groups = {};
-    for (const n of Object.keys(builtins)) (groups[n.includes(' / ') ? n.split(' / ')[0] : 'Factory'] ||= []).push(n);
+    for (const n of Object.keys(builtins)) if (!hidden.has(n)) (groups[n.includes(' / ') ? n.split(' / ')[0] : 'Factory'] ||= []).push(n);
     sel.innerHTML = '<option value="">Choose…</option>'
       + Object.entries(groups).map(([g, ns]) => `<optgroup label="${esc(g)}">` + ns.map(n => opt('b', n)).join('') + '</optgroup>').join('')
       + (names.length ? '<optgroup label="Saved">' + names.map(n => opt('u', n)).join('') + '</optgroup>' : '');
@@ -81,6 +83,16 @@ function presetBar(pre, storeKey, builtins, snap, apply, autoName) {
     if (armed !== name) { armed = name; delBtn.textContent = 'Confirm delete'; bar.say(`Click Confirm delete to remove ${name}.`); return; }
     delete bar.user[name]; bar.save(); bar.render(''); bar.say(`Deleted ${name}.`);
   };
+  // delete from the picker's X: own presets are removed, factory ones hidden
+  bar.remove = (v) => {
+    const name = v.slice(2), keep = sel.value === v ? '' : sel.value;
+    if (v[0] === 'u') delete bar.user[name], bar.save();
+    else { hidden.add(name); store.set(hidKey, [...hidden]); }
+    bar.render(keep); bar.say(`Deleted ${name}.`);
+  };
+  bar.hiddenCount = () => [...hidden].filter(n => n in builtins).length;
+  bar.restore = () => { const n = bar.hiddenCount(); hidden.clear(); store.set(hidKey, []); bar.render(sel.value); bar.say(`Restored ${n} factory preset${n === 1 ? '' : 's'}.`); };
+  (presetBar.all ||= {})[pre] = bar;
   bar.render('');
   return bar;
 }
@@ -97,6 +109,8 @@ function presetMenu(host) {
   const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   const favKey = 'fav.' + pre, recKey = 'recent.' + pre, openKey = 'pmOpen.' + pre;
   const fav = new Set(store.get(favKey, [])), open = new Set(store.get(openKey, ['fav', 'rec', 'my', 'built']));
+  const bar = presetBar.all && presetBar.all[pre];
+  let armed = '';
   let recent = store.get(recKey, []), act = -1, tree = null, order = [], byV = new Map(), favOnly = !!store.get('favOnly.' + pre, false);
 
   // every option becomes an item with a folder path: My presets, Built-in, or source > author > song
@@ -149,7 +163,8 @@ function presetMenu(host) {
     btn.querySelector('.cur').textContent = it ? it.name : 'Choose…';
   }
   const row = (it, d, hint) => `<div class="pm-row" style="--d:${d}"><button type="button" class="pm-i" role="option" data-v="${esc(it.v)}" aria-selected="${it.v === sel.value}">${esc(hint ? it.name : it.label)}${hint ? `<span class="pm-path">${esc(pathText(it))}</span>` : ''}</button>`
-    + `<button type="button" class="pm-star" data-v="${esc(it.v)}" aria-pressed="${fav.has(it.v)}" aria-label="${fav.has(it.v) ? 'Remove from' : 'Add to'} favourites">★</button></div>`;
+    + `<button type="button" class="pm-star" data-v="${esc(it.v)}" aria-pressed="${fav.has(it.v)}" aria-label="${fav.has(it.v) ? 'Remove from' : 'Add to'} favourites">${fav.has(it.v) ? '★' : '☆'}</button>`
+    + (bar ? `<button type="button" class="pm-del" data-v="${esc(it.v)}" aria-pressed="${armed === it.v}" aria-label="Delete ${esc(it.name)}" title="${armed === it.v ? 'Click again to delete' : 'Delete'}">${armed === it.v ? 'delete?' : '×'}</button>` : '') + '</div>';
   const folder = (key, label, n, d) => `<button type="button" class="pm-g${d ? ' sub' : ''}" style="--d:${d}" data-g="${esc(key)}" aria-expanded="${open.has(key)}">${esc(label)}<span class="n">${n}</span></button>`;
   const count = (n) => n.items.length + [...n.kids.values()].reduce((a, c) => a + count(c), 0);
   function drawNode(n, d) {
@@ -158,16 +173,18 @@ function presetMenu(host) {
     const rows = [...n.sorted.map(c => ({ c })), ...n.items.map(it => ({ it }))];
     rows.sort((a, b) => (a.c && !a.c.song ? 0 : 1) - (b.c && !b.c.song ? 0 : 1) || coll.compare((a.c || a.it).label, (b.c || b.it).label));
     for (const r of rows) h += r.c ? drawNode(r.c, d + 1) : row(r.it, d + 1);
+    if (n.key === 'built' && bar && bar.hiddenCount()) h += `<button type="button" class="pm-restore" style="--d:${d + 1}">restore ${bar.hiddenCount()} deleted</button>`;
     return h;
   }
   function draw() {
+    if (!byV.has(armed)) armed = '';
     const term = q.value.trim().toLowerCase(); let h = '';
     if (term || favOnly) {
       const hits = order.filter(it => (!favOnly || fav.has(it.v)) && (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)));
       h = hits.slice(0, 300).map(it => row(it, 0, byV.size > 14)).join('');
       h = (hits.length && term ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
     } else {
-      if (small()) h = order.map(it => row(it, 0)).join('');
+      if (small()) h = order.map(it => row(it, 0)).join('') + (bar && bar.hiddenCount() ? `<button type="button" class="pm-restore" style="--d:0">restore ${bar.hiddenCount()} deleted</button>` : '');
       else for (const t of tree) h += drawNode(t, 0);
     }
     list.innerHTML = h || `<div class="pm-none">${!byV.size ? 'No presets yet. Save one below.' : favOnly && !term ? 'No favourites yet. Tap ☆ on a preset to add it.' : 'Nothing matches.'}</div>`;
@@ -181,7 +198,7 @@ function presetMenu(host) {
     if (matchMedia('(pointer: fine)').matches) q.focus();
     list.querySelector('.pm-g ~ .pm-row [aria-selected=true], .pm-row [aria-selected=true]')?.scrollIntoView({ block: 'center' });
   }
-  function hide(refocus) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (refocus) btn.focus(); }
+  function hide(refocus) { armed = ''; pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (refocus) btn.focus(); }
   function choose(v, remember) {
     sel.value = v; sel.dispatchEvent(new Event('change')); sync();
     if (remember) { recent = [v, ...recent.filter(x => x !== v)].slice(0, 8); store.set(recKey, recent); }
@@ -197,6 +214,10 @@ function presetMenu(host) {
     if (g) { open.has(g.dataset.g) ? open.delete(g.dataset.g) : open.add(g.dataset.g); store.set(openKey, [...open]); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
     const st = e.target.closest('.pm-star');
     if (st) { const v = st.dataset.v; fav.has(v) ? fav.delete(v) : fav.add(v); store.set(favKey, [...fav]); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
+    const dl = e.target.closest('.pm-del');
+    if (dl) { const v = dl.dataset.v, y = list.scrollTop; if (armed !== v) { armed = v; bar.say(`Click delete? again to remove ${byV.get(v).name}.`); draw(); } else { armed = ''; bar.remove(v); } list.scrollTop = y; return; }
+    if (e.target.closest('.pm-restore')) { const y = list.scrollTop; bar.restore(); list.scrollTop = y; return; }
+    if (armed) { armed = ''; const y = list.scrollTop; draw(); list.scrollTop = y; }
     const it = e.target.closest('.pm-i'); if (it) { choose(it.dataset.v, true); hide(true); }
   });
   q.addEventListener('input', draw);
