@@ -152,26 +152,7 @@ function drawKnob(id) {
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;
-  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); readouts(); saveSession();
+  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); saveSession();
 }
 
-// ---------- readouts ----------
-function readouts() {
-  const v = preview, c = state.parts, k = state.knobs;
-  const vb = v.wCut * v.vCutPot;
-  const envTop = vb + v.wEnv * c.V_ENV * v.envModFrac;
-  const rd = c.R138 + c.VR6 * Math.pow(k.decay, 2.74);
-  const rows = [
-    ['VCO at A (code 33)', fmt(c.F_TUNE * Math.pow(2, (k.tuning - 0.5) * 2) * Math.pow(2, dacVoltage(33, c.VREF, c.R_DAC, c.R2_DAC) - c.CV_TUNE), 'Hz')],
-    ['Ramp current at A', fmt(c.F_TUNE * c.C33 * (c.V_HI - c.V_LO), 'A')],
-    ['VCF peak, knob only', fmt(Math.round(v.vcfResonantHz(vb)), 'Hz')],
-    ['VCF peak, env top', fmt(Math.round(Math.min(v.vcfResonantHz(envTop), 99999)), 'Hz')],
-    ['Feedback k / k_crit', (c.A_Q21 * k.resonance).toFixed(1) + ' / 17.0'],
-    ['Env decay to 10%', (2.3026 * rd * c.C62 * 1000).toFixed(0) + ' ms'],
-    ['Accent decay to 10%', (2.3026 * c.R138 * c.C62 * 1000).toFixed(0) + ' ms'],
-    ['Slide time constant', (c.R93 * c.C35 * 1000).toFixed(1) + ' ms'],
-    ['Square lead network', fmt(Math.round(1 / (2 * Math.PI * c.C10 * (c.R_SQS + c.R_SQB))), 'Hz') + ' to ' + fmt(Math.round(1 / (2 * Math.PI * c.C10 * c.R_SQS)), 'Hz')],
-  ];
-  document.getElementById('readouts').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
-}
 

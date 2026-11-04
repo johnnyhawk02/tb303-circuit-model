@@ -23,7 +23,6 @@ async function initAudio() {
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   sendDeclick();
   if (revType(state.knobs) === 3) loadIRs();
-  drawScope();
 }
 // no AudioWorklet: the same engine on the main thread through a ScriptProcessor
 function makeFallback() {
