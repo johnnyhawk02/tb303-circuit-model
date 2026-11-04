@@ -39,6 +39,10 @@ function knobText(id, p) {
     case 'dlyhi': { const f = dlyHi(p); return f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : Math.round(f) + ' Hz'; }
     case 'cmpamt': return p <= 0 ? 'off' : Math.round(100 * p) + '%';
     case 'cmprel': return Math.round(cmpRelMs(p)) + ' ms';
+    case 'dsdist': return '×' + Math.round(1 + PEDAL_PARTS.DS_VR1 * p / PEDAL_PARTS.DS_R13);                    // op-amp stage gain
+    case 'tsdrive': return '×' + Math.round(1 + (PEDAL_PARTS.TS_R6 + PEDAL_PARTS.TS_P1 * Math.pow(p, 2.74)) / PEDAL_PARTS.TS_R4);
+    case 'fldtimbre': return '×' + (0.5 + 9.5 * p * p).toFixed(1);
+    case 'fldsym': { const v = (p - 0.5) * 4; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' V'; }
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
       if (/^(plate|spr|cnv)/.test(id)) return revText(id, p);
@@ -143,6 +147,7 @@ function drawKnob(id) {
     k.val.textContent = knobText(id, p);
   }
   if (REV_IDS.has(id)) drawLex();
+  if (id === 'drvtype') drawDrv();
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;

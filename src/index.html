@@ -158,8 +158,13 @@
   </div>
 
   <div class="pane fxpane" data-title="Effects" id="pane-fx" role="tabpanel" aria-label="Effects" hidden>
-    <section class="fxb" id="fx-rat" aria-label="ProCo RAT">
-      <div class="fxh"><button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button><span class="fxname">ProCo RAT</span></div>
+    <section class="fxb" id="fx-fold" aria-label="Buchla 259 wavefolder" title="Buchla 259 timbre circuit: five folding cells and a direct path (Esqueda et al., DAFx-17), ahead of the drive. Timbre is the gain into the cells, Symmetry a DC offset.">
+      <div class="fxh"><button type="button" class="onoff" id="fx-fold-on" aria-pressed="false">Off</button><span class="fxname">Folder</span><span class="fxsub">Buchla 259</span></div>
+      <div class="fxknobs" id="fx-fold-knobs"></div>
+    </section>
+    <section class="fxb" id="fx-rat" aria-label="Drive">
+      <div class="fxh"><button type="button" class="onoff" id="fx-rat-on" aria-pressed="false">Off</button><span class="fxname">Drive</span>
+        <div class="seg cmp-mode" id="drv-type" role="radiogroup" aria-label="Drive pedal"></div></div>
       <div class="fxknobs" id="fx-rat-knobs"></div>
     </section>
     <section class="fxb" id="fx-dly" aria-label="Digital delay">

@@ -209,11 +209,11 @@ html.fit .seq { grid-auto-rows: var(--row-h); font-size: 13px; }
 .nu-oct-up { grid-row: 3 / 5; } .nu-oct-dn { grid-row: 5 / 7; }
 .nu-key-up { grid-row: 7 / 13; } .nu-key-dn { grid-row: 13 / 19; }
 
-/* effects: RAT, delay and Compactor in one row over the 224 */
-html.fit .fxpane { --knob: 40px; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; }
-html.fit .fxpane .fxb:not(.blk-lex) { --kn-w: 56px; padding: 0 16px; }
+/* effects: Folder, Drive, delay and Compactor in one row over the reverb slot */
+html.fit .fxpane { --knob: 40px; grid-template-columns: auto auto auto minmax(0, 1fr); gap: 14px 0; }
+html.fit .fxpane .fxb:not(.blk-lex) { --kn-w: 52px; padding: 0 12px; }
 html.fit .fxpane .fxb:first-child { padding-left: 0; }
-html.fit .fxpane .fxb:nth-child(3) { padding-right: 0; }
+html.fit .fxpane .fxb:nth-child(4) { padding-right: 0; }
 html.fit .fxknobs { flex-wrap: nowrap; gap: 6px; }
 html.fit .fxknobs .kn { width: var(--kn-w); }
 html.fit .fxb { gap: 8px; }

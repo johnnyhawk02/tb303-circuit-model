@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
             const auto& x = obj(ev[ei++]);
             if (x.count("knobs")) for (auto& [k, val] : obj(x.at("knobs"))) e.slew.set(true, tb303::knobIndex(k), num(val));
             if (x.count("parts")) for (auto& [k, val] : obj(x.at("parts"))) e.slew.set(false, tb303::partIndex(k), num(val));
-            if (x.count("fx")) for (auto& [k, val] : obj(x.at("fx"))) { bool on = std::get<bool>(val.v); if (k == "rat") e.v.fxRat = on; if (k == "lex") e.v.fxLex = on; if (k == "dly") e.v.fxDly = on; }
+            if (x.count("fx")) for (auto& [k, val] : obj(x.at("fx"))) { bool on = std::get<bool>(val.v); if (k == "rat") e.v.fxRat = on; if (k == "lex") e.v.fxLex = on; if (k == "dly") e.v.fxDly = on; if (k == "fold") e.v.fxFold = on; }
             if (x.count("tune")) { double t[12]; for (int k = 0; k < 12; k++) t[k] = num(arr(x.at("tune"))[k]); e.v.setTune(t); }
             if (x.count("wave")) e.v.square = std::get<std::string>(x.at("wave").v) == "square";
         }

@@ -117,6 +117,8 @@ enum : int {
     revtype, plateprog, platepre, platedecay, platedamp, platebw, platelo, platediff, platemod, platemix,
     sprprog, sprdwell, sprdecay, sprtension, sprtone, sprlo, sprmix,
     cnvprog, cnvpre, cnvdecay, cnvtone, cnvlo, cnvwidth, cnvmix,
+    // the drive slot's pedal and its DS-1 / TS808 dials, and the Buchla 259 folder (appended)
+    drvtype, dsdist, dstone, dslevel, tsdrive, tstone, tslevel, fldtimbre, fldsym, fldlevel,
     COUNT
 };
 }
@@ -144,6 +146,10 @@ inline const std::array<KnobInfo, K::COUNT>& knobs() {
         { "cnvprog", "IR", 0, "conv" }, { "cnvpre", "Predelay", 0.2, "conv" }, { "cnvdecay", "Decay", 1, "conv" },
         { "cnvtone", "Tone", 0.7, "conv" }, { "cnvlo", "Low cut", 0.3, "conv" }, { "cnvwidth", "Width", 2.0 / 3, "conv" },
         { "cnvmix", "Return", 0.5, "conv" },
+        { "drvtype", "Pedal", 0, "drv" },
+        { "dsdist", "Dist", 0.5, "ds" }, { "dstone", "Tone", 0.5, "ds" }, { "dslevel", "Level", 0.5, "ds" },
+        { "tsdrive", "Drive", 0.5, "ts" }, { "tstone", "Tone", 0.5, "ts" }, { "tslevel", "Level", 0.5, "ts" },
+        { "fldtimbre", "Timbre", 0.5, "fold" }, { "fldsym", "Symmetry", 0.5, "fold" }, { "fldlevel", "Level", 0.5, "fold" },
     }};
     return t;
 }
@@ -960,12 +966,205 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Three more units from published schematics, ported unchanged from Johnny's Shyoy (johnnyhawk02/sh101, v0.11.0):
+// a Boss DS-1 and an Ibanez TS808 Tube Screamer on the drive slot beside the RAT, and the Buchla 259 timbre
+// wavefolder ahead of it. Part values from ElectroSmash's DS-1 and Tube Screamer analyses and from Esqueda,
+// Pöntynen, Välimäki & Parker, "Virtual Analog Buchla 259 Wavefolder" (DAFx-17). Each runs at 4x the host rate
+// like the RAT (constructed at the voice rate, 2x the host, with PEDAL_OS = 2). Mirrors tb303-model.js line by line.
+struct Diode1N4148 { static constexpr double Is = 2.52e-9, n = 1.752; }; // 1N4148 / 1N914 SPICE values
+namespace PP {
+// Boss DS-1 (ElectroSmash part list, "DS1-A")
+constexpr double DS_C3 = 47e-9, DS_R5 = 100e3;
+constexpr double DS_GAIN = 56, DS_R7 = 470e3, DS_C4 = 250e-12;
+constexpr double DS_VC = 5.8, DS_VSAT = 0.3;
+constexpr double DS_C5 = 68e-9, DS_R10 = 100e3;
+constexpr double DS_R13 = 4.7e3, DS_C8 = 0.47e-6, DS_VR1 = 100e3, DS_C7 = 100e-12;
+constexpr double DS_OPHI = 3.0, DS_OPLO = 4.3;
+constexpr double DS_R14 = 2.2e3, DS_C10 = 10e-9;
+constexpr double DS_R16 = 6.8e3, DS_C12 = 0.1e-6;
+constexpr double DS_C11 = 22e-9, DS_R17 = 6.8e3;
+// Ibanez TS808 (ElectroSmash)
+constexpr double TS_C2 = 1e-6, TS_R5 = 10e3;
+constexpr double TS_R4 = 4.7e3, TS_C3 = 47e-9;
+constexpr double TS_R6 = 51e3, TS_P1 = 500e3, TS_C4 = 51e-12;
+constexpr double TS_RAIL = 3.5;
+constexpr double TS_R7 = 1e3, TS_C5 = 0.22e-6;
+constexpr double TS_P2 = 20e3, TS_R8 = 220, TS_C6 = 0.22e-6, TS_RF = 1e3;
+// Buchla 259 (DAFx-17, Table 1): [R1, R2, R3] per folding cell, Vs = 6 V CA3160 rails
+constexpr double B259_VS = 6;
+constexpr double B259_CELLS[5][3] = { { 10e3, 100e3, 100e3 }, { 49.9e3, 100e3, 43.2e3 }, { 91e3, 100e3, 56e3 }, { 30e3, 100e3, 68e3 }, { 68e3, 100e3, 33e3 } };
+constexpr double B259_W[5] = { -12.000, -27.777, -21.428, 17.647, 36.363 }, B259_WIN = 5.000;
+constexpr double B259_RF2 = 1.2e6, B259_C = 100e-12;
+}
+constexpr int PEDAL_OS = 2; // inside the voice (already 2x), so 4x the host rate, as the RAT
+
+// shared by the three: linear upsampling, a third-order 22 kHz Butterworth down filter and a DC block
+class OsUnit {
+public:
+    explicit OsUnit(double fs_) : fs(fs_), fo(fs_ * PEDAL_OS), dt(1 / (fs_ * PEDAL_OS)) {
+        const double w = 2 * PI * 22000 / fo, cs = std::cos(w);
+        const double Qs[3] = { 0.5176, 0.7071, 1.9319 };
+        for (int i = 0; i < 3; ++i) { const double al = std::sin(w) / (2 * Qs[i]), a0 = 1 + al; lp[i] = { (1 - cs) / 2 / a0, (1 - cs) / a0, (1 - cs) / 2 / a0, -2 * cs / a0, (1 - al) / a0 }; }
+        dcA = std::exp(-2 * PI * 5 / fs);
+    }
+    virtual ~OsUnit() = default;
+    double run(double x) {
+        const double x0 = xp; xp = x; double y = 0;
+        for (int i = 1; i <= PEDAL_OS; i++) {
+            double z = core(x0 + (x - x0) * ((double)i / PEDAL_OS));
+            for (auto& q : lp) { const double o = q.b0 * z + q.b1 * q.x1 + q.b2 * q.x2 - q.a1 * q.y1 - q.a2 * q.y2; q.x2 = q.x1; q.x1 = z; q.y2 = q.y1; q.y1 = o; z = o; }
+            y = z;
+        }
+        dco = dcA * (dco + y - dci); dci = y;
+        return dco;
+    }
+protected:
+    virtual double core(double x) = 0;
+    double e(double tau) const { return std::exp(-dt / std::max(tau, 1e-12)); } // one-pole coefficient for a time constant
+    double fs, fo, dt, xp = 0, dco = 0, dci = 0, dcA = 0;
+    std::array<Biquad, 3> lp {};
+};
+// implicit (backward Euler) node with a 1N4148 pair to ground, solved by the RAT's bracketed Newton
+inline double diodeNode(double gw, double G, double vp, double Is, double nVt) {
+    const double lin = gw / G;
+    double lo = lin < 0 ? lin : 0, hi = lin < 0 ? 0 : lin, v = std::min(hi, std::max(lo, vp));
+    for (int i = 0; i < 40; i++) {
+        const double t = std::min(std::max(v / nVt, -80.0), 80.0), ex = std::exp(t), ei = 1 / ex;
+        const double f = gw - G * v - Is * (ex - ei), df = -G - Is * (ex + ei) / nVt;
+        if (f > 0) lo = v; else hi = v;
+        double nv = v - f / df;
+        if (!(nv > lo && nv < hi)) nv = 0.5 * (lo + hi);
+        const double dv = nv - v; v = nv;
+        if (dv < 1e-7 && dv > -1e-7) break;
+    }
+    return v;
+}
+// smooth limit into [-lo, hi] (a transistor or op-amp running into its rails)
+inline double softRail(double v, double hi, double lo) { return v > 0 ? hi * std::tanh(v / hi) : lo * std::tanh(v / lo); }
+
+// Boss DS-1: Q2 booster, op-amp gain stage, R14 into a diode pair to ground with C10, the Big Muff-style tone, level
+class BossDS1 : public OsUnit {
+public:
+    explicit BossDS1(double fs_) : OsUnit(fs_) {}
+    struct S { double h0 = 0, x0 = 0, b = 0, h1 = 0, x1 = 0, hl = 0, xl = 0, vf = 0, v = 0, lp = 0, hp = 0, xh = 0; } s;
+    void derive(const Knobs& k) {
+        using namespace PP;
+        aIn = e(DS_C3 * DS_R5);
+        aB = e(DS_R7 * DS_C4);
+        aOp = e(DS_C5 * DS_R10);
+        aLeg = e(DS_R13 * DS_C8);
+        vr1 = DS_VR1 * k[K::dsdist] + 1;
+        aF = e(vr1 * DS_C7);
+        gC = 1 / DS_R14; cdt = DS_C10 / dt;
+        aLp = e(DS_R16 * DS_C12); aHp = e(DS_C11 * DS_R17);
+        tone = k[K::dstone];
+        level = audioTaper(k[K::dslevel]) * 12;
+        nVt = Diode1N4148::n * VT;
+    }
+    void flush() { auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; f(s.h0); f(s.x0); f(s.b); f(s.h1); f(s.x1); f(s.hl); f(s.xl); f(s.vf); f(s.v); f(s.lp); f(s.hp); f(s.xh); }
+protected:
+    double core(double x) override {
+        using namespace PP;
+        s.h0 = aIn * (s.h0 + x - s.x0); s.x0 = x;
+        const double tb = -DS_GAIN * s.h0;
+        s.b = tb + aB * (s.b - tb);
+        const double q = softRail(s.b, 9 - DS_VC, DS_VC - DS_VSAT);
+        s.h1 = aOp * (s.h1 + q - s.x1); s.x1 = q;
+        const double u = s.h1;
+        s.hl = aLeg * (s.hl + u - s.xl); s.xl = u;
+        const double vf = s.hl / DS_R13 * vr1;
+        s.vf = vf + aF * (s.vf - vf);
+        const double o = softRail(u + s.vf, DS_OPHI, DS_OPLO);
+        s.v = diodeNode(gC * o + cdt * s.v, gC + cdt, s.v, Diode1N4148::Is, nVt);
+        s.lp = s.v + aLp * (s.lp - s.v);
+        s.hp = aHp * (s.hp + s.v - s.xh); s.xh = s.v;
+        return ((1 - tone) * s.lp + tone * s.hp) * level;
+    }
+    double aIn = 0, aB = 0, aOp = 0, aLeg = 0, vr1 = 0, aF = 0, gC = 0, cdt = 0, aLp = 0, aHp = 0, tone = 0, level = 0, nVt = 0;
+};
+
+// Ibanez TS808: non-inverting clipping amp with D1/D2 in the feedback, R7/C5, the active tone stage, level
+class TubeScreamer : public OsUnit {
+public:
+    explicit TubeScreamer(double fs_) : OsUnit(fs_) {}
+    struct S { double h0 = 0, x0 = 0, hl = 0, xl = 0, vf = 0, z1 = 0, z2 = 0, w1 = 0, w2 = 0; } s;
+    void derive(const Knobs& k) {
+        using namespace PP;
+        aIn = e(TS_C2 * TS_R5);
+        aLeg = e(TS_R4 * TS_C3);
+        rf = TS_R6 + TS_P1 * audioTaper(k[K::tsdrive]);
+        gF = 1 / rf; cdt = TS_C4 / dt;
+        nVt = Diode1N4148::n * VT;
+        // H(s) = (1 + s C6 (Rs + kb RF)) / ((1 + s C5 R7)(1 + s C6 Rs) + ka s C6 R7), bilinear-mapped (see the JS)
+        const double t = std::min(0.999, std::max(0.001, k[K::tstone])), Ra = TS_P2 * t, Rb = TS_P2 * (1 - t);
+        const double Rs = Ra * Rb / (Ra + Rb) + TS_R8, ka = Rb / TS_P2, kb = Ra / TS_P2;
+        const double R7 = TS_R7, C5 = TS_C5, C6 = TS_C6;
+        const double n0 = 1, n1 = C6 * (Rs + kb * TS_RF), n2 = 0;
+        const double d0 = 1, d1 = C5 * R7 + C6 * Rs + ka * C6 * R7, d2 = C5 * R7 * C6 * Rs;
+        const double K_ = 2 * fo, K2 = K_ * K_, a0 = d0 + d1 * K_ + d2 * K2;
+        tb[0] = (n0 + n1 * K_ + n2 * K2) / a0; tb[1] = (2 * n0 - 2 * n2 * K2) / a0; tb[2] = (n0 - n1 * K_ + n2 * K2) / a0;
+        ta[0] = (2 * d0 - 2 * d2 * K2) / a0; ta[1] = (d0 - d1 * K_ + d2 * K2) / a0;
+        level = audioTaper(k[K::tslevel]) * 13; // x13 here (x9 in Shyoy) so it sits as loud as the RAT on the 303
+    }
+    void flush() { auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; f(s.h0); f(s.x0); f(s.hl); f(s.xl); f(s.vf); f(s.z1); f(s.z2); f(s.w1); f(s.w2); }
+protected:
+    double core(double x) override {
+        using namespace PP;
+        s.h0 = aIn * (s.h0 + x - s.x0); s.x0 = x;
+        const double u = s.h0;
+        s.hl = aLeg * (s.hl + u - s.xl); s.xl = u;
+        const double i = s.hl / TS_R4;
+        s.vf = diodeNode(i + cdt * s.vf, gF + cdt, s.vf, Diode1N4148::Is, nVt);
+        const double o = softRail(u + s.vf, TS_RAIL, TS_RAIL);
+        const double y = tb[0] * o + s.z1; s.z1 = tb[1] * o - ta[0] * y + s.z2; s.z2 = tb[2] * o - ta[1] * y;
+        return y * level;
+    }
+    double aIn = 0, aLeg = 0, rf = 0, gF = 0, cdt = 0, nVt = 0, level = 0, tb[3] = {}, ta[2] = {};
+};
+
+// Buchla 259 timbre circuit: five folding cells and a direct path (Eq. 18), RF2*C output pole, first-order ADAA
+class Buchla259 : public OsUnit {
+public:
+    explicit Buchla259(double fs_) : OsUnit(fs_) {
+        using namespace PP;
+        const double Vs = B259_VS;
+        for (int i = 0; i < 5; ++i) {
+            const double R1 = B259_CELLS[i][0], R2 = B259_CELLS[i][1], R3 = B259_CELLS[i][2];
+            const double D = R1 * R3 + R2 * R3 + R1 * R2, a = R2 * R3 / D, b = R1 * R3 * Vs / D, T = R1 / R2 * Vs, w = B259_W[i];
+            cells[i] = { T, w * a, w * b, w * (a * T * T / 2 - b * T) };
+        }
+    }
+    struct S { double xa = 0, Fa = 0, y = 0; } s;
+    void derive(const Knobs& k) {
+        using namespace PP;
+        gain = 0.5 + 9.5 * k[K::fldtimbre] * k[K::fldtimbre];
+        off = (k[K::fldsym] - 0.5) * 4;
+        aOut = e(B259_RF2 * B259_C);
+        level = audioTaper(k[K::fldlevel]) * 1.7;
+    }
+    void flush() { auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; f(s.xa); f(s.Fa); f(s.y); }
+protected:
+    double f(double v) const { double y = PP::B259_WIN * v; for (const auto& q : cells) { const double m = v < 0 ? -v : v; if (m > q.T) y += q.a * v - (v < 0 ? -q.b : q.b); } return y; }
+    double F(double v) const { double y = 0.5 * PP::B259_WIN * v * v; for (const auto& q : cells) { const double m = v < 0 ? -v : v; if (m > q.T) y += q.a * v * v / 2 - q.b * m - q.C; } return y; }
+    double core(double x) override {
+        const double v = x * gain + off, Fv = F(v), d = v - s.xa;
+        const double y = (d > 1e-6 || d < -1e-6) ? (Fv - s.Fa) / d : f(0.5 * (v + s.xa));
+        s.xa = v; s.Fa = Fv;
+        s.y = y + aOut * (s.y - y);
+        return s.y * level;
+    }
+    struct Cell { double T, a, b, C; };
+    std::array<Cell, 5> cells {};
+    double gain = 0, off = 0, aOut = 0, level = 0;
+};
+
+// ---------------------------------------------------------------------------------------------------
 constexpr int RAT_OS = 2; // the RAT runs at 2x the voice rate (4x the host rate)
 
 class Voice {
 public:
     Voice(double sampleRate, uint32_t noiseSeed = 0x9e3779b9u)
-        : fsOut(sampleRate), fs(sampleRate * 2), h(1 / (sampleRate * 2)), lex(sampleRate), plate(sampleRate), spring(sampleRate), conv(sampleRate), dly(sampleRate), cmp(sampleRate) {
+        : fsOut(sampleRate), fs(sampleRate * 2), h(1 / (sampleRate * 2)), ds(sampleRate * 2), ts(sampleRate * 2), b259(sampleRate * 2), lex(sampleRate), plate(sampleRate), spring(sampleRate), conv(sampleRate), dly(sampleRate), cmp(sampleRate) {
         for (int i = 0; i < P::COUNT; ++i) c[i] = parts()[i].v;
         // the JS voice's own constructor defaults; the app (and the plugin) then sends the panel values
         const double kd[K::COUNT] = { 0.5, 0.35, 0.7, 0.6, 0.3, 0.7, 0.8, 0.5, 0.4, 0.5,
@@ -974,7 +1173,8 @@ public:
             1, 0.7, 0.35, 0.3, 0.55, 0.35,
             0, 0.5, 0.2, 0.45, 0.6, 0.75, 0.35, 0.88, 0.5, 0.5,
             2.0 / 3, 0.4, 0.5, 0.5, 0.5, 0.4, 0.5,
-            0, 0.2, 1, 0.7, 0.3, 2.0 / 3, 0.5 };
+            0, 0.2, 1, 0.7, 0.3, 2.0 / 3, 0.5,
+            0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 };
         for (int i = 0; i < K::COUNT; ++i) knobs[i] = kd[i];
         rng = noiseSeed;
         cvTarget = dacVoltage(33, c[P::VREF], c[P::R_DAC], c[P::R2_DAC]);
@@ -986,9 +1186,10 @@ public:
 
     Parts c {};
     Knobs knobs {};
-    bool fxRat = false, fxLex = false, fxDly = false;
+    bool fxRat = false, fxLex = false, fxDly = false, fxFold = false; // fxRat switches the drive slot (RAT, DS-1 or TS808)
     bool square = false;
     double bpm = 128;
+    BossDS1 ds; TubeScreamer ts; Buchla259 b259; int drvT = 0;
     Lexicon224 lex; DattorroPlate plate; SpringReverb spring; ConvReverb conv; DigitalDelay dly; Compactor cmp;
     int revT = 0;
     // the unit on the reverb slot (fxLex switches it on)
@@ -1091,7 +1292,7 @@ public:
         f(sqHp); f(sqLp); f(rt.hin); f(rt.xin); f(rt.h1); f(rt.h2); f(rt.x1); f(rt.fb); f(rt.y); f(rt.hc); f(rt.xc); f(rt.v); f(rt.f); f(rt.xp); f(rt.dco); f(rt.dci);
         for (auto& s : decim) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
         for (auto& s : ratLP) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
-        if (fxLex) lex.flush(); plate.flush(); spring.flush(); conv.flush(); dly.flush(); cmp.flush();
+        if (fxLex) lex.flush(); plate.flush(); spring.flush(); conv.flush(); dly.flush(); cmp.flush(); ds.flush(); ts.flush(); b259.flush();
     }
 
     // out is mono, or the left channel when outR is given
@@ -1155,6 +1356,8 @@ private:
         ratIs = 1e-3 / std::exp(c[P::RAT_VF] / ratN);
         ratFltA = e((c[P::RAT_RF] + 100e3 * knobs[K::filter]) * c[P::RAT_CFLT]);
         ratLevel = audioTaper(knobs[K::ratvol]) * 6;
+        ds.derive(knobs); ts.derive(knobs); b259.derive(knobs);
+        drvT = (int)std::max(0.0, std::min(2.0, jsRound(knobs[K::drvtype] * 2))); // drive slot: 0 = RAT, 1 = DS-1, 2 = TS808
         lex.derive(c, knobs); plate.derive(knobs); spring.derive(knobs); conv.derive(knobs);
         const int t = revType(knobs);
         if (t != revT) { revT = t; if (t == 1) plate.reset(); else if (t == 2) spring.reset(); else if (t == 3) conv.reset(); }
@@ -1328,7 +1531,8 @@ private:
         const double vout = iout * c[P::R_OTA];
         hp38 = hp38A * (hp38 + vout - hp38In); hp38In = vout;
         double o = hp38 * vol * 4.0 + nX * 4.0;
-        if (fxRat) o = rat(o);
+        if (fxFold) o = b259.run(o);                                  // Buchla 259 folder, ahead of the drive slot
+        if (fxRat) o = drvT == 1 ? ds.run(o) : drvT == 2 ? ts.run(o) : rat(o);
         return 0.95 * std::tanh(o / 0.95);
     }
 
@@ -1346,7 +1550,7 @@ private:
 class ParamSlew {
 public:
     ParamSlew(Voice& v, double fs, double tau = 0.015) : v(v), fs(fs), tau(tau) {}
-    static bool instant(bool isKnob, int i) { return isKnob ? (i == K::lexprog || i == K::revtype || i == K::plateprog || i == K::sprprog || i == K::cnvprog) : i >= P::LEX_FS; }
+    static bool instant(bool isKnob, int i) { return isKnob ? (i == K::lexprog || i == K::revtype || i == K::plateprog || i == K::sprprog || i == K::cnvprog || i == K::drvtype) : i >= P::LEX_FS; }
     void set(bool isKnob, int i, double value) {
         if (instant(isKnob, i) || !std::isfinite(value)) {
             erase(isKnob, i);
