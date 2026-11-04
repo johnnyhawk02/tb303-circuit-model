@@ -101,9 +101,8 @@ function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return 
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
   if (!x || typeof x !== 'object') return out;
-  // sounds saved with the old six-control Compactor: map them onto Amount and Release
-  if (x.knobs && typeof x.knobs === 'object' && !('cmpamt' in x.knobs) && ['cmpthr', 'cmprng', 'cmpatk', 'cmphold', 'cmpmix', 'cmpmode'].some(k => k in x.knobs))
-    x = { ...x, knobs: { ...x.knobs, ...cmpFromOld(x.knobs) } };
+  // sounds saved before the two-dial Compactor (no Amount) load with it off
+  if (x.knobs && typeof x.knobs === 'object' && !('cmpamt' in x.knobs)) x = { ...x, knobs: { ...x.knobs, cmpamt: 0 } };
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
