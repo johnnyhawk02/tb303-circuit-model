@@ -11,7 +11,7 @@ Open `index.html` in a browser to play it. It has a step sequencer, one Preset m
 - `build.js`: `node build.js` fills the slots in `src/index.html` with the CSS, the model, the worklet, the app code and `patterns.json`, and writes the single-file `index.html` that gets deployed. Edit `src/`, never `index.html`.
 - `test.js`: sanity checks (DAC voltages, 110 Hz at the A key, filter range, decay times) and renders `demo.wav`.
 - `patterns.json`: the ABL3 and Phoscyon factory patterns that Generate uses as raw material. `tools/import-patterns.js` makes it from the plug-ins' files, and `node build.js` puts it in the page.
-- `factory-presets.json`: the Factory presets in the Preset menu, each a whole project (sound, effects, the 8 pattern slots and chain) in the format Export saves. `node build.js` puts it in the page, and the plug-in embeds it too. To add one, export it from the app and add its `project` under a new name.
+- `factory-presets.json`: the Factory presets in the Preset menu, each a whole project (sound, effects, the 8 pattern slots and chain) in the format Export saves. `node build.js` puts it in the page, and the plug-in embeds it too. Its format is the `projectPresets` map of the file the Preset menu's Export all saves, so presets can be copied straight across.
 - `calib.js`: works out the ladder's self-oscillation gain (k = 17) and its resonance-frequency factor.
 
 ## What's modelled

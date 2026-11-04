@@ -59,10 +59,16 @@ const download = (name, obj) => {
   a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
   a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
+// Export all: every saved preset in one file (Import file adds them all back); with none saved yet, the current project
 document.getElementById('prj-export').onclick = () => {
-  const nm = (document.getElementById('prj-name').value.trim() || 'tb303-preset').replace(/[^\w .-]+/g, '_');
-  download(nm + '.json', { app: 'tb303-circuit-model', kind: 'project', version: 1, project: projectSnap() });
-  prjBar.say(`Exported ${nm}.json.`);
+  const c = Object.keys(prjBar.user).length;
+  if (!c) {
+    const nm = (document.getElementById('prj-name').value.trim() || 'tb303-preset').replace(/[^\w .-]+/g, '_');
+    download(nm + '.json', { app: 'tb303-circuit-model', kind: 'project', version: 1, project: projectSnap() });
+    prjBar.say(`No saved presets yet, so exported the current one as ${nm}.json.`); return;
+  }
+  download('tb303-presets.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: prjBar.user });
+  prjBar.say(`Exported all ${c} preset${c === 1 ? '' : 's'} to tb303-presets.json.`);
 };
 const prjFile = document.getElementById('prj-file');
 document.getElementById('prj-import').onclick = () => prjFile.click();
