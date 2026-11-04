@@ -1048,7 +1048,8 @@ juce::StringArray TB303Editor::visiblePresets() const {
     juce::StringArray out;
     const auto q = search.getText().trim();
     const auto user = proc.userPresetNames();
-    auto all = proc.factoryPresetNames(); all.removeValuesIn(user); // factory first, then saved ones
+    juce::StringArray all; // factory first, then saved ones
+    for (auto& n : proc.factoryPresetNames()) if (!user.contains(n)) all.add(n);
     all.addArray(user);
     for (auto& n : all)
         if ((!favOnly || proc.isFavourite(n)) && (q.isEmpty() || n.containsIgnoreCase(q))) out.add(n);
