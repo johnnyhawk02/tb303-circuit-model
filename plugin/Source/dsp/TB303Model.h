@@ -23,6 +23,8 @@ namespace tb303 {
 
 constexpr double VT = 0.02585; // thermal voltage at ~300 K
 constexpr double PI = 3.14159265358979323846;
+constexpr double OUT_TRIM = 0.4; // mixer and line-out gain to digital full scale
+constexpr double Q20_VBE = 0.65; // Q20 base-emitter drop at about 0.5 mA
 constexpr int SQ_SUB = 4;      // Q8 shaper steps per voice sample
 constexpr double SQ_BR = 4;     // 2SA733 reverse current gain (only matters in saturation)
 
@@ -1170,6 +1172,8 @@ public:
         hp76A = std::exp(-1 / (c[P::C76] * c[P::R100] * fs));
         hp38A = std::exp(-1 / (c[P::C38] * c[P::R_OUT] * fs));
         vinDen = 1 / c[P::R88] + 1 / c[P::R100] + 1 / c[P::R101];
+        q21I = std::max(c[P::VREF] * c[P::R109] / (c[P::R116] + c[P::R112] + c[P::R109]) - Q20_VBE, 0.0) / c[P::R108];
+        q21Swing = q21I * c[P::R110] / 2;
         vol = audioTaper(k[K::volume]);
         deriveFx();
     }
@@ -1244,7 +1248,7 @@ private:
     double C[4] = {}; double inAtt = 0, kFb = 0, fbA = 0, wCut = 0, wEnv = 0, wAcc = 0, wKt = 0, vCutPot = 0, envModFrac = 0;
     double envDecA = 0, envDecAccA = 0, envAtkA = 0, vcaAtkA = 0, vcaSoftA = 0, vcaDecA = 0, vcaRelA = 0;
     double accFrac = 0, accChgK = 0, accDisA = 0; WowTap wowOn {}, wowOff {};
-    double hp14A = 0, hp49A = 0, hp76A = 0, hp38A = 0, vinDen = 0, vol = 0;
+    double hp14A = 0, hp49A = 0, hp76A = 0, hp38A = 0, vinDen = 0, vol = 0, q21I = 0, q21Swing = 0;
     double ratDcA = 0, ratRd = 0, ratInA = 0, ratA1 = 0, ratA2 = 0, ratFA = 0, ratGain = 0, ratK = 0, ratSlew = 0, ratRail = 0, ratCA = 0, ratN = 0, ratIs = 0, ratFltA = 0, ratLevel = 0;
 
     void deriveFx() {
@@ -1484,7 +1488,7 @@ private:
         if (noiseOn) { nV = gauss() * nVcf; nO = gauss() * nOta; nX = gauss() * nOut; }
         const double y = vcfStep(wave * inAtt + nV, Il);
 
-        const double ya = y * c[P::A_OUT];
+        const double ya = q21Swing * std::tanh(y / (2 * VT)); // Q21 diff pair -> Q19 output buffer
         hp14 = hp14A * (hp14 + ya - hp14In); hp14In = ya;
         const double vo = hp14;
         hp49 = hp49A * (hp49 + vo - hp49In); hp49In = vo;
@@ -1495,7 +1499,7 @@ private:
         const double iout = Iabc * std::tanh(vin / (2 * VT));
         const double vout = iout * c[P::R_OTA];
         hp38 = hp38A * (hp38 + vout - hp38In); hp38In = vout;
-        double o = hp38 * vol * 4.0 + nX * 4.0;
+        double o = hp38 * vol * OUT_TRIM + nX * 4.0;
         if (fxFold) o = b259.run(o);                                  // Buchla 259 folder, ahead of the drive slot
         if (fxRat) o = drvT == 1 ? ds.run(o) : drvT == 2 ? ts.run(o) : rat(o);
         return 0.95 * std::tanh(o / 0.95);

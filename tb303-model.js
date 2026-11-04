@@ -30,6 +30,8 @@
 
 const VT = 0.02585; // thermal voltage at ~300 K
 const SQ_SUB = 4;   // Q8 shaper steps per voice sample
+const OUT_TRIM = 0.4; // mixer and line-out gain to digital full scale (set so a typical patch is as loud as before the Q21 stage was modelled)
+const Q20_VBE = 0.65; // Q20 base-emitter drop at about 0.5 mA
 const SQ_BR = 4;    // 2SA733 reverse current gain (only matters in saturation)
 
 // source: 'schematic' = value printed on the 1982 sheet
@@ -97,7 +99,7 @@ const COMPONENTS = {
   R138:   { v: 68e3,    unit: 'Ω', block: 'Env',   source: 'schematic', note: 'decay min resistor', mod: 'Sets the shortest decay and the accent decay. The Devil Fish adds separate Normal and Accent decay pots, reaching much shorter decays.' },
   VR6:    { v: 1e6,     unit: 'Ω', block: 'Env',   source: 'schematic', note: 'ENV.DECAY 1M(A): 200 ms .. 2.5 s', mod: 'Decay pot. Raising it (or adding a series pot) gives longer decays; it is the Normal decay control on a Devil Fish.' },
   R152:   { v: 100,     unit: 'Ω', block: 'Env',   source: 'td3',       note: 'attack charge path (TD-3 R125 = 100)' },
-  V_ENV:  { v: 5.0,     unit: 'V', block: 'Env',   source: 'estimate',  note: 'envelope peak' },
+  V_ENV:  { v: 10.0,    unit: 'V', block: 'Env',   source: 'td3',       note: 'envelope peak: the decay graph is marked 10V = 100% (TD-3 sheet)' },
   VR5:    { v: 50e3,    unit: 'Ω', block: 'Env',   source: 'schematic', note: 'ENV.MOD 50K(A)', fixed: true },
 
   // --- Accent
@@ -118,7 +120,14 @@ const COMPONENTS = {
   R105:   { v: 22e3,    unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'env to OTA bias pin (Iabc) (TD-3 R105)' },
   R25:    { v: 22e3,    unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'accent to VCA, with D8 (TD-3 R25)' },
   R26:    { v: 47e3,    unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'accent to VCA (TD-3 R26, C26 .033)' },
-  A_OUT:  { v: 10,      unit: '×', block: 'VCA',   source: 'estimate',  note: 'Q21 diff stage gain (R83/R84 22K)' },
+  // Q21 2SC1583 diff pair reads the top ladder cap through C25/C27; its tail is Q20 with R108, biased from the
+  // 5.333 V rail by R116 into R112/R109 (R113/R114 100K carry only base current). Gain Itail*R110/(4 VT), clipping at
+  // +-Itail*R110/2.
+  R110:   { v: 22e3,    unit: 'Ω', block: 'VCA',   source: 'schematic', note: 'Q21 collector load R110/R111 22K (TD-3 R83/R84)' },
+  R108:   { v: 2.2e3,   unit: 'Ω', block: 'VCA',   source: 'schematic', note: 'Q20 tail emitter resistor (TD-3 R96)', mod: 'Filter output stage current. Lower values give the stage more gain and headroom, so it drives the VCA harder.' },
+  R116:   { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'schematic', note: 'bias feed from the 5.333 V rail to the Q21/Q20 bias node' },
+  R112:   { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'schematic', note: 'bias node to Q20 base' },
+  R109:   { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'schematic', note: 'Q20 base to ground' },
   C14:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'schematic', note: 'VCF output coupling (1/50)' },
   R85:    { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'output buffer load, HPF with C14 (TD-3 R85)' },
   C49:    { v: 0.01e-6, unit: 'F', block: 'VCA',   source: 'td3',       note: 'filter to VCA coupling (TD-3 C49)' },
@@ -128,7 +137,7 @@ const COMPONENTS = {
   R101:   { v: 2.2e3,   unit: 'Ω', block: 'VCA',   source: 'td3',       note: 'OTA input to ground (TD-3 R101)' },
   R_OTA:  { v: 22e3,    unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'OTA output load' },
   C38:    { v: 1e-6,    unit: 'F', block: 'VCA',   source: 'schematic', note: 'VCA output coupling (1/50)' },
-  R_OUT:  { v: 10e3,    unit: 'Ω', block: 'VCA',   source: 'estimate',  note: 'output load, HPF with C38' },
+  R_OUT:  { v: 50e3,    unit: 'Ω', block: 'VCA',   source: 'schematic', note: 'VOLUME pot VR8 50K(A): the load on C38' },
 
   // --- Noise: the parts' own hiss, as white voltage noise densities at the points where it enters
   EN_VCF: { v: 15e-9,   unit: 'V/√Hz', block: 'Noise', source: 'estimate', note: 'ladder input noise: R98 2.2K thermal plus Q12 pair shot noise, referred to the Q12 base. Resonance rings it, but it sits far below the OTA hiss', range: [0, 150e-9, 'lin'] },
@@ -1212,6 +1221,9 @@ class TB303Voice {
     this.hp76A = Math.exp(-1 / (c.C76 * c.R100 * this.fs));
     this.hp38A = Math.exp(-1 / (c.C38 * c.R_OUT * this.fs));
     this.vinDen = 1 / c.R88 + 1 / c.R100 + 1 / c.R101;
+    // Q21 output stage: tail current from the bias divider, half of it swings each collector
+    this.q21I = Math.max(c.VREF * c.R109 / (c.R116 + c.R112 + c.R109) - Q20_VBE, 0) / c.R108;
+    this.q21Swing = this.q21I * c.R110 / 2;
     this.vol = audioTaper(k.volume);
     this._deriveFx();
   }
@@ -1498,7 +1510,7 @@ class TB303Voice {
     const y = this._vcfStep(wave * this.inAtt + nV, Il);
 
     // --- output amp -> C14 coupling -> OTA VCA
-    const ya = y * c.A_OUT; // Q21 diff stage -> Q19 output buffer
+    const ya = this.q21Swing * Math.tanh(y / (2 * VT)); // Q21 diff pair -> Q19 output buffer
     this.hp14 = this.hp14A * (this.hp14 + ya - this.hp14In); this.hp14In = ya;
     const vo = this.hp14;
     // into the OTA: filter via C49/R88 plus resonance compensation (VR4 wiper) via C76/R100
@@ -1510,7 +1522,7 @@ class TB303Voice {
     const iout = Iabc * Math.tanh(vin / (2 * VT));
     const vout = iout * c.R_OTA;
     this.hp38 = this.hp38A * (this.hp38 + vout - this.hp38In); this.hp38In = vout;
-    let o = this.hp38 * this.vol * 4.0 + nX * 4.0;
+    let o = this.hp38 * this.vol * OUT_TRIM + nX * 4.0; // the output floor hiss keeps its level
     if (this.fx.fold) o = this.b259.run(o);                       // Buchla 259 folder, ahead of the drive slot
     if (this.fx.rat) o = this.drvT === 1 ? this.ds.run(o) : this.drvT === 2 ? this.ts.run(o) : this._rat(o);
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom

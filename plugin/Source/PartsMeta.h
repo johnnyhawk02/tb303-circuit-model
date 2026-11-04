@@ -47,7 +47,7 @@ static const PartMeta PARTS_META[] = {
     { "R138", "Env", "schematic", "decay min resistor", "Sets the shortest decay and the accent decay. The Devil Fish adds separate Normal and Accent decay pots, reaching much shorter decays.", false },
     { "VR6", "Env", "schematic", "ENV.DECAY 1M(A): 200 ms .. 2.5 s", "Decay pot. Raising it (or adding a series pot) gives longer decays; it is the Normal decay control on a Devil Fish.", false },
     { "R152", "Env", "td3", "attack charge path (TD-3 R125 = 100)", "", false },
-    { "V_ENV", "Env", "estimate", "envelope peak", "", false },
+    { "V_ENV", "Env", "td3", "envelope peak: the decay graph is marked 10V = 100% (TD-3 sheet)", "", false },
     { "VR5", "Env", "schematic", "ENV.MOD 50K(A)", "", true },
     { "VR7", "Accent", "schematic", "ACCENT 50K(B)", "", true },
     { "R117", "Accent", "schematic", "charge resistor into sweep cap", "Accent charge resistor. Lower values give a harder, faster accent sweep.", false },
@@ -64,7 +64,11 @@ static const PartMeta PARTS_META[] = {
     { "R105", "VCA", "td3", "env to OTA bias pin (Iabc) (TD-3 R105)", "", false },
     { "R25", "VCA", "td3", "accent to VCA, with D8 (TD-3 R25)", "", false },
     { "R26", "VCA", "td3", "accent to VCA (TD-3 R26, C26 .033)", "", false },
-    { "A_OUT", "VCA", "estimate", "Q21 diff stage gain (R83/R84 22K)", "", false },
+    { "R110", "VCA", "schematic", "Q21 collector load R110/R111 22K (TD-3 R83/R84)", "", false },
+    { "R108", "VCA", "schematic", "Q20 tail emitter resistor (TD-3 R96)", "Filter output stage current. Lower values give the stage more gain and headroom, so it drives the VCA harder.", false },
+    { "R116", "VCA", "schematic", "bias feed from the 5.333 V rail to the Q21/Q20 bias node", "", false },
+    { "R112", "VCA", "schematic", "bias node to Q20 base", "", false },
+    { "R109", "VCA", "schematic", "Q20 base to ground", "", false },
     { "C14", "VCA", "schematic", "VCF output coupling (1/50)", "", false },
     { "R85", "VCA", "td3", "output buffer load, HPF with C14 (TD-3 R85)", "", false },
     { "C49", "VCA", "td3", "filter to VCA coupling (TD-3 C49)", "", false },
@@ -74,7 +78,7 @@ static const PartMeta PARTS_META[] = {
     { "R101", "VCA", "td3", "OTA input to ground (TD-3 R101)", "", false },
     { "R_OTA", "VCA", "estimate", "OTA output load", "", false },
     { "C38", "VCA", "schematic", "VCA output coupling (1/50)", "", false },
-    { "R_OUT", "VCA", "estimate", "output load, HPF with C38", "", false },
+    { "R_OUT", "VCA", "schematic", "VOLUME pot VR8 50K(A): the load on C38", "", false },
     { "EN_VCF", "Noise", "estimate", "ladder input noise: R98 2.2K thermal plus Q12 pair shot noise, referred to the Q12 base. Resonance rings it, but it sits far below the OTA hiss", "", false },
     { "EN_OTA", "Noise", "estimate", "BA662 OTA input noise with R101 2.2K: the main hiss, which opens and closes with the VCA", "", false },
     { "EN_OUT", "Noise", "estimate", "output stage floor (IC15 buffer, mixer): a constant hiss under everything, after the volume pot", "", false },
@@ -103,5 +107,5 @@ static const PartMeta PARTS_META[] = {
     { "LEX_MEM", "224", "lex", "delay memory (16K at launch, doubled shortly after). Programs shrink to fit.", "", false },
     { "LEX_XSAT", "224", "estimate", "input transformer saturation level", "", false },
 };
-static constexpr int PARTS_META_COUNT = 98;
+static constexpr int PARTS_META_COUNT = 102;
 } // namespace tb303
