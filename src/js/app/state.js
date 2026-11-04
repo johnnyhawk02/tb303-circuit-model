@@ -26,13 +26,8 @@ const KNOBS = [
   { id: 'dlyhi',     name: 'High cut',  ref: '1k–20 kHz',  def: 0.55, fx: 'dly' },
   { id: 'dlymix',    name: 'Return',    ref: 'wet level',  def: 0.35, fx: 'dly' },
   { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
-  { id: 'cmpthr',    name: 'Threshold', ref: '-40–0 dB',   def: 0.5,  fx: 'cmp' },
-  { id: 'cmprng',    name: 'Range',     ref: '0–200%',     def: 0.5,  fx: 'cmp' },
-  { id: 'cmpatk',    name: 'Attack',    ref: 'lookahead',  def: 0.3,  fx: 'cmp' },
-  { id: 'cmphold',   name: 'Hold',      ref: '0–500 ms',   def: 0,    fx: 'cmp' },
+  { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.5, fx: 'cmp' },
   { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.4,  fx: 'cmp' },
-  { id: 'cmpmix',    name: 'Mix',       ref: '0–100%',     def: 0.7,  fx: 'cmp' },
-  { id: 'cmpmode',   name: 'Mode',      ref: 'Peak/ISP/RMS', def: 0,  fx: 'cmp', hidden: true },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33
@@ -75,6 +70,7 @@ const state = {
   wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
+  tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
 };
 const SOUND_BUILTIN = {
   'Stock 303': { knobs: {}, parts: {} },
@@ -105,6 +101,8 @@ function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return 
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
   if (!x || typeof x !== 'object') return out;
+  // sounds saved before the two-dial Compactor (no Amount) load with it off
+  if (x.knobs && typeof x.knobs === 'object' && !('cmpamt' in x.knobs)) x = { ...x, knobs: { ...x.knobs, cmpamt: 0 } };
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
@@ -113,17 +111,19 @@ function cleanSettings(x) {
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
   if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
+  if (Array.isArray(x.tune) && x.tune.length === 12) out.tune = x.tune.map(c => typeof c === 'number' && isFinite(c) ? Math.round(Math.min(100, Math.max(-100, c)) * 10) / 10 : 0);
   return out;
 }
 function snapshot() {
   const parts = {};
   for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && partChanged(k)) parts[k] = state.parts[k];
-  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
+  return { knobs: { ...state.knobs }, parts, ...(state.tune.some(c => c) && { tune: [...state.tune] }), wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
   if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly };
+  if (sess.tune) state.tune = sess.tune;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
 }

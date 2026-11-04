@@ -30,8 +30,7 @@ function partRow(k) {
 function drawPartKnob(k) {
   const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL;
   for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
-    el.querySelector('.arc').setAttribute('d', arcPath(t));
-    el.querySelector('.ptr').setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * t} 32 32)`);
+    knobDraw(el, t);
     el.setAttribute('aria-valuenow', Math.round(t * 100));
   }
 }
@@ -71,15 +70,14 @@ tabsEl.addEventListener('keydown', (e) => {
   if (j === undefined) return; e.preventDefault();
   selectTab(TABS[(j + TABS.length) % TABS.length], true);
 });
-// redraw the board on the next frame when it is showing (safe to call before the board code has run)
-function renderBoardSoon() { const bp = document.getElementById('pane-board'); if (!bp || bp.hidden || bp._raf) return; bp._raf = requestAnimationFrame(() => { bp._raf = 0; renderBoard(); }); }
 function applyPart(k, val) {
   state.parts[k] = val;
   if (k === 'I_REF') queueMicrotask(drawTrim);
+  if (k === 'KT' || k === 'R_KT') queueMicrotask(drawKeyTrack);
   for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', partChanged(k, val)); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
-  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx(); renderBoardSoon();
+  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx();
 }
 let tabTimer = 0;
 function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(renderTabs, 120); }
@@ -100,7 +98,7 @@ function snapReal(k, v) {
   for (const x of seriesValues(k)) { const dd = Math.abs(Math.log(x / v)); if (dd < bd) { bd = dd; best = x; } }
   return best;
 }
-// one series step up or down from the current value (arrow keys and the wheel)
+// one series step up or down from the current value (arrow keys)
 function stepReal(k, dir) {
   const cur = state.parts[k], vs = seriesValues(k);
   const next = dir > 0 ? vs.find(x => x > cur * 1.001) : [...vs].reverse().find(x => x < cur * 0.999);

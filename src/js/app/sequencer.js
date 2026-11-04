@@ -55,7 +55,7 @@ function paintCell(b) {
   const col = +b.dataset.col, s = state.pattern[col]; if (!s) return false;
   const t = b.dataset.t, v = +b.dataset.v, { o, k } = splitCode(s.code), before = s.code + ':' + s.gate + s.accent + s.slide;
   if (paint.t === 'k') {
-    if (paint.on) { if (t === 'k') { s.code = clampCode(24 + v + 12 * o); s.gate = true; } else if (t === 'o') return false; else s.gate = true; }
+    if (paint.on) { if (t === 'k') { s.code = clampCode(24 + v + 12 * o); s.gate = true; } else return false; }
     else s.gate = false;
   } else if (paint.t === 'o') { if (t !== 'o') return false; s.code = clampCode(24 + k + 12 * paint.oct); }
   else { if (t !== paint.t) return false; s[t] = paint.on; }
@@ -84,6 +84,7 @@ seq.addEventListener('pointerdown', (e) => {
 });
 addEventListener('pointermove', (e) => {
   if (!paint || e.pointerId !== paint.id) return;
+  if (e.pointerType === 'mouse' && !(e.buttons & 1)) { paint = null; return; } // button released somewhere we didn't hear: stop painting
   const b = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('#seq button[data-t]'); if (!b) return;
   if (paintCell(b)) { renderSeq(); pushPattern(); }
 });
@@ -105,28 +106,71 @@ seq.addEventListener('keydown', (e) => {
 });
 
 // ---------- side controls ----------
+const sideIn = Object.fromEntries([...document.querySelectorAll('.sq-side input[data-a]')].map(el => [el.dataset.a, el]));
 function renderSide() {
-  document.getElementById('o-len').textContent = state.pattern.length;
+  document.getElementById('o-len').textContent = sideIn.len.value = state.pattern.length;
+  sideIn.gate.value = Math.round(state.gate * 100);
   document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
-  const codes = state.pattern.map(s => s.code), lo = Math.min(...codes), hi = Math.max(...codes);
-    for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
 }
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-document.querySelector('.sq-side').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-a]'); if (!b) return;
-  const d = +b.dataset.d, P = state.pattern;
-  switch (b.dataset.a) {
-    case 'len':
-      if (d < 0 && P.length > 1) tail.unshift(P.pop());
-      else if (d > 0) extendTo(P.length + 1);
-      break;
-    case 'gate': state.gate = Math.min(0.95, Math.max(0.1, Math.round((state.gate + d * 0.05) * 100) / 100)); sendGroove(); break;
-    case 'shift': if (d > 0) P.unshift(P.pop()); else P.push(P.shift()); break;
-    case 'tr': if (P.every(s => s.code + d >= 0 && s.code + d <= 59)) for (const s of P) s.code += d; break;
+// sliders, as in the Shyoy: Length and Step len set values; Shift and Transpose spring back to centre when let go
+let sprBase = null;
+const sprReset = () => { sprBase = null; for (const a of ['shift', 'tr']) { sideIn[a].value = 0; document.getElementById('o-' + a).textContent = '0'; } };
+for (const a of ['shift', 'tr']) {
+  const el = sideIn[a];
+  const grab = () => { if (!sprBase) { pushUndo(); sprBase = state.pattern.map(st => ({ ...st })); } };
+  el.addEventListener('pointerdown', grab); el.addEventListener('focus', grab);
+  el.addEventListener('change', () => { if (el.matches(':focus-visible')) return; sprReset(); });
+  el.addEventListener('pointerup', sprReset); el.addEventListener('pointercancel', sprReset); el.addEventListener('blur', sprReset);
+}
+document.querySelector('.sq-side').addEventListener('input', (e) => {
+  const el = e.target.closest('input[data-a]'); if (!el) return;
+  const v = +el.value, P = state.pattern;
+  switch (el.dataset.a) {
+    case 'len': while (P.length > v && P.length > 1) tail.unshift(P.pop()); extendTo(v); break;
+    case 'gate': state.gate = v / 100; sendGroove(); break;
+    case 'shift': {
+      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
+      const n = sprBase.length, k = ((v % n) + n) % n;
+      state.pattern = sprBase.map((_, i) => ({ ...sprBase[(i - k + n) % n] }));
+      renderSeq(); pushPattern(); document.getElementById('o-shift').textContent = (v > 0 ? '+' : '') + v; return;
+    }
+    case 'tr': {
+      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
+      const codes = sprBase.map(st => st.code), lo = Math.min(...codes), hi = Math.max(...codes);
+      const d = Math.max(-lo, Math.min(59 - hi, v));
+      state.pattern = sprBase.map(st => ({ ...st, code: st.code + d }));
+      renderSeq(); pushPattern(); document.getElementById('o-tr').textContent = (d > 0 ? '+' : '') + d; return;
+    }
   }
   renderSeq(); pushPattern();
 });
+// Undo next to the pattern tools: the same undo as Functions › Undo
+{
+  const fu = document.getElementById('fn-undo'), pu = document.getElementById('p-undo');
+  pu.onclick = () => fu.click();
+  new MutationObserver(() => { pu.disabled = fu.disabled; }).observe(fu, { attributes: true, attributeFilter: ['disabled'] });
+}
+// Randomise accents, slides or octaves: each rewrites only its own property on the notes (steps with the gate on) and
+// leaves the notes and the other properties alone; rests are untouched. Tap again for another roll; Undo puts it back.
+const RND_OCT = [[-1, 3], [0, 5], [1, 2], [2, 0.4], [-2, 0.4]]; // octave lane, weight: mostly 0 and -1, some +1, a rare extreme
+const rndOct = () => { let r = Math.random() * RND_OCT.reduce((a, [, w]) => a + w, 0); for (const [o, w] of RND_OCT) if ((r -= w) < 0) return o; return 0; };
+function randomise(kind) {
+  const P = state.pattern; if (!P.some(st => st.gate)) { sqSay('No notes to change: put some notes in first.'); return; }
+  pushUndo();
+  for (const st of P) {
+    if (!st.gate) continue;
+    if (kind === 'accent') st.accent = Math.random() < 0.3;
+    else if (kind === 'slide') st.slide = Math.random() < 0.25;
+    else { const { k } = splitCode(st.code); st.code = clampCode(24 + k + 12 * rndOct()); }
+  }
+  renderSeq(); pushPattern();
+  sqSay(`New random ${kind === 'accent' ? 'accents' : kind === 'slide' ? 'slides' : 'octaves'}. Tap again for another roll; Undo puts it back.`);
+}
+document.getElementById('r-acc').onclick = () => randomise('accent');
+document.getElementById('r-sld').onclick = () => randomise('slide');
+document.getElementById('r-oct').onclick = () => randomise('octave');
 // Duplicate steps: repeat the pattern until it fills the next of 16, 32 or 64 steps (a 5-step riff becomes 16, then 32)
 document.getElementById('p-dup').onclick = () => {
   const P = state.pattern, n = P.length, to = [16, 32, 64].find(x => x > n);
@@ -147,11 +191,9 @@ document.getElementById('p-shuf').onclick = () => {
   sqSay(`Shuffled ${P.length} steps. Tap again for another order; Functions › Undo puts it back.`);
 };
 drawGen();
-document.querySelector('.sq-side').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-g]'); if (!b) return;
-  const d = +b.dataset.d;
-  if (b.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, gen.dens + d));
-  else gen.bars = Math.min(4, Math.max(1, gen.bars + d));
+document.querySelector('.sq-gen').addEventListener('input', (e) => {
+  const el = e.target.closest('input[data-g]'); if (!el) return;
+  if (el.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, +el.value)); else gen.bars = Math.min(4, Math.max(1, +el.value));
   store.set('gen', gen); drawGen();
 });
 document.getElementById('rand').onclick = () => {
@@ -162,3 +204,34 @@ document.getElementById('rand').onclick = () => {
   sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
 };
 
+
+// Arrows on the right of the roll: move every note up or down a semitone (the note rows) or an octave (the octave rows).
+// A real transpose, so B up a semitone becomes C in the next octave lane. If any note would go past the top or bottom
+// of the range nothing moves (so the riff keeps its shape) and a message says so; rests just follow, clamped.
+document.querySelector('.nudge').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-nudge]'); if (!b) return;
+  const d = +b.dataset.nudge, P = state.pattern, notes = P.filter(st => st.gate);
+  if (!notes.length) { sqSay('No notes to move: put some notes in first.'); return; }
+  if (notes.some(st => st.code + d < 0 || st.code + d > 59)) { sqSay(`Already at the ${d > 0 ? 'top' : 'bottom'} of the range.`); return; }
+  pushUndo();
+  for (const st of P) st.code = clampCode(st.code + d);
+  renderSeq(); pushPattern();
+});
+
+// Alter accents, slides or octaves: a variation rather than a new roll. About a quarter of the notes (at least one) get
+// the change: an accent or slide flipped on or off, or an octave jump up or down within range. Undo puts it back.
+function alterLane(kind) {
+  const notes = state.pattern.filter(st => st.gate); if (!notes.length) { sqSay('No notes to vary: put some notes in first.'); return; }
+  pushUndo();
+  const pick = [...notes].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(notes.length / 4)));
+  for (const st of pick) {
+    if (kind === 'octave') { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; }
+    else st[kind] = !st[kind];
+  }
+  renderSeq(); pushPattern();
+  const n = pick.length, w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
+  sqSay(`Altered ${n} ${w[n > 1 ? 1 : 0]}. Tap again for more; Undo puts it back.`);
+}
+document.getElementById('a-acc').onclick = () => alterLane('accent');
+document.getElementById('a-sld').onclick = () => alterLane('slide');
+document.getElementById('a-oct').onclick = () => alterLane('octave');

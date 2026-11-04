@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>303 Circuit Model</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#262626">
+<meta name="theme-color" content="#181412">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,42 +12,53 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
 <style>
 /* Layout: one quiet instrument page (knobs, transport, steps); everything else lives in the Options sheet.
-   Look: a dark DAW: flat grey device panels, small sans labels, ring knobs, amber for "on" and cyan for values. */
+   Look (v45, from Johnny's SH-101 project): one pane of backlit orange LCD glass in a black bezel on a dark case.
+   One ink for the segments, a faint ghost of unlit ones, the offset shadow LCD type casts, a pixel font throughout.
+   Buttons are outlined boxes that invert when on. Deliberately single-theme: it is a lit LCD either way. */
 :root {
-  --page: #262626;      /* behind the devices */
-  --bg: #3b3b3b;        /* device panel */
-  --fg: #dedede;
-  --mute: #9a9a9a;
-  --line: rgb(0 0 0 / .45);
-  --soft: rgb(255 255 255 / .07);
-  --on: #ffb02e;        /* amber: switched on, selected */
-  --hi: #68d7ec;        /* cyan: values, playhead */
-  --well: #2c2c2c;      /* inset fields and the step grid */
-  --font-body: "Helvetica Neue", Arial, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --case: #181412;
+  --bezel: #0b0c0a;
+  --glass: #f7962f;     /* orange backlit LCD */
+  --ink: #1c0a00;
+  --ghost: rgb(28 10 0 / .13);
+  --tint: rgb(28 10 0 / .08);
+  --tint2: rgb(28 10 0 / .2);
+  --rulec: rgb(28 10 0 / .4);
+  --shadow: 2px 2px 0 rgb(28 10 0 / .17);
+  --page: var(--case);
+  --bg: transparent;    /* device panel: the glass shows through */
+  --fg: var(--ink);
+  --mute: rgb(28 10 0 / .72);
+  --line: rgb(28 10 0 / .45);
+  --soft: var(--tint);
+  --on: var(--ink);     /* switched on, selected: segments lit */
+  --hi: var(--ink);     /* values, playhead */
+  --well: var(--tint);  /* inset fields and the step grid */
+  --font-body: "VT323", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: var(--font-body);
   --knob: 48px;         /* every dial on the front, the effects and the mods */
   --knob-part: 40px;    /* dials in Options › Circuit */
   --kn-w: 78px;         /* width of an effect dial cell */
-  color-scheme: dark;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
-html { background: var(--page); color: var(--fg); min-height: 100%; }
+html { background: var(--case) radial-gradient(120% 60% at 50% 0%, #2d2622, var(--case)) no-repeat; color: var(--fg); min-height: 100%; }
 body { margin: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px;
-  font-family: var(--font-body); font-size: 12px; line-height: 1.5; color: var(--fg); background: transparent; }
+  font-family: var(--font-body); font-size: 17px; line-height: 1.5; color: var(--fg); background: transparent; }
 .main { max-width: 1060px; margin: 0 auto; display: grid; gap: 10px; }
-h1, h2, h3 { font-family: var(--font-body); font-weight: 700; margin: 0; text-wrap: balance; }
-.label { font: 600 10px var(--font-body); letter-spacing: .02em; color: var(--mute); }
-.hint { color: var(--mute); font-size: 12px; }
+h1, h2, h3 { font-family: var(--font-body); font-weight: 400; margin: 0; text-wrap: balance; }
+.label { font: 14px var(--font-body); letter-spacing: .02em; color: var(--mute); }
+.hint { color: var(--mute); font-size: 17px; }
 .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* controls */
-button { font: 500 12px var(--font-body); color: var(--fg); background: #4a4a4a; border: 1px solid #1c1c1c; border-radius: 2px; padding: 4px 10px; cursor: pointer; }
-button:hover:not(:disabled) { background: #555; }
+button { font: 17px var(--font-body); color: var(--fg); background: transparent; border: 1px solid var(--ink); border-radius: 2px; padding: 4px 10px; cursor: pointer; }
+button:hover:not(:disabled) { background: var(--rulec); }
 button:disabled { opacity: .35; cursor: default; }
-select, input[type=text] { font: 12px var(--font-body); color: var(--fg); background: #4a4a4a; border: 1px solid #1c1c1c; border-radius: 2px; padding: 4px 10px; }
+select, input[type=text] { font: 17px var(--font-body); color: var(--fg); background: transparent; border: 1px solid var(--ink); border-radius: 2px; padding: 4px 10px; }
 input[type=text] { background: var(--well); }
 select option { background: var(--bg); color: var(--fg); }
 button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 1px solid var(--hi); outline-offset: 2px; }
@@ -56,101 +67,101 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .switch { width: 40px; height: 20px; padding: 0; position: relative; background: var(--well); border-radius: 10px; }
 .switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--fg); transition: left .12s; }
 .switch[aria-checked=true] { background: var(--on); }
-.switch[aria-checked=true] .thumb { left: 22px; background: #161616; }
-.seg { display: inline-flex; border: 1px solid #1a1a1a; border-radius: 2px; overflow: hidden; }
-.seg button { background: #4a4a4a; border: 0; border-right: 1px solid #2a2a2a; border-radius: 0; }
-.seg button[aria-pressed=true], .seg button[aria-checked=true] { background: var(--on); color: #161616; }
+.switch[aria-checked=true] .thumb { left: 22px; background: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden; }
+.seg button { background: transparent; border: 0; border-right: 1px solid var(--ink); border-radius: 0; }
+.seg button[aria-pressed=true], .seg button[aria-checked=true] { background: var(--on); color: var(--glass); }
 .onoff { min-width: 52px; }
-.onoff[aria-pressed=true] { background: var(--on); color: #161616; }
-.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid #1a1a1a; }
+.onoff[aria-pressed=true] { background: var(--on); color: var(--glass); }
+.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid var(--ink); }
 .tabs button { flex: none; }
-.mtabs button, .otabs button, #ptabs button { background: #333; border: 1px solid #1a1a1a; border-bottom: 0; border-radius: 3px 3px 0 0; font: 600 11px var(--font-body); letter-spacing: .02em; color: var(--mute); margin: 0; padding: 5px 14px; }
-.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true] { background: var(--on); color: #161616; border-bottom-color: transparent; }
-.tabs button .n { font: 500 10px var(--font-mono); margin-left: 4px; }
+.mtabs button, .otabs button, #ptabs button { background: var(--glass); border: 1px solid var(--ink); border-bottom: 0; border-radius: 3px 3px 0 0; font: 15.5px var(--font-body); letter-spacing: .02em; color: var(--mute); margin: 0; padding: 5px 14px; }
+.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true] { background: var(--on); color: var(--glass); border-bottom-color: transparent; }
+.tabs button .n { font: 14px var(--font-mono); margin-left: 4px; }
 
 /* dials: label above, ring in the middle, value below (as in Live) */
 .knob { touch-action: none; cursor: ns-resize; border-radius: 50%; }
 .knob svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.knob svg .trk { stroke: #1b1b1b; stroke-width: 3.6; stroke-linecap: butt; }
+.knob svg .trk { stroke: var(--ghost); stroke-width: 3.6; stroke-linecap: butt; }
 .knob svg .arc { stroke: var(--hi); stroke-width: 3.6; stroke-linecap: butt; }
-.knob svg .ptr { stroke: #141414; stroke-width: 3; stroke-linecap: round; }
+.knob svg .ptr { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
 .kn, .md, .pk { display: grid; justify-items: center; gap: 4px; text-align: center; min-width: 0; }
 .kn .knob, .md .knob { width: var(--knob); height: var(--knob); }
-.kn .name, .md .mname, .pk .ref { order: -1; font: 600 11px/1.2 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--fg); }
-.kn .val, .md .val, .pk .val { font: 500 10.5px/1.2 var(--font-body); color: var(--fg); min-height: 0; }
+.kn .name, .md .mname, .pk .ref { order: -1; font: 15.5px/1.2 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--fg); }
+.kn .val, .md .val, .pk .val { font: 14.5px/1.2 var(--font-body); color: var(--fg); min-height: 0; }
 .kn .val, .md .val { transition: opacity .15s; }
 .md .val, .pk .val { cursor: pointer; white-space: nowrap; }
-.md .val.changed, .pk .val.changed { color: var(--on); font-weight: 600; }
+.md .val.changed, .pk .val.changed { color: var(--on); font-weight: 400; }
 .kn .ref { display: none; }
-.kn.small .name { font-size: 11.5px; }
+.kn.small .name { font-size: 16px; }
 
 /* control bar: transport, tempo, the three preset pickers, Functions, version, options */
 .top { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; position: sticky; top: 0; z-index: 30; margin: -28px -16px 0; padding: 10px 16px;
-  background: #303030; border-bottom: 1px solid #1a1a1a; }
+  background: transparent; border-bottom: 1px solid var(--ink); }
 .play .sq, .play[aria-pressed=true] .tri { display: none; }
 .play[aria-pressed=true] .sq { display: inline; }
 .play[aria-pressed=true] { background: var(--on); }
-.play[aria-pressed=true] svg { fill: #161616; }
+.play[aria-pressed=true] svg { fill: var(--glass); }
 .bpm { display: flex; align-items: center; gap: 10px; }
 .bpm .knob { width: 30px; height: 30px; }
 .bpm-read { display: flex; align-items: baseline; gap: 6px; line-height: 1; }
-.bpm-read output { font: 500 13px/1 var(--font-body); background: var(--well); color: var(--hi); border: 1px solid #1c1c1c; border-radius: 2px; padding: 5px 8px; min-width: 4.2ch; text-align: center; }
+.bpm-read output { font: 18px/1 var(--font-body); background: var(--well); color: var(--hi); border: 1px solid var(--ink); border-radius: 2px; padding: 5px 8px; min-width: 4.2ch; text-align: center; }
 .top .hp { position: relative; flex: 1 1 120px; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 10px; }
 .fn { position: relative; }
-.top .fn > button { font: 500 12px/1.2 var(--font-body); padding: 5px 10px; }
-.top .fn > button::after { content: " ▾"; font-size: 14px; }
+.top .fn > button { font: 17px/1.2 var(--font-body); padding: 5px 10px; }
+.top .fn > button::after { content: " ▾"; font-size: 19.5px; }
 .fn-menu { position: absolute; z-index: 40; top: calc(100% + 4px); right: 0; min-width: 220px; display: grid; padding: 4px 0;
-  background: #333; border: 1px solid #111; border-radius: 3px; box-shadow: 0 6px 20px rgb(0 0 0 / .5); }
+  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .fn-menu[hidden] { display: none; }
-.fn-menu button { border: 0; background: transparent; text-align: left; padding: 6px 12px; font: 12px/1.4 var(--font-body); white-space: nowrap; }
+.fn-menu button { border: 0; background: transparent; text-align: left; padding: 6px 12px; font: 17px/1.4 var(--font-body); white-space: nowrap; }
 .fn-menu button:disabled { opacity: .4; }
-.fn-menu button:not(:disabled):hover, .fn-menu button:focus-visible { background: var(--hi) !important; color: #161616 !important; outline: 0; }
+.fn-menu button:not(:disabled):hover, .fn-menu button:focus-visible { background: var(--hi) !important; color: var(--glass) !important; outline: 0; }
 /* short messages from Functions, Generate and the like, under the bar */
-.sq-msg { position: absolute; right: 16px; top: calc(100% + 6px); max-width: min(560px, calc(100% - 32px)); padding: 6px 10px; font: 12px/1.4 var(--font-body); color: var(--fg); pointer-events: none;
-  background: #333; border: 1px solid #111; border-radius: 3px; box-shadow: 0 6px 20px rgb(0 0 0 / .5); }
+.sq-msg { position: absolute; right: 16px; top: calc(100% + 6px); max-width: min(560px, calc(100% - 32px)); padding: 6px 10px; font: 17px/1.4 var(--font-body); color: var(--fg); pointer-events: none;
+  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .sq-msg:empty { display: none; }
-.ver { font: 500 10.5px var(--font-body); color: var(--mute); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
+.ver { font: 14.5px var(--font-body); color: var(--mute); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
 .gear { background: transparent; border-color: transparent; }
 .ver + .gear { margin-left: 0; }
 .gear svg { width: 20px; height: 20px; }
 
 /* preset picker: our own listbox over a hidden <select>, with folders, search, filter chips and stars */
 .pm { position: relative; flex: 1 1 100%; display: flex; min-width: 0; }
-.pm .pm-btn { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; font: 500 12px/1.2 var(--font-body); padding: 5px 10px; background: var(--well); }
+.pm .pm-btn { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; font: 17px/1.2 var(--font-body); padding: 5px 10px; background: var(--well); }
 .pm-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pm-btn .cur { flex: 1 1 auto; min-width: 0; }
 .pm .pm-btn .cur { color: var(--fg); }
-.pm .pm-step { padding: 0 8px; font-size: 9px; border-left-width: 0; }
+.pm .pm-step { padding: 0 8px; font-size: 12.5px; border-left-width: 0; }
 .pm-pop { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 280px; max-height: min(62vh, 460px);
   display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  background: #333; border: 1px solid #111; border-radius: 3px; box-shadow: 0 6px 20px rgb(0 0 0 / .5); }
+  background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .pm-pop[hidden] { display: none; }
 #pat-bar .pm-pop { left: auto; right: 0; }
 .pm-head { display: grid; min-width: 0; }
 .pm .pm-qrow { display: flex; gap: 6px; margin: 8px; }
-.pm .pm-q { flex: 1; min-width: 0; font: 12px var(--font-body); padding: 5px 8px; }
+.pm .pm-q { flex: 1; min-width: 0; font: 17px var(--font-body); padding: 5px 8px; }
 .pm-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-.pm .pm-chip { font: 600 10.5px var(--font-body); padding: 3px 8px; border-radius: 10px; background: #333; color: var(--mute); border: 1px solid #1a1a1a; }
-.pm .pm-chip[aria-pressed=true] { background: var(--hi); color: #161616; }
+.pm .pm-chip { font: 14.5px var(--font-body); padding: 3px 8px; border-radius: 10px; background: var(--glass); color: var(--mute); border: 1px solid var(--ink); }
+.pm .pm-chip[aria-pressed=true] { background: var(--hi); color: var(--glass); }
 .pm-list { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
-.pm .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid #222; padding: 6px 10px; padding-left: calc(10px + var(--d, 0) * 14px); background: transparent;
-  font: 600 10.5px var(--font-body); letter-spacing: .03em; text-align: left; }
-.pm .pm-g.sub { font-weight: 500; color: var(--fg); border-top-color: transparent; }
+.pm .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid var(--rulec); padding: 6px 10px; padding-left: calc(10px + var(--d, 0) * 14px); background: transparent;
+  font: 14.5px var(--font-body); letter-spacing: .03em; text-align: left; }
+.pm .pm-g.sub { font-weight: 400; color: var(--fg); border-top-color: transparent; }
 .pm-g::before { content: "▸"; margin-right: 8px; }
 .pm-g[aria-expanded=true]::before { content: "▾"; }
 .pm-g .n { margin-left: auto; color: var(--mute); font-weight: 400; }
 .pm-row { display: flex; align-items: stretch; }
-.pm .pm-i { width: 100%; border: 0; padding: 2px 12px; background: transparent; text-align: left; font: 12px/1.6 var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm .pm-i { width: 100%; border: 0; padding: 2px 12px; background: transparent; text-align: left; font: 17px/1.6 var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pm-row .pm-i { flex: 1; min-width: 0; padding-left: calc(12px + var(--d, 0) * 14px); display: flex; gap: 8px; align-items: baseline; }
-.pm .pm-i[aria-selected=true] { background: var(--on); color: #161616; }
-.pm-i.act, .pm-i:hover, .pm-g.act { background: #454545; }
-.pm-path { margin-left: auto; color: var(--mute); font-size: 10px; flex: none; }
-.pm-i[aria-selected=true] .pm-path { color: #3a2a00; }
-.pm .pm-star { flex: none; width: 28px; padding: 0; border: 0; background: transparent; color: #555; font-size: 12px; }
+.pm .pm-i[aria-selected=true] { background: var(--on); color: var(--glass); }
+.pm-i.act, .pm-i:hover, .pm-g.act { background: var(--tint); }
+.pm-path { margin-left: auto; color: var(--mute); font-size: 14px; flex: none; }
+.pm-i[aria-selected=true] .pm-path { color: var(--glass); }
+.pm .pm-star { flex: none; width: 28px; padding: 0; border: 0; background: transparent; color: var(--rulec); font-size: 17px; }
 .pm .pm-star:hover { color: var(--fg); }
 .pm .pm-star[aria-pressed=true] { color: var(--on); }
-.pm-sum { padding: 4px 12px 6px; font-size: 10.5px; color: var(--mute); }
-.pm-sep { border-top: 1px solid #222; margin: 4px 0; }
+.pm-sum { padding: 4px 12px 6px; font-size: 14.5px; color: var(--mute); }
+.pm-sep { border-top: 1px solid var(--rulec); margin: 4px 0; }
 .pm-none { padding: 10px 12px; color: var(--mute); }
 /* save / delete row at the foot of the picker */
 .presets { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
@@ -159,36 +170,36 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .presets .hint { flex-basis: 100%; }
 .pm-foot { display: none; }
 .pm-pop .pm-foot { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-top: 1.5px solid var(--fg); }
-.pm-foot input[type=text] { flex: 1 1 140px; min-width: 0; font-size: 12px; padding: 5px 8px; }
-.pm-foot button { padding: 5px 10px; font-size: 12px; }
+.pm-foot input[type=text] { flex: 1 1 140px; min-width: 0; font-size: 17px; padding: 5px 8px; }
+.pm-foot button { padding: 5px 10px; font-size: 17px; }
 .pm-foot .hint:empty { display: none; }
 .top .hp[hidden] { display: none; }
-.pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
+.pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 17px; cursor: pointer; }
 .pm-foot #prj-roll { padding: 5px 8px; }
 .pm-foot .devbtn { border-style: dashed; }
-.pm .pm-favf { padding: 0 10px; font-size: 14px; line-height: 1; opacity: .6; }
+.pm .pm-favf { padding: 0 10px; font-size: 19.5px; line-height: 1; opacity: .6; }
 .pm .pm-favf[aria-pressed=true] { opacity: 1; }
 .pm .pm-favf[aria-pressed=true] { color: var(--on); border-color: var(--on); }
 
 /* devices: grey panels with a title strip and an amber power dot */
-.dev, .main > .pane { position: relative; background: var(--bg); border: 1px solid #1a1a1a; border-radius: 4px; padding: 34px 16px 16px; }
+.dev, .main > .pane { position: relative; background: var(--bg); border: 1px solid var(--ink); border-radius: 4px; padding: 34px 16px 16px; }
 .dev::before, .main > .pane::before { content: attr(data-title); position: absolute; left: 0; right: 0; top: 0; height: 24px; padding: 0 10px 0 28px; display: flex; align-items: center;
-  font: 600 11.5px var(--font-body); color: var(--fg); background: #444; border-bottom: 1px solid #1a1a1a; border-radius: 4px 4px 0 0; }
+  font: 16px var(--font-body); color: var(--fg); background: transparent; border-bottom: 1px solid var(--ink); border-radius: 4px 4px 0 0; }
 .dev::after, .main > .pane::after { content: ""; position: absolute; left: 9px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--on); }
 
 /* TB-303 voice: waveform switch, the front dials, then components (filter trim, randomise, undo) */
-.panel { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(132px, 1.3fr); gap: 10px; align-items: start; }
+.panel { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)) minmax(132px, 1.3fr); gap: 10px; align-items: start; }
 .wave-kn { align-content: start; }
 .wave-kn .switch { align-self: center; margin: 14px 0 12px; }
 .parts-kn { align-content: start; grid-template-columns: auto 1fr; align-items: center; }
 .parts-kn .name { grid-column: 1 / -1; }
 .parts-kn .trim { grid-row: 2 / 5; }
-.parts-kn .mini { width: 100%; min-width: 0; padding: 3px 2px; font: 600 10px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.parts-kn .mini { width: 100%; min-width: 0; padding: 3px 2px; font: 14px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trim { display: grid; justify-items: center; gap: 1px; }
 .kn .trim .knob { width: 28px; height: 28px; cursor: ns-resize; touch-action: none; }
-.trim .tname { font: 600 9.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.trim .tname { font: 13.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
 .parts-kn .trim .tname { max-width: 40px; line-height: 1.15; text-align: center; }
-.trim .tval { font: 500 10px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; }
+.trim .tval { font: 14px var(--font-mono); color: var(--mute); font-variant-numeric: tabular-nums; }
 .trim .tval.changed { color: var(--hi); }
 
 /* tabs under the voice and the panes they show */
@@ -199,117 +210,86 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 /* front-page mods */
 .mods { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px 10px; padding-top: 8px; }
 .md .mname { margin-top: 2px; }
-.md .mdesc { order: 2; font-size: 10.5px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
+.md .mdesc { order: 2; font-size: 14.5px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
 
 /* effects: one pane, the RAT and the ducker side by side over the 224; dials a size down from the voice */
 .fxpane { --knob: 40px; --kn-w: 64px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; align-content: start; }
-.cmp-mode button { padding: 2px 8px; font: 600 10.5px var(--font-body); }
+.cmp-mode button { padding: 2px 8px; font: 14.5px var(--font-body); }
 .fxpane .fxb:not(.blk-lex) { --kn-w: 56px; }
 #fx-dly .fxsub { display: none; }
-#pane-fx:not(:has(.onoff[aria-pressed=true]))::after { background: #666; }
-.fxb { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 0 20px; border-left: 1px solid #2c2c2c; }
+#pane-fx:not(:has(.onoff[aria-pressed=true]))::after { background: var(--ghost); }
+.fxb { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 0 20px; border-left: 1px solid var(--rulec); }
 .fxb:first-child { padding-left: 0; border-left: 0; }
 .fxb .fxknobs, .fxb .lex-progs { transition: opacity .15s; }
 .fxb:not(.on) .fxknobs, .fxb:not(.on) .lex-progs { opacity: .5; }
 .fxh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 26px; }
-.fxname { font: 600 12px var(--font-body); color: var(--fg); }
-.fxsub { font-size: 11px; color: var(--mute); }
+.fxname { font: 17px var(--font-body); color: var(--fg); }
+.fxsub { font-size: 15.5px; color: var(--mute); }
 .fxknobs { display: flex; flex-wrap: wrap; gap: 10px 6px; }
 .fxknobs .kn { width: var(--kn-w); }
-.blk-lex { grid-column: 1 / -1; padding: 12px 0 0; border-left: 0; border-top: 1px solid #2c2c2c; gap: 10px; }
-.lex-lcd { font: 600 13px var(--font-body); letter-spacing: .04em; color: var(--hi); }
+.blk-lex { grid-column: 1 / -1; padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--rulec); gap: 10px; }
+.lex-lcd { font: 18px var(--font-body); letter-spacing: .04em; color: var(--hi); }
 .lex-progs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
-.lex-progs button { padding: 4px; font: 500 10.5px/1.2 var(--font-body); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lex-progs button b { display: block; font: 600 13px/1.2 var(--font-body); }
-.lex-progs button[aria-checked=true] { background: var(--on); color: #161616; }
-.lex-note { max-width: 70ch; font-size: 11px; color: var(--mute); }
+.lex-progs button { padding: 4px; font: 14.5px/1.2 var(--font-body); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lex-progs button b { display: block; font: 18px/1.2 var(--font-body); }
+.lex-progs button[aria-checked=true] { background: var(--on); color: var(--glass); }
+.lex-note { max-width: 70ch; font-size: 15.5px; color: var(--mute); }
 
 /* sequencer: banks and slots, side steppers, piano roll */
 .sq { display: grid; gap: 14px; align-content: start; }
-.sq-bank { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-.sq-bank .seg button { padding: 5px 10px; font: 600 12px var(--font-mono); min-width: 30px; }
-.sq-bank .slots button { min-width: 28px; padding: 5px 0; position: relative; }
+.sq-bank .seg button { padding: 5px 10px; font: 17px var(--font-mono); min-width: 30px; }
+.sq-bank .slots button { min-width: 30px; padding: 0; height: 26px; position: relative; }
 .sq-bank .slots button.used:not([aria-pressed=true]) { color: var(--hi); }
-.sq-bank .slots button[data-ch]:not([data-ch=""])::after { content: attr(data-ch); position: absolute; top: -7px; right: -3px; font: 600 9px/1 var(--font-body); padding: 1px 3px; border-radius: 2px; background: var(--hi); color: #161616; }
+.sq-bank .slots button[data-ch]:not([data-ch=""])::after { content: attr(data-ch); position: absolute; top: -7px; right: -3px; font: 12.5px/1 var(--font-body); padding: 1px 3px; border-radius: 2px; background: var(--hi); color: var(--glass); }
 .sq-bank .slots button.playing { outline: 2px solid var(--hi); outline-offset: -4px; }
-.chain-read { display: flex; align-items: center; gap: 8px; font: 600 12px var(--font-body); }
+.chain-read { display: flex; align-items: center; gap: 8px; font: 17px var(--font-body); }
 .chain-read[hidden] { display: none; }
 .chain-read .arr { color: var(--mute); }
-.chain-read .now { background: var(--hi); color: #161616; padding: 0 3px; border-radius: 2px; }
-.chain-read button { padding: 0 7px; font-size: 14px; line-height: 20px; }
-.sq-ed { display: flex; gap: 6px; margin-left: auto; }
-.sq-ed button { padding: 5px 10px; font-size: 12px; }
-.sq-body { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 16px; align-items: start; }
-.sq-side { display: grid; gap: 8px; }
-.stp { display: grid; grid-template-columns: 1fr 24px 42px 24px; gap: 0 2px; align-items: center; }
-.stp button { padding: 0; height: 24px; font-size: 10px; border-width: 1.5px; border-radius: 0; }
-.stp output { text-align: center; font: 500 12px/1 var(--font-body); color: var(--hi); background: var(--well); border-top: 1px solid #1c1c1c; border-bottom: 1px solid #1c1c1c; padding: 5px 0; }
-.stp output.unit { color: var(--mute); font-size: 10px; }
-.sq-side .rnd { margin-top: 4px; padding: 6px 0; font-size: 12px; }
+.chain-read .now { background: var(--hi); color: var(--glass); padding: 0 3px; border-radius: 2px; }
+.chain-read button { padding: 0 7px; font-size: 19.5px; line-height: 20px; }
+.sq-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; align-items: start; }
+/* the strip over the roll: three rows with one kind of control each and a label column on the left, so everything lines up.
+   pattern: slots, copy/paste and the edits; shape: four sliders; generate: two sliders and its buttons. */
+.sq-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.sq-row > .rlab { flex: none; width: 66px; font-size: 16px; color: var(--mute); text-transform: lowercase; }
+.sld { display: grid; grid-template-columns: 66px 92px 40px; align-items: center; gap: 0 6px; font-size: 17px; text-transform: lowercase; margin-right: 6px; }
+.sld span { white-space: nowrap; }
+.sld output { text-align: left; font-size: 17px; font-variant-numeric: tabular-nums; }
+.sld input { width: 100%; }
+.acts { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
+.acts button { padding: 0 9px; font-size: 16px; height: 26px; }
 .seqwrap { overflow-x: auto; scrollbar-width: thin; }
-.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(22px, 1fr)); grid-auto-rows: 16px; width: max-content; min-width: 100%;
-  font: 500 10px var(--font-body); border: 1px solid #1a1a1a; background: var(--well); user-select: none; }
-.seq > * { border: 0; border-right: 1px solid #262626; border-bottom: 1px solid #262626; padding: 0; background: transparent; color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
-.seq .rh { justify-content: flex-start; padding-left: 4px; letter-spacing: .04em; background: #3a3a3a; color: var(--mute); border-right: 1px solid #1a1a1a; }
-.seq .bar { border-right-color: #555; }
-.seq .blk { background: #282828; }
-.seq .rh.blk { background: #1e1e1e; color: #bbb; }
-.seq .hd { color: var(--mute); background: #333; }
-.seq .hd.cur { background: var(--hi); color: #161616; }
-.seq .gap { border-bottom: 1.5px solid #555; }
+/* every step fits on screen, even 64 (Johnny): columns share the width instead of scrolling */
+.seq { display: grid; grid-template-columns: 40px repeat(var(--steps, 16), minmax(0, 1fr)); grid-auto-rows: 16px; width: 100%;
+  font: 14px var(--font-body); border: 1px solid var(--ink); background: var(--well); user-select: none; }
+.seq > * { border: 0; border-right: 1px solid var(--rulec); border-bottom: 1px solid var(--rulec); padding: 0; background: transparent; color: var(--mute); min-width: 0; display: flex; align-items: center; justify-content: center; font: inherit; }
+.seq .rh { justify-content: flex-start; padding-left: 4px; letter-spacing: .04em; background: transparent; color: var(--mute); border-right: 1px solid var(--ink); }
+.seq .bar { border-right-color: var(--rulec); }
+.seq .blk { background: var(--tint); }
+.seq .rh.blk { background: var(--tint2); color: var(--ink); }
+.seq .hd { color: var(--mute); background: var(--glass); }
+.seq .hd.cur { background: var(--hi); color: var(--glass); }
+.seq .gap { border-bottom: 1.5px solid var(--rulec); }
 .seq button { cursor: pointer; }
 .seq button[data-t] { touch-action: none; }
 .seq button:focus-visible { outline: 2px solid var(--fg); outline-offset: -3px; }
-.seq .cell.cur:not(.on) { background: rgb(104 215 236 / .12); }
+.seq .cell.cur:not(.on) { background: var(--tint2); }
 .seq .cell.on { background: var(--on); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .4); }
-.seq .cell.on.cur { background: #ffd27d; }
+.seq .cell.on.cur { background: var(--ink); }
 .seq [data-t=slide].on, .seq [data-t=accent].on { background: var(--hi); }
 /* steps past the pattern's end: dimmed, press one to extend the pattern to it */
 .seq .ghost { opacity: .32; }
 .seq .hd.ghost { opacity: .5; }
 .seq .cell.ghost:hover { opacity: .6; }
 .seq .end { border-right: 2px solid var(--hi); }
-.sq-side .dup { padding: 4px 0; font-size: 11px; }
-
-/* circuit board view: a stylised PCB drawn in SVG */
-#pane-board { display: grid; grid-template-rows: auto auto; gap: 8px; align-content: start; }
-.board { width: 100%; height: auto; display: block; font-family: var(--font-mono); }
-.board .pcb.g { fill: #1f5a34; } .board .pcb.r { fill: #23485e; } .board .pcb.l { fill: #2b2b33; }
-.board .pcb { stroke: #0c2416; stroke-width: 2; }
-.board .hole { fill: #141414; stroke: #c9a43a; stroke-width: 2.5; }
-.board .silk-title { fill: #e9efe6; font: 700 13px var(--font-body); letter-spacing: .14em; }
-.board .blk { fill: none; stroke: rgb(233 239 230 / .55); stroke-width: 1.2; stroke-dasharray: 5 4; }
-.board .blkname { fill: #e9efe6; font: 600 10px var(--font-body); letter-spacing: .12em; }
-.board .trace { stroke: #c9a43a; stroke-opacity: .55; stroke-width: 3; }
-.board .lead { stroke: #b9b9b9; stroke-width: 1.6; }
-.board .pad { fill: #d8b24a; stroke: #6b5413; stroke-width: 1; }
-.board .res { fill: #d8c391; stroke: #6d5a33; stroke-width: .8; } .board .res.prec { fill: #6f9fd6; stroke: #2c4f7a; }
-.board .film { fill: #d4a52a; stroke: #6d5210; stroke-width: .8; }
-.board .elec { fill: #22407a; stroke: #0f1f40; stroke-width: 1; } .board .minus { fill: none; stroke: #c9d6ee; stroke-width: 4; } .board .vent { stroke: #8fa6cf; stroke-width: 1; fill: none; }
-.board .cer { fill: #d2752a; stroke: #6d3510; stroke-width: .8; }
-.board .pot { fill: #3a3a3a; stroke: #111; } .board .shaft { fill: #9a9a9a; stroke: #333; } .board .slot { stroke: #111; stroke-width: 2.4; stroke-linecap: round; }
-.board .trim { fill: #2f6fc0; stroke: #173a66; } .board .tw { fill: #f3f3f3; } .board .tx { stroke: #555; stroke-width: 1.5; }
-.board .chip { fill: #151515; stroke: #000; } .board .pin { fill: #c8c8c8; } .board .notch { fill: #333; }
-.board .ref { fill: #e9efe6; font-size: 10px; font-weight: 600; text-anchor: middle; }
-.board .pv { fill: #e9efe6; font-size: 10px; text-anchor: middle; opacity: .85; }
-.board .hit { fill: transparent; stroke: none; }
-.board .part { cursor: pointer; outline: none; }
-.board .part:hover .hit, .board .part:focus-visible .hit { fill: rgb(255 255 255 / .07); }
-.board .part.sel .hit { fill: rgb(255 255 255 / .1); stroke: var(--on); stroke-width: 1.5; }
-.board .part.chg .pv { fill: var(--hi); opacity: 1; font-weight: 600; }
-.board .part.chg > :not(text):not(.hit):not(title) { filter: drop-shadow(0 0 3px var(--hi)) drop-shadow(0 0 6px rgb(104 215 236 / .6)); }
-.board-info { font: 500 12px var(--font-body); color: var(--mute); min-height: 2.6em; line-height: 1.5; position: sticky; bottom: 0; z-index: 1; background: var(--bg);
-  margin: 0 -16px -16px; padding: 8px 16px; border-top: 1px solid #1a1a1a; border-radius: 0 0 4px 4px; }
-.board-info b { color: var(--fg); font-family: var(--font-mono); } .board-info .bv { font-family: var(--font-mono); color: var(--fg); } .board-info .bv.changed { color: var(--hi); }
-.board-info .mini { margin-left: 6px; font: 600 10.5px var(--font-body); padding: 2px 10px; }
 
 /* options sheet: a fixed-size dialog, so switching tabs never resizes it */
 dialog#options { width: min(940px, calc(100vw - 32px)); max-width: none; height: fit-content; min-height: 0; max-height: min(720px, calc(100dvh - 32px)); margin: clamp(16px, 9vh, 90px) auto auto; padding: 0;
-  flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); border: 1px solid #111; border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); }
+  flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 20px 60px rgb(0 0 0 / .6); }
 dialog#options[open] { display: flex; }
-dialog#options::backdrop { background: rgb(0 0 0 / .5); }
-.opt-head { flex: none; display: flex; align-items: flex-end; gap: 8px 26px; padding: 14px 14px 0 22px; background: #333; border-bottom: 1px solid #1a1a1a; }
-.opt-head h2 { font: 600 15px var(--font-body); letter-spacing: .04em; padding-bottom: 8px; }
+dialog#options::backdrop { background: rgb(28 10 0 / .3); }
+.opt-head { flex: none; display: flex; align-items: flex-end; gap: 8px 26px; padding: 14px 14px 0 22px; background: var(--glass); border-bottom: 1px solid var(--ink); }
+.opt-head h2 { font: 21px var(--font-body); letter-spacing: .04em; padding-bottom: 8px; }
 .opt-head .otabs { border-bottom: 0; flex: 1; min-width: 0; }
 .otabs button { margin-bottom: -1px; }
 .xbtn { align-self: center; margin-bottom: 6px; border-color: transparent; }
@@ -318,7 +298,7 @@ dialog#options::backdrop { background: rgb(0 0 0 / .5); }
 .osec[hidden] { display: none; }
 
 /* Circuit: every part as a dial, by block */
-.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 12px; color: var(--mute); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 17px; color: var(--mute); }
 .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--on); margin-right: 6px; vertical-align: middle; }
 .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 10px; min-height: 120px; padding-top: 6px; }
 .pk { padding: 6px 2px; position: relative; }
@@ -328,145 +308,344 @@ dialog#options::backdrop { background: rgb(0 0 0 / .5); }
 .parts.all-mod .pk.mod::after { display: none; }
 .pk.fixed .val { cursor: default; }
 .pk.fixed .knob { opacity: .3; cursor: default; }
-.detail { min-height: 3.2em; font-size: 12.5px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
-.detail b { color: var(--fg); font-family: var(--font-mono); font-weight: 500; }
+.detail { min-height: 3.2em; font-size: 17.5px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
+.detail b { color: var(--fg); font-family: var(--font-mono); font-weight: 400; }
 
 /* Monitor: de-click, scope and readouts */
-.dclk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid #1a1a1a; }
-.dclk-txt { display: grid; gap: 2px; flex: 1 1 280px; min-width: 0; font-size: 12px; }
-.dclk-txt .hint { font-size: 11px; color: var(--mute); }
-.dclk-fade { display: flex; align-items: center; gap: 8px; font: 600 11px var(--font-body); color: var(--mute); }
+.dclk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--ink); }
+.dclk-txt { display: grid; gap: 2px; flex: 1 1 280px; min-width: 0; font-size: 17px; }
+.dclk-txt .hint { font-size: 15.5px; color: var(--mute); }
+.dclk-fade { display: flex; align-items: center; gap: 8px; font: 15.5px var(--font-body); color: var(--mute); }
 .dclk-fade input { width: 120px; accent-color: var(--hi); }
-.dclk-fade output { color: var(--hi); min-width: 4.5em; font-weight: 500; }
+.dclk-fade output { color: var(--hi); min-width: 4.5em; font-weight: 400; }
 .monitor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
-canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; border-radius: 2px; background: var(--well); }
-.readouts { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; align-content: start; margin: 0; font: 11.5px var(--font-body); }
+canvas { width: 100%; height: 150px; display: block; border: 1px solid var(--ink); border-radius: 2px; background: var(--well); }
+.readouts { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; align-content: start; margin: 0; font: 16px var(--font-body); }
 .readouts dt { color: var(--mute); }
 .readouts dd { margin: 0; font-variant-numeric: tabular-nums; color: var(--hi); }
 #midi-map { grid-template-columns: repeat(3, auto 1fr); gap: 6px 14px; }
 
 /* About */
-.notes { columns: 2 300px; column-gap: 32px; color: var(--mute); font-size: 13px; }
+.notes { columns: 2 300px; column-gap: 32px; color: var(--mute); font-size: 18px; }
 .notes p { margin: 0 0 10px; break-inside: avoid; }
-.notes strong { color: var(--fg); font-weight: 600; }
+.notes strong { color: var(--fg); font-weight: 400; }
 
-/* narrower windows */
-@media (max-width: 760px) {
-  .top .hp { order: 5; flex-basis: 100%; }
-  .top .hp .label { min-width: 7ch; }
-  .pm-pop { min-width: 0; }
-  .panel { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .sq-body { grid-template-columns: 1fr; }
-  .sq-side { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; }
-  .sq-ed { margin-left: 0; }
-  .lex-progs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .fxpane { grid-template-columns: minmax(0, 1fr); }
-  .fxb { padding: 12px 0 0; border-left: 0; border-top: 1px solid #2c2c2c; }
-  .fxb:first-child { padding-top: 0; border-top: 0; }
-  .opt-head { flex-wrap: wrap; padding-left: 16px; }
-  .opt-head h2 { padding-bottom: 0; flex: 1; }
-  .otabs { order: 3; flex-basis: 100%; }
-  .xbtn { margin-bottom: 0; }
-  .opt-body { padding: 18px 16px 24px; }
-  #midi-map { grid-template-columns: repeat(2, auto 1fr); }
-  .monitor { grid-template-columns: 1fr; }
-}
-@media (max-width: 520px) { .top { gap: 12px 16px; } }
-@media (max-width: 420px) {
-  .panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .panel > .parts-kn { grid-template-columns: minmax(0, 1fr); gap: 3px; }
-  .panel > .parts-kn .trim { grid-row: auto; grid-template-columns: auto auto; align-items: center; gap: 0 6px; }
-  .panel > .parts-kn .trim .tname { display: none; }
-  .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pane { min-height: 0; }
-}
-
-/* phones and small tablets: landscape only */
+/* Every device gets the desktop screen: the fixed 1000 x 647 pane scaled to fit (fit.js), letterboxed on the dark case.
+   No separate phone layout (Johnny, Nov 2026). In portrait on a touch screen it is small, so a quiet hint says to turn it. */
 .rotate { display: none; }
-@media (orientation: portrait) and (pointer: coarse) and (max-width: 900px) {
-  .rotate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; align-content: center; gap: 16px; padding: 24px; text-align: center; background: var(--page); color: var(--fg); }
-  .rotate svg { width: 72px; height: 72px; stroke: var(--on); fill: none; stroke-width: 2; animation: tilt 2.4s ease-in-out infinite; }
-  .rotate p { margin: 0; font: 600 15px var(--font-body); }
-  .rotate small { color: var(--mute); font-size: 12px; }
-  .main, dialog#options { display: none !important; }
-  body { overflow: hidden; }
-}
-@keyframes tilt { 0%, 30% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
-
-/* landscape phones: the voice dials become a strip on the left so the step grid gets the full height;
-   one dial size on every page, and spare height goes to the pane row, not the tabs */
-@media (orientation: landscape) and (max-height: 520px) {
-  :root { --knob: 36px; --knob-part: 34px; --kn-w: 60px; }
-  body { padding: 0 max(8px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
-  .main { max-width: none; grid-template-columns: minmax(118px, 13vw) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); gap: 6px 8px; align-items: start;
-    min-height: calc(100dvh - max(6px, env(safe-area-inset-bottom, 0px))); }
-  .main > .top { grid-column: 1 / -1; }
-  .main > #panel { grid-column: 1; grid-row: 2 / span 2; align-self: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: space-evenly; gap: 6px 2px; padding: 8px 4px; }
-  .main > .mtabs, .main > .pane { grid-column: 2; }
-  .main > .mtabs { grid-row: 2; margin: 0 0 -7px; }
-  .main > .pane { grid-row: 3; align-self: stretch; max-height: calc(100dvh - 92px); overflow: auto; }
-  .dev, .main > .pane { padding: 6px 8px 8px; }
-  .dev::before, .main > .pane::before, .dev::after, .main > .pane::after { display: none; }
-  .pane { min-height: 0; }
-
-  .top { margin: 0 -8px; padding: 6px 8px; gap: 6px 8px; flex-wrap: nowrap; min-height: 42px; }
-  .top .hp { order: 0; flex: 1 1 0; min-width: 0; grid-template-columns: minmax(0, 1fr); }
-  .top .hp .label, .bpm-read .label { display: none; }
-  .top .fn > button { padding: 5px 7px; }
-  .top button:not(.switch), .pm .pm-btn { min-height: 30px; }
-  .top button.pm-chip, .top button.pm-star, .top button.pm-i, .top button.pm-g { min-height: 0; }
-  .pm .pm-step { display: none; }
-  .pm-pop { max-height: calc(100dvh - 60px) !important; min-width: 0; width: 340px; }
-  .pm-pop .pm-foot { flex-wrap: wrap; width: 100%; }
-  .pm-pop .pm-foot input { min-width: 0; width: auto; flex: 1 1 0; }
-  .pm-pop .pm-foot button { flex: none; padding: 4px 10px; }
-  .pm-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .pm .pm-chip { flex: none; padding: 4px 9px; }
-
-  .kn { gap: 1px; }
-  .kn .name, .md .mname, .pk .ref { font-size: 10px; }
-  .kn .val, .md .val, .pk .val { font-size: 9.5px; }
-  .panel .kn .val { display: none; }
-  .wave-kn .switch { margin: 6px 0 4px; }
-  .main > #panel > .parts-kn { grid-column: 1 / -1; gap: 2px 4px; }
-  .main > #panel .trim .tname { display: none; }
-  .parts-kn .mini { min-height: 0; padding: 2px; }
-  .mtabs button { padding: 6px 14px; }
-
-  .sq { gap: 6px; }
-  .sq-bank { gap: 6px; }
-  .sq-bank .seg button { padding: 3px 6px; min-width: 22px; }
-  .sq-ed { margin-left: auto; }
-  .sq-ed button { padding: 3px 7px; }
-  .sq-body { grid-template-columns: 128px minmax(0, 1fr); gap: 8px; }
-  .sq-side { grid-template-columns: 1fr; gap: 4px; }
-  .stp { grid-template-columns: minmax(0, 1fr) 22px 32px 22px; }
-  .stp button { height: 20px; }
-  .stp .label { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .seq { grid-auto-rows: clamp(8px, calc((100dvh - 126px) / 26), 14px); grid-template-columns: 30px repeat(var(--steps, 16), minmax(14px, 1fr)); font-size: 8.5px; }
-  .sq-side .dup { padding: 2px 0; font-size: 9.5px; }
-
-  .mods { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 6px; padding-top: 4px; }
-  .md .mdesc { font-size: 9.5px; }
-  .board-info { margin: 0 -8px -8px; padding: 6px 8px; bottom: -8px; }
-  .fxpane { --knob: 30px; --kn-w: 62px; gap: 8px 0; }
-  .fxpane .fxb:not(.blk-lex) { --kn-w: 48px; }
-  .fxpane .fxb:not(.blk-lex) .kn .name { font-size: 9px; letter-spacing: -.01em; }
-  .fxpane .kn .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .cmp-mode button { padding: 1px 5px; font-size: 9px; }
-  .fxb { gap: 4px; padding: 0 8px; }
-  .blk-lex { padding: 6px 0 0; gap: 6px; }
-  .fxh { min-height: 22px; }
-  .fxsub { display: none; }
-  .fxknobs { gap: 4px 4px; }
-  .lex-progs button { padding: 2px; font-size: 9.5px; }
-  .lex-progs button b { font-size: 11px; }
-  .lex-note { display: none; }
-  dialog#options { width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: none; margin: auto; }
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate { position: fixed; left: 0; right: 0; bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 1; display: flex; justify-content: center; align-items: center; gap: 8px;
+    pointer-events: none; color: rgb(247 150 47 / .55); font: 16px var(--font-body); text-shadow: none; background: none; border: 0; }
+  .rotate svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .rotate p { margin: 0; }
+  .rotate small { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* LCD glass (v45, the look of Johnny's SH-101 project): the whole instrument is one pane of glass in a bezel.
+   Colours and type come from the tokens in base.css; this file draws the glass and turns every control into ink on glass. */
+.main { position: relative; color: var(--ink); text-shadow: var(--shadow); border: 0; border-radius: 0; padding: 0 16px 16px;
+  background-color: var(--glass);
+  background-image: linear-gradient(170deg, rgb(255 255 255 / .14), rgb(255 255 255 / 0) 38%, rgb(0 0 0 / .05)),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px),
+    radial-gradient(60% 30% at 10% 100%, rgb(255 228 175 / .55), rgb(255 228 180 / 0) 70%),
+    radial-gradient(50% 28% at 90% 102%, rgb(255 222 170 / .4), rgb(255 222 175 / 0) 70%),
+    radial-gradient(38% 20% at 70% 30%, rgb(70 28 5 / .14), rgb(70 28 5 / 0) 70%),
+    linear-gradient(180deg, rgb(60 22 4 / .2) 0%, rgb(60 22 4 / 0) 22%),
+    radial-gradient(130% 100% at 50% 60%, rgb(0 0 0 / 0) 60%, rgb(45 15 0 / .28) 100%);
+  box-shadow: inset 0 6px 14px rgb(0 0 0 / .35), inset -4px 0 10px rgb(0 0 0 / .15), 0 18px 40px rgb(0 0 0 / .5); }
+body { padding-block: 20px 40px; font-size: 17px; line-height: 1.2; }
+:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
+::selection { background: var(--ink); color: var(--glass); }
+
+/* top bar: part of the glass, parted from the rest by a rule */
+.top { position: relative; margin: 0 -16px; background: transparent; border-bottom: 1px solid var(--line); }
+.sq-msg, .fn-menu, .pm-pop { background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; box-shadow: 0 10px 30px rgb(0 0 0 / .45); text-shadow: none; }
+
+/* buttons, fields: outlined in ink, inverted when on */
+button, select, input[type=text] { background: transparent; color: var(--ink); border: 2px solid var(--ink); border-radius: 3px; text-shadow: var(--shadow); text-transform: lowercase; }
+input[type=text] { text-transform: none; background: var(--tint); }
+button:hover:not(:disabled) { background: var(--tint); }
+button:active:not(:disabled) { background: var(--ink); color: var(--glass); text-shadow: none; }
+select option { background: var(--glass); color: var(--ink); }
+.icon svg, .gear svg { fill: var(--ink); }
+.gear { border-color: transparent; }
+.play[aria-pressed=true], .onoff[aria-pressed=true], .seg button[aria-pressed=true], .seg button[aria-checked=true],
+.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true],
+.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-chip[aria-pressed=true], .pm .pm-favf[aria-pressed=true] {
+  background: var(--ink); color: var(--glass); text-shadow: none; }
+.play[aria-pressed=true] svg { fill: var(--glass); }
+.seg { border: 2px solid var(--ink); border-radius: 3px; }
+.seg button { border: 0; border-right: 1px solid var(--rulec); border-radius: 0; text-shadow: var(--shadow); }
+.seg button:last-child { border-right: 0; }
+.switch { background: transparent; border: 2px solid var(--ink); }
+.switch .thumb { background: var(--ink); border-radius: 2px; top: 1px; }
+.switch[aria-checked=true] { background: var(--ink); }
+.switch[aria-checked=true] .thumb { background: var(--glass); }
+.label, .tname { text-transform: lowercase; letter-spacing: 0; }
+
+/* dials (Johnny's reference, in the orange palette): separate wedge segments lit up to the value, ghost where unlit, the
+   readout above and the label below; no pointer line and no centre number */
+.knob svg { overflow: visible; }
+.knob svg .trk { fill: var(--ghost); stroke: none; }
+.knob svg .arc { fill: var(--ink); stroke: none; filter: drop-shadow(1.5px 1.5px 0 rgb(28 10 0 / .17)); }
+.kn .val, .md .val { order: -2; }
+.kn .name, .md .mname, .pk .ref { order: 1; }
+.pk .val { order: -2; }
+.wave-kn .name, .parts-kn .name { order: -3; } /* the waveform and components cells keep their titles on top */
+.wave-kn .val { order: 1; }
+.knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
+::selection { background: var(--ink); color: var(--glass); }
+
+/* dials: a solid ring, ghost where unlit and ink up to the pointer, and a pointer from the centre to the ring */
+.knob svg { overflow: visible; }
+.knob svg .trk, .knob svg .arc { stroke-width: 7; stroke-linecap: butt; }
+.knob svg .trk { stroke: var(--ghost); }
+.knob svg .arc { fill: var(--ink); stroke: none !important; filter: drop-shadow(2px 2px 0 rgb(28 10 0 / .17)); }
+.knob svg .ptr { stroke: var(--ink); stroke-width: 4; stroke-linecap: butt; }
+.knob:focus-visible { outline-offset: 4px; border-radius: 4px; }
+.pk.fixed .knob { opacity: .35; }
+.kn .name, .md .mname, .fxname { text-transform: lowercase; }
+.kn .val, .md .val { min-height: 1.1em; }
+
+/* devices: no grey boxes, just a lowercase heading over an ink rule */
+.dev, .main > .pane { background: transparent; border: 0; border-radius: 0; }
+.main > .pane::before { display: none; }
+.main > .pane { padding-top: 14px; }
+.dev::before { left: 16px; right: 16px; }
+.dev::before, .main > .pane::before { background: transparent; color: var(--ink); border-bottom: 1px solid var(--line); border-radius: 0; text-transform: lowercase; padding-left: 0; font-size: 21px; }
+.dev::after, .main > .pane::after { display: none; }
+.dev { border-bottom: 1px solid var(--line); margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.mtabs { margin: 10px -16px -11px; padding: 0 16px; border-bottom: 2px solid var(--ink); gap: 6px; }
+.mtabs button { background: transparent; border: 2px solid var(--ink); border-bottom: 0; border-radius: 4px 4px 0 0; color: var(--ink); text-transform: lowercase; text-shadow: var(--shadow); }
+.fxb, .blk-lex { border-color: var(--line); }
+
+/* sequencer: ink cells on glass */
+.seq { background: transparent; border: 2px solid var(--ink); text-shadow: none; }
+.seq > * { border-right-color: rgb(28 10 0 / .25); border-bottom-color: rgb(28 10 0 / .25); color: var(--ink); }
+.seq .rh { background: transparent; border-right: 2px solid var(--ink); text-transform: lowercase; }
+.seq .bar { border-right-color: rgb(28 10 0 / .6); }
+.seq .gap { border-bottom: 2px solid rgb(28 10 0 / .6); }
+.seq .hd { background: transparent; }
+.seq .hd.cur { background: var(--ink); color: var(--glass); }
+.seq .cell.on { background: var(--ink); box-shadow: none; }
+.seq .cell.on.cur { box-shadow: inset 0 0 0 2px var(--glass); }
+.seq [data-t=slide].on, .seq [data-t=accent].on { background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 5px); }
+.seq .end { border-right: 3px solid var(--ink); }
+.sq-bank .slots button.used:not([aria-pressed=true]) { background: var(--ghost); }
+.sq-bank .slots button[data-ch]:not([data-ch=""])::after { background: var(--ink); color: var(--glass); }
+.sq-bank .slots button.playing { outline: 2px dashed var(--ink); outline-offset: 2px; }
+.bpm-read output { background: transparent; border: 2px solid var(--ink); border-radius: 4px; }
+
+/* options sheet: a second pane of glass */
+dialog#options { background: var(--glass); color: var(--ink); border: 6px solid var(--bezel); border-radius: 12px; text-shadow: var(--shadow); }
+.opt-head { background: transparent; border-bottom: 2px solid var(--ink); }
+.otabs button { background: transparent; border: 2px solid var(--ink); border-bottom: 0; text-transform: lowercase; color: var(--ink); }
+canvas { background: transparent; border: 2px solid var(--ink); }
+.dot, .pk.mod::after { background: var(--ink); border-radius: 0; }
+
+/* sliders (Options › Monitor): a segmented ink bar with a solid ink cap */
+input[type=range] { -webkit-appearance: none; appearance: none; height: 22px; margin: 0; background: none; cursor: pointer; touch-action: none; accent-color: var(--ink); }
+input[type=range]::-webkit-slider-runnable-track { height: 10px; border: 2px solid var(--ink); border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 6px); }
+input[type=range]::-moz-range-track { height: 6px; border: 2px solid var(--ink); border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 6px); }
+input[type=range]::-moz-range-progress { height: 6px; background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 6px); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 20px; margin-top: -7px; background: var(--ink); border: 0; border-radius: 2px; box-shadow: var(--shadow); }
+input[type=range]::-moz-range-thumb { width: 12px; height: 20px; background: var(--ink); border: 0; border-radius: 2px; }
+input[type=checkbox] { accent-color: var(--ink); }
+
+/* waveform switch: an LCD toggle, the lit block slides across */
+.switch { border-radius: 3px; }
+.switch .thumb { border-radius: 1px; box-shadow: none; }
+/* steppers: the value reads like a segment display between two ink keys */
+
+/* step grid as in the Shyoy: square ink blocks, no rounding; slides and accents solid like notes */
+.seq > * { border-radius: 0; text-shadow: none; }
+.seq button:hover:not(:disabled) { background: var(--tint2); }
+.seq .cell.on, .seq [data-t=slide].on, .seq [data-t=accent].on { background: var(--ink); }
+.seq .rh.blk, .seq .blk { background: var(--tint); }
+/* waveform switch: always a light (glass) square sliding on a black ink track, whichever side it is on (Johnny) */
+.switch, .switch[aria-checked=true], button.switch:hover:not(:disabled), button.switch:active:not(:disabled) { background: var(--ink); border-color: var(--ink); }
+.switch .thumb, .switch[aria-checked=true] .thumb { background: var(--glass); }
+
+/* ---- v63: the Elixir Synth screen treatment, in orange: black bezel on the dark case, a faded-patch veil over the glass,
+   a soft glow round every lit pixel, a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
+:root { --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170; }
+html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815) fixed; }
+.main { border: 5px solid #0b0c0a; border-radius: 10px;
+  box-shadow: inset 0 6px 16px rgb(0 0 0 / .36), inset -8px 8px 18px rgb(0 0 0 / .2), inset 0 0 0 1px rgb(255 255 255 / .1), 0 1px 0 rgb(255 255 255 / .07), 0 18px 40px rgb(0 0 0 / .5); }
+.main::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 5;
+  background: radial-gradient(34% 17% at 76% 24%, rgb(var(--panel-rgb) / .42), rgb(var(--panel-rgb) / 0) 100%),
+    radial-gradient(22% 12% at 16% 66%, rgb(var(--panel-rgb) / .38), rgb(var(--panel-rgb) / 0) 100%),
+    radial-gradient(14% 9% at 58% 83%, rgb(var(--panel-rgb) / .3), rgb(var(--panel-rgb) / 0) 100%),
+    linear-gradient(90deg, rgb(var(--panel-rgb) / 0) 88%, rgb(var(--panel-rgb) / .22) 97%, rgb(var(--panel-rgb) / .1)); }
+.main, .main button, .main .label, .main output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+.main button:not(.seg button):not(.tabs button), .main .seg { box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+.main button:not(.mtabs button) { text-transform: uppercase; letter-spacing: .06em; }
+.main .seq .cell.on, .main input[type=range]::-webkit-slider-thumb { filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.main button:active:not(:disabled), .main button[aria-pressed="true"], .main button[aria-selected="true"] { text-shadow: none; }
+/* fit-to-window (see fit.js): a 1000px screen scaled as a whole, centred on the dark case, nothing scrolls */
+html.fit, html.fit body { height: 100dvh; overflow: hidden; }
+html.fit body { padding: 0; position: relative; }
+html.fit .main { position: absolute; left: 50%; top: 50%; width: 1000px; max-width: none; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
+html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 72px 34px; gap: 6px; }
+
+/* v65: sliders as segmented bar graphs (like the faders in Johnny's SH-101 screen): a row of segments, lit up to the value over a ghost of the rest */
+.main input[type=range] { --f: 0; height: 22px; }
+.main input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.main input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+.main input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; filter: none; }
+.main input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+.main input[type=range]:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
+/* every page the same size: the pages stack in one cell (the hidden ones keep their space, unseen), so the screen is as tall as the tallest and never jumps */
+html.fit .main > .pane { grid-row: 4; grid-column: 1; min-height: 0; overflow: auto; }
+html.fit .main > .pane[hidden] { display: var(--pane-d, block) !important; visibility: hidden; pointer-events: none; }
+.fxpane { --pane-d: grid; }
+
+/* ---- design pass (Nov 2026): one fixed 1000 x 647 screen (MacBook Pro shape), one type scale, one control height ----
+   type: 14px small print (dial readouts and names, row labels, notes), 16px controls, 18px headings
+   controls in the pages: 26px tall, 2px ink outline, uppercase spaced labels; tabs and headings stay lowercase
+   spacing: 6px between controls in a row, 8px between rows, 16px screen margin */
+:root { --fs-s: 14px; --fs-m: 16px; --fs-l: 18px; --ctl-h: 26px; --row-h: 13px; }
+
+/* dials: crisp wedges only. The ghost track used to carry a 7-unit ghost stroke (a soft halo that filled the gaps
+   between segments) and the lit wedges a drop shadow; both gone, so every edge is sharp at any scale */
+.knob svg { shape-rendering: geometricPrecision; }
+.knob svg .trk, .main .knob svg .trk { fill: var(--ghost); stroke: none !important; filter: none; }
+.knob svg .arc, .main .knob svg .arc { fill: var(--ink); stroke: none !important; filter: none; }
+
+/* the screen */
+html.fit .main { width: 1000px; height: 647px; padding: 0 16px 12px; gap: 8px; grid-template-rows: auto auto auto minmax(0, 1fr); align-content: stretch; }
+html.fit .main > .pane { padding: 12px 16px 0; overflow: hidden; }
+html.fit .top { padding: 8px 16px; gap: 10px 12px; min-height: 0; }
+html.fit .top button, html.fit .top .bpm-read output, html.fit .pm .pm-btn { height: 30px; }
+html.fit .dev { padding: 10px 16px 8px; }
+/* no 'tb-303 voice' title or rule over the dials (Johnny) */
+.dev::before { display: none !important; }
+html.fit .mtabs { margin: 0 -16px -8px; }
+html.fit .mtabs button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
+
+/* one size for small print and one for controls, everywhere */
+html.fit .kn .val, html.fit .md .val, html.fit .kn .name, html.fit .md .mname, html.fit .trim .tname, html.fit .trim .tval,
+html.fit .label, html.fit .md .mdesc, html.fit .sq-row > .rlab { font-size: var(--fs-s); }
+html.fit .sld, html.fit .sld output, html.fit .fxname, html.fit .lex-lcd { font-size: var(--fs-m); }
+html.fit .pane button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button { height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; }
+html.fit .pane .seg button { min-width: 30px; }
+
+/* sequencer: pattern and edit rows above the roll, shape and generate rows below; one label column */
+html.fit .sq-body { gap: 6px; }
+html.fit .sq-row { flex-wrap: nowrap; gap: 6px; min-height: var(--ctl-h); }
+html.fit .sq-row > .rlab { width: 72px; color: var(--mute); }
+html.fit .sq-row > .rlab-in { width: auto; margin-left: 22px; margin-right: 4px; }
+html.fit .sq-row .acts { margin-left: 0; gap: 6px; }
+html.fit .sq-row .acts + .acts, html.fit .sq-row .slots + .acts, html.fit .sq-row .chain-read + .acts { margin-left: 16px; }
+html.fit .sq-bank .slots button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; }
+html.fit .sld { grid-template-columns: 64px 84px 36px; gap: 6px; margin-right: 12px; }
+html.fit .sq-side .sld:last-child { margin-right: 0; }
+html.fit .seqwrap { display: grid; grid-template-columns: minmax(0, 1fr) 24px; gap: 4px; overflow: visible; }
+html.fit .seq { grid-auto-rows: var(--row-h); font-size: 13px; }
+/* nudge arrows, beside the octave lanes and the note rows: rows line up with the roll's (2px outline, then the step row) */
+.nudge { display: grid; grid-template-rows: 2px repeat(19, var(--row-h, 16px)); align-content: start; }
+.nudge button { min-width: 0; padding: 0; margin: 1px 0; font-size: 10px; line-height: 1; letter-spacing: 0; text-shadow: none; box-shadow: none !important; }
+.nu-oct-up { grid-row: 3 / 5; } .nu-oct-dn { grid-row: 5 / 7; }
+.nu-key-up { grid-row: 7 / 13; } .nu-key-dn { grid-row: 13 / 19; }
+
+/* effects: RAT, delay and Compactor in one row over the 224 */
+html.fit .fxpane { --knob: 40px; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; }
+html.fit .fxpane .fxb:not(.blk-lex) { --kn-w: 56px; padding: 0 16px; }
+html.fit .fxpane .fxb:first-child { padding-left: 0; }
+html.fit .fxpane .fxb:nth-child(3) { padding-right: 0; }
+html.fit .fxknobs { flex-wrap: nowrap; gap: 6px; }
+html.fit .fxknobs .kn { width: var(--kn-w); }
+html.fit .fxb { gap: 8px; }
+html.fit .fxh { height: 30px; flex-wrap: nowrap; gap: 10px; }
+html.fit .fxsub { display: none; }
+html.fit .blk-lex { --kn-w: 64px; padding-top: 12px; gap: 8px; }
+html.fit .lex-progs button { height: 38px; padding: 0 4px; font-size: 13px; line-height: 1.1; }
+html.fit .lex-progs button b { font-size: var(--fs-m); line-height: 1.1; }
+html.fit .lex-note { max-width: none; margin: 0; font-size: var(--fs-s); line-height: 1.25; }
+
+/* mods: two even rows */
+html.fit .mods { gap: 16px 10px; padding-top: 4px; }
+
+/* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
+html.fit dialog#options { width: 960px; height: 600px; max-width: none; max-height: none; inset: auto; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
+dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
+dialog#options .opt-head h2 { font-size: var(--fs-l); }
+dialog#options .kn .val, dialog#options .pk .val, dialog#options .pk .ref, dialog#options .readouts, dialog#options .hint, dialog#options .legend, dialog#options .detail, dialog#options .dclk-fade { font-size: var(--fs-s); }
+dialog#options .notes, dialog#options .dclk-txt { font-size: var(--fs-m); }
+dialog#options input[type=range] { --f: 0; height: 22px; }
+dialog#options input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; }
+dialog#options input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+
+/* popovers (Preset, Functions): the same controls as the pages */
+.pm-foot button, .pm-foot input[type=text] { height: 30px; font-size: var(--fs-m); }
+.pm-foot button { padding: 0 10px; line-height: 1; }
+
+/* dial cells stack from the top, so a long description never pushes its dial out of line with the row */
+.kn, .md, .pk { align-content: start; }
+html.fit .fxh .seg button { height: 22px; }
+/* the voice panel: the components buttons a size down so the panel is no taller than its dials */
+html.fit .parts-kn .mini { height: 22px; padding: 0 4px; font-size: var(--fs-s); }
+html.fit .panel { row-gap: 0; }
+/* names lowercase everywhere, like every other dial name */
+.trim .tname { text-transform: lowercase; letter-spacing: 0; }
+.wave-kn .val { text-transform: lowercase; }
+/* waveform switch: a saw glyph at the saw end, a square glyph at the square end, drawn in ink like the segments */
+.wave-row { display: flex; align-items: center; gap: 6px; margin: 14px 0 12px; }
+.wave-row .switch { margin: 0; }
+.wglyph { width: 18px; height: 11px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: miter; stroke-linecap: square; overflow: visible; }
+/* mods: the two rows of dials share the page's height, rather than leaving a gap at the bottom */
+html.fit .mods { gap: 30px 10px; padding-top: 10px; }
+/* the Options sheet: the screen's fine pixel grid too, and a lowercase title like every other heading */
+dialog#options { background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px); }
+dialog#options .opt-head h2 { text-transform: lowercase; }
+/* touch: no pinch-zoom or page scroll (the screen already fills the window); scroll areas inside still scroll */
+html.fit { touch-action: pan-x pan-y; overscroll-behavior: none; }
+html.fit .pm-pop { max-height: 460px; }
+/* tuning: 12 upright segmented faders, one per note; lit from the zero line up or down to the offset, a ghost of the rest.
+   Readout above and name below, like the dials; a row of temperaments above and the root below, like the sequencer's rows */
+.tupane { --pane-d: flex; display: flex; flex-direction: column; gap: 8px; }
+.tupane[hidden] { display: none; }
+html.fit .tu-top .acts.tu-end { margin-left: auto; }
+#tu-sys button[aria-pressed=true] { background: var(--ink); color: var(--glass); text-shadow: none; }
+.tu-faders { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: center; padding: 4px 0; }
+.tu-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tu-col .val, .tu-col .mname { font-size: var(--fs-s); line-height: 1.2; color: var(--ink); text-transform: lowercase; font-variant-numeric: tabular-nums; }
+.tu-col .val { cursor: pointer; min-width: 5ch; text-align: center; }
+.tu-bar { display: flex; flex-direction: column; gap: 2px; width: 34px; padding: 2px; cursor: ns-resize; touch-action: none; outline-offset: 3px; }
+.tu-bar i { display: block; height: 4px; background: var(--ghost); }
+.tu-bar i.on { background: var(--ink); filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.tu-bar i[data-s="0"] { height: 2px; margin: 1px -4px; background: var(--ink); }
+.tu-bar:focus-visible { outline: 2px dashed var(--ink); }
+.tu-foot .tu-note { margin-left: auto; font-size: var(--fs-s); white-space: nowrap; }
+#tu-root { flex: none; }
+html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; text-transform: lowercase; }
+
+/* status line: the last row of the screen, under a rule, for every message and tooltip (statusline.js) */
+html.fit .main { grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding-bottom: 0; }
+.sline { grid-row: 5; grid-column: 1 / -1; margin: 0 -16px; padding: 0 16px; height: 24px; display: flex; align-items: center; border-top: 1px solid var(--line); }
+.sl-text { font-size: var(--fs-s); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-text.msg { color: var(--ink); }
+/* the old popup message boxes are now only sources for the line */
+.sq-msg, .pm-foot .hint[role=status] { display: none !important; }
+/* the status line can never widen the screen: one line, clipped with an ellipsis */
+html.fit .main { grid-template-columns: minmax(0, 1fr); }
+.sline { min-width: 0; overflow: hidden; }
+.sl-text { flex: 1 1 0; min-width: 0; }
 </style>
-<div class="rotate" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn your device sideways</p><small>This instrument is laid out for landscape.</small></div>
+<div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
   <header class="top">
     <h1 class="status">303 circuit model</h1>
@@ -525,37 +704,87 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
     <button type="button" role="tab" data-pane="seq">Sequencer</button>
     <button type="button" role="tab" data-pane="mods">Mods</button>
     <button type="button" role="tab" data-pane="fx">FX</button>
-    <button type="button" role="tab" data-pane="board">Board</button>
+    <button type="button" role="tab" data-pane="tune">Tuning</button>
   </div>
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
-    <div class="sq-bank">
-      <div class="seg" id="bk-g" role="group" aria-label="Bank"><button type="button" data-g="A" aria-pressed="false">A</button><button type="button" data-g="B" aria-pressed="false">B</button><button type="button" data-g="C" aria-pressed="false">C</button><button type="button" data-g="D" aria-pressed="false">D</button></div>
-      <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button><button type="button" data-n="8" aria-pressed="false">9</button><button type="button" data-n="9" aria-pressed="false">10</button><button type="button" data-n="10" aria-pressed="false">11</button><button type="button" data-n="11" aria-pressed="false">12</button></div>
-      <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
-      <div class="sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button><button type="button" id="p-clear">Clear</button><button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button></div>
-    </div>
     <div class="sq-body">
-      <div class="sq-side">
-        <div class="stp"><span class="label">Length</span><button type="button" data-a="len" data-d="-1" aria-label="Length down">◀</button><output id="o-len">16</output><button type="button" data-a="len" data-d="1" aria-label="Length up">▶</button></div>
-        <button type="button" class="dup" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Duplicate steps</button>
-        <button type="button" class="dup" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle notes</button>
-        <div class="stp"><span class="label">Step len</span><button type="button" data-a="gate" data-d="-1" aria-label="Step len down">◀</button><output id="o-gate">50%</output><button type="button" data-a="gate" data-d="1" aria-label="Step len up">▶</button></div>
-        <div class="stp"><span class="label">Shift</span><button type="button" data-a="shift" data-d="-1" aria-label="Shift down">◀</button><output id="o-shift" class="unit">step</output><button type="button" data-a="shift" data-d="1" aria-label="Shift up">▶</button></div>
-        <div class="stp"><span class="label">Transpose</span><button type="button" data-a="tr" data-d="-1" aria-label="Transpose down">▼</button><output id="o-tr" class="unit">semi</output><button type="button" data-a="tr" data-d="1" aria-label="Transpose up">▲</button></div>
-        <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled, at the density and bars set below">Generate</button>
-        <div class="stp"><span class="label">Density</span><button type="button" data-g="dens" data-d="-1" aria-label="Density down">◀</button><output id="o-dens">Any</output><button type="button" data-g="dens" data-d="1" aria-label="Density up">▶</button></div>
-        <div class="stp"><span class="label">Bars</span><button type="button" data-g="bars" data-d="-1" aria-label="Bars down">◀</button><output id="o-bars">1</output><button type="button" data-g="bars" data-d="1" aria-label="Bars up">▶</button></div>
+      <!-- controls above the roll (the pattern and what you do to it) and below it (its shape, and Generate);
+           a label column on the left so every row lines up -->
+      <div class="sq-row sq-bank">
+        <span class="rlab">pattern</span>
+        <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
+        <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
+        <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
+        <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
+        <span class="rlab rlab-in">edit</span>
+        <div class="acts">
+          <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
+          <button type="button" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle</button>
+          <button type="button" id="p-clear">Clear</button>
+          <button type="button" id="p-undo" disabled>Undo</button>
+        </div>
       </div>
-      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
+      <div class="sq-row sq-edit">
+        <span class="rlab">randomise</span>
+        <div class="acts">
+          <button type="button" id="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Acc</button>
+          <button type="button" id="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Sld</button>
+          <button type="button" id="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Oct</button>
+        </div>
+        <span class="rlab rlab-in">alter</span>
+        <div class="acts">
+          <button type="button" id="a-acc" title="Vary the accents: about a quarter of the notes gain or lose an accent; tap again for more">Acc</button>
+          <button type="button" id="a-sld" title="Vary the slides: about a quarter of the notes gain or lose a slide; tap again for more">Sld</button>
+          <button type="button" id="a-oct" title="Vary the octaves: about a quarter of the notes jump an octave up or down; tap again for more">Oct</button>
+        </div>
+      </div>
+      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div>
+        <div class="nudge" role="group" aria-label="Shift the notes">
+          <button type="button" class="nu-oct-up" data-nudge="12" title="Every note up an octave" aria-label="Octaves up">▲</button>
+          <button type="button" class="nu-oct-dn" data-nudge="-12" title="Every note down an octave" aria-label="Octaves down">▼</button>
+          <button type="button" class="nu-key-up" data-nudge="1" title="Every note up a semitone" aria-label="Notes up a semitone">▲</button>
+          <button type="button" class="nu-key-dn" data-nudge="-1" title="Every note down a semitone" aria-label="Notes down a semitone">▼</button>
+        </div></div>
+      <div class="sq-row sq-side">
+        <span class="rlab">shape</span>
+        <label class="sld"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
+        <label class="sld"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
+        <label class="sld spr" title="Drag to rotate the pattern; springs back to centre"><span>Shift</span><input type="range" data-a="shift" min="-16" max="16" step="1" value="0" aria-label="Shift pattern by steps"><output id="o-shift">0</output></label>
+        <label class="sld spr" title="Drag to transpose the pattern; springs back to centre"><span>Transpose</span><input type="range" data-a="tr" min="-12" max="12" step="1" value="0" aria-label="Transpose pattern by semitones"><output id="o-tr">0</output></label>
+      </div>
+      <div class="sq-row sq-gen">
+        <span class="rlab">generate</span>
+        <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
+        <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars to generate"><output id="o-bars">1</output></label>
+        <div class="acts">
+          <button type="button" class="rnd" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled, at this density and length">Generate</button>
+          <button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button>
+        </div>
+      </div>
     </div>
   </section>
 
-  <div class="pane" data-title="Circuit board" id="pane-board" role="tabpanel" aria-label="Circuit board" hidden>
-    <svg class="board" id="board" role="group" aria-label="Circuit board showing every part at its current value"></svg>
-    <div class="board-info" id="board-info">Every part at its current value. Changed parts glow; tap one for details.</div>
-  </div>
   <div class="pane" data-title="Mods" id="pane-mods" role="tabpanel" aria-label="Mods" hidden><div class="mods" id="mods" aria-label="Common mods"></div></div>
+
+  <div class="pane tupane" data-title="Tuning" id="pane-tune" role="tabpanel" aria-label="Tuning" hidden>
+    <div class="sq-row tu-top">
+      <span class="rlab">tuning</span>
+      <div class="acts" id="tu-sys">
+        <button type="button" data-t="just" aria-pressed="false" title="Pure intervals from the root (5-limit just intonation): thirds and fifths beat-free, far keys sour">Just</button>
+        <button type="button" data-t="pyth" aria-pressed="false" title="Pure fifths from the root: bright, wide major thirds">Pythagorean</button>
+        <button type="button" data-t="mean" aria-pressed="false" title="Quarter-comma meantone from the root: pure major thirds, one howling wolf fifth">Meantone</button>
+        <button type="button" data-t="drift" title="Every note a few cents out at random, like an old unit whose DAC has drifted">Drift</button>
+      </div>
+      <div class="acts tu-end"><button type="button" id="tu-reset" title="Every note back to 0 cents: equal temperament, the stock 303">Reset</button><button type="button" id="tu-undo" disabled>Undo</button></div>
+    </div>
+    <div class="tu-faders" id="tu-faders" role="group" aria-label="Fine tune of each note, in cents, the same in every octave"></div>
+    <div class="sq-row tu-foot">
+      <span class="rlab">root</span>
+      <div class="seg slots" id="tu-root" role="group" aria-label="Root of the temperament"><button type="button" data-r="0" aria-pressed="false">c</button><button type="button" data-r="1" aria-pressed="false">c♯</button><button type="button" data-r="2" aria-pressed="false">d</button><button type="button" data-r="3" aria-pressed="false">d♯</button><button type="button" data-r="4" aria-pressed="false">e</button><button type="button" data-r="5" aria-pressed="false">f</button><button type="button" data-r="6" aria-pressed="false">f♯</button><button type="button" data-r="7" aria-pressed="false">g</button><button type="button" data-r="8" aria-pressed="false">g♯</button><button type="button" data-r="9" aria-pressed="false">a</button><button type="button" data-r="10" aria-pressed="false">a♯</button><button type="button" data-r="11" aria-pressed="false">b</button></div>
+      <span class="hint tu-note">±100 cents a note, every octave · shift for fine · double-click for 0</span>
+    </div>
+  </div>
 
   <div class="pane fxpane" data-title="Effects" id="pane-fx" role="tabpanel" aria-label="Effects" hidden>
     <section class="fxb" id="fx-rat" aria-label="ProCo RAT">
@@ -567,9 +796,8 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
         <div class="seg cmp-mode" id="dly-mode" role="radiogroup" aria-label="Delay mode"><button type="button" role="radio" data-m="1">Ping-pong</button><button type="button" role="radio" data-m="0">Mono</button></div></div>
       <div class="fxknobs" id="fx-dly-knobs"></div>
     </section>
-    <section class="fxb blk-cmp" id="fx-cmp" aria-label="Compactor sidechain" title="Ducks the delay and 224 returns, keyed from the dry synth. Threshold is the synth level that ducks them to silence; Range shapes how quieter levels count; Attack is lookahead">
-      <div class="fxh"><span class="fxname">Compactor</span><span class="fxsub">returns, keyed by the synth</span>
-        <div class="seg cmp-mode" id="cmp-mode" role="radiogroup" aria-label="Detector"><button type="button" role="radio" data-m="0">Peak</button><button type="button" role="radio" data-m="1">ISP</button><button type="button" role="radio" data-m="2">RMS</button></div></div>
+    <section class="fxb blk-cmp" id="fx-cmp" aria-label="Compactor sidechain" title="Ducks the delay and 224 returns when the synth plays. Amount: how deep and how easily it ducks. Release: how fast the returns come back.">
+      <div class="fxh"><span class="fxname">Compactor</span><span class="fxsub">ducks the returns under the synth</span></div>
       <div class="fxknobs" id="fx-cmp-knobs"></div>
     </section>
     <section class="fxb blk-lex" id="fx-lex" aria-label="Lexicon 224">
@@ -583,6 +811,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
       <p class="hint lex-note" id="lex-note"></p>
     </section>
   </div>
+  <div class="sline" id="sline" role="status" aria-live="polite"><span class="sl-text" id="sl-text"></span></div>
 </div>
 
 <dialog id="options" aria-labelledby="opt-title">
@@ -603,6 +832,10 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
       <div class="detail" id="pdetail" aria-live="polite">Hover or focus a part to see what it does.</div>
     </section>
     <section class="osec" id="osec-monitor" role="tabpanel" aria-label="Monitor" hidden>
+      <div class="dclk">
+        <button type="button" class="onoff" id="tips-on" aria-pressed="true">On</button>
+        <div class="dclk-txt"><strong>Tooltips</strong><span class="hint">Say what a control does in the line at the bottom of the screen when you point at it. Messages show there either way.</span></div>
+      </div>
       <div class="dclk">
         <button type="button" class="onoff" id="dc-on" aria-pressed="true">On</button>
         <div class="dclk-txt"><strong>De-click</strong><span class="hint">Eases the level over a few ms around each retrigger, where the real 303 clicks. Adds 3 ms of latency. Off is the original sound.</span></div>
@@ -633,6 +866,7 @@ canvas { width: 100%; height: 150px; display: block; border: 1px solid #1a1a1a; 
         <p><strong>Envelopes and VCA.</strong> C62 decays through R138 + VR6 (200 ms to 2.5 s). Accent shorts VR6 and charges the sweep cap. The OTA VCA gets resonance compensation through C76/R100, and normal notes fade in through R_SOFT.</p>
         <p><strong>Mods.</strong> Dotted parts map mostly to Devil Fish controls: Normal and Accent decay, VEG decay, Soft attack, Slide time, Sweep speed and self-oscillating resonance.</p>
         <p><strong>Lexicon 224.</strong> Runs on its own 20 kHz clock with 12-bit gain-ranging converters, 16-bit words and a shared 32K-word delay memory. The core is Dattorro's published Griesinger-style plate network; the 224's own microcode is not public, so the hall, chamber, room and chorus variants are estimates.</p>
+        <p><strong>Convolution IRs.</strong> EMT 140 plate impulse responses by Greg Hopkins (CC BY). Room, silo, garage, Musikverein and On a Star impulse responses from Voxengo, free for any use. Trimmed to 3 s at 48 kHz; see irs/CREDITS.md.</p>
         <p><strong>RAT.</strong> LM308 stage with gain-bandwidth and slew limits from its 30p cap, 1N914 diodes to ground, then the 3.3n filter.</p>
       </div>
     </section>
@@ -720,6 +954,9 @@ const COMPONENTS = {
   R63:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'accent to Q10 base' },
   R71:    { v: 2.2e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'Q10 base to ground' },
   V_CUT:  { v: 3.3,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span (R47 10K end stop)', range: [0.5, 6, 'lin'], mod: 'Cutoff knob range. Cutoff range mods (common on TD-3s) let the knob go lower and higher.' },
+  KT:     { v: 0,       unit: '%', block: 'VCF',   source: 'estimate',  note: 'KEY TRACK pot (100K B) with click-off switch: buffered pitch CV minus V_KT, through R_KT into Q10 base. Not on a stock 303', range: [0, 1, 'lin'], mod: 'Filter key tracking, as on the TD-3-MO and Devil Fish. Feeds the pitch CV into the cutoff so higher notes open the filter. With the 36K R_KT about a third of the pot is exact 1 V/oct and full is about 300%, so low notes almost vanish, like a TD-3-MO turned up. 0 switches it out, which is the stock 303.' },
+  R_KT:   { v: 36e3,    unit: 'Ω', block: 'VCF',   source: 'estimate',  note: 'key track pot wiper to Q10 base (114K = 100% at full pot, 36K about 300%)', range: [18e3, 300e3, 'log'], mod: 'Key track range. Lower values let the Key track pot go further past 1 V/oct.' },
+  V_KT:   { v: 3.0,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'key track buffer reference: the note whose cutoff does not move (3 V = the C above the A tuning note); notes below it get darker', range: [1, 4, 'lin'] },
   I_REF:  { v: 3.1e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'TM3 FREQ trim: ladder current at 0 V', range: [1.55e-6, 6.2e-6, 'log'], mod: 'Filter frequency trimmer (TM3). Sets where the cutoff sits for a given knob position, about one octave either way.' },
 
   // --- VCF envelope (Q38/Q40/Q39 2SK30)
@@ -1144,59 +1381,34 @@ class DigitalDelay {
 }
 
 // Sidechain on the effect returns, after the Kilohearts Compactor (a limiter/ducker that works at sample
-// level). The key is the dry synth. Threshold is the key level that ducks the returns to silence;
-// Range shapes how the key maps onto that (below 100% quieter key levels are ignored, above 100% they
-// duck harder, like a soft clipper on the key). Attack is lookahead: the returns are delayed by it and the
-// ducking ramps in ahead of the transient. Hold keeps full ducking after the key drops, Release brings it
-// back. Mode picks the detector: per-sample Peak, inter-sample peaks (ISP), or RMS. Mix blends in the
-// unducked returns. With Attack and Release at 0 the gain follows the key waveform: ring-mod sidechaining.
+// level). The key is the dry synth. Two controls: Amount and Release. Amount sets both how deep the duck
+// goes (0 = off, about 70% = full duck) and how sensitive it is (the key level that ducks fully goes from
+// -10 dB to -30 dB). The rest is fixed: a linear key law, 3 ms lookahead (the returns are delayed by it
+// so the ramp lands ahead of the transient), no hold, and a per-sample peak detector.
+// Release brings the returns back (0 to 1 s); at 0 the gain follows the key waveform (ring-mod sidechaining).
 // Our reading of the published control descriptions; Kilohearts does not publish its gain law.
-const CMP_MODES = ['Peak', 'ISP', 'RMS'];
-const cmpThrDb = (p) => -40 + 40 * p;
-const cmpAtkMs = (p) => 10 * p;
-const cmpHoldMs = (p) => 500 * p * p;
+const cmpThrDb = (a) => -10 - 20 * a;       // key level that gives a full duck
+const cmpMix = (a) => Math.min(1, 1.4 * a); // duck depth
 const cmpRelMs = (p) => 1000 * p * p;
+const CMP_ATK_MS = 3;
 class Compactor {
   constructor(fs) {
     this.fs = fs; this.L = new Float32Array(Math.ceil(fs * 0.011)); this.R = new Float32Array(this.L.length); this.w = 0;
-    this.env = 0; this.hold = 0; this.ms = 0; this.k1 = 0; this.k2 = 0; this.k3 = 0; this.l = 0; this.r = 0; this.g = 1;
+    this.env = 0; this.l = 0; this.r = 0; this.g = 1;
   }
   derive(k) {
     const fs = this.fs;
-    this.thr = Math.pow(10, cmpThrDb(k.cmpthr) / 20);
-    this.rng = 2 * k.cmprng;
-    this.D = Math.min(this.L.length - 1, Math.round(cmpAtkMs(k.cmpatk) * 1e-3 * fs));
-    this.atkA = this.D > 0 ? 1 - Math.exp(-3 / this.D) : 1;
-    this.holdN = Math.round(cmpHoldMs(k.cmphold) * 1e-3 * fs);
+    this.inv = Math.pow(10, -cmpThrDb(k.cmpamt) / 20);
+    this.D = Math.min(this.L.length - 1, Math.round(CMP_ATK_MS * 1e-3 * fs));
+    this.atkA = 1 - Math.exp(-3 / this.D);
     const rel = cmpRelMs(k.cmprel) * 1e-3 * fs;
     this.relA = rel > 0.5 ? Math.exp(-1 / rel) : 0;
-    this.mode = Math.round(k.cmpmode * 2);
-    this.rmsA = Math.exp(-1 / (0.01 * fs));
-    this.mix = k.cmpmix;
-  }
-  // key -> duck amount 0..1 (1 = silence at threshold)
-  _amount(det) {
-    const x = det / this.thr, R = this.rng;
-    let a;
-    if (R <= 1) a = R > 0 ? (x - (1 - R)) / R : 0;
-    else { const s = R - 1; a = (1 - s) * x + s * Math.tanh(3 * x) / 0.99505; }
-    return a <= 0 ? 0 : a >= 1 ? 1 : a;
+    this.mix = cmpMix(k.cmpamt);
   }
   // key y, returns wl/wr: stores the delayed returns in l/r and gives the gain for them
   run(y, wl, wr) {
-    let det;
-    if (this.mode === 2) { this.ms = y * y + this.rmsA * (this.ms - y * y); det = Math.sqrt(this.ms * 2); } // sine peak = rms * sqrt 2
-    else {
-      det = Math.abs(y);
-      if (this.mode === 1) { // inter-sample peak: Catmull-Rom midpoint between the last two samples
-        const m = (-this.k3 + 9 * this.k2 + 9 * this.k1 - y) / 16; // Catmull-Rom midpoint of the previous two samples
-        if (Math.abs(m) > det) det = Math.abs(m);
-      }
-      this.k3 = this.k2; this.k2 = this.k1; this.k1 = y;
-    }
-    const a = this._amount(det);
-    if (a >= this.env) { this.env += (a - this.env) * this.atkA; this.hold = this.holdN; }
-    else if (this.hold > 0) this.hold--;
+    let a = Math.abs(y) * this.inv; if (a > 1) a = 1; // duck amount, 1 = silence at the threshold
+    if (a >= this.env) this.env += (a - this.env) * this.atkA;
     else this.env = a + (this.env - a) * this.relA;
     // lookahead: the returns come out D samples late, so the ramp lands on time
     const N = this.L.length; let ri = this.w - this.D; if (ri < 0) ri += N;
@@ -1218,7 +1430,7 @@ class TB303Voice {
     // front panel (0..1)
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
-      cmpthr: 0.5, cmprng: 0.5, cmpatk: 0.3, cmphold: 0, cmprel: 0.4, cmpmix: 0.7, cmpmode: 0,
+      cmpamt: 0.5, cmprel: 0.4,
       dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
     this.fx = { rat: false, lex: false, dly: false };
     this.bpm = 128;
@@ -1227,6 +1439,8 @@ class TB303Voice {
     this.cmp = new Compactor(sampleRate);
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
+    // microtuning: an offset per note of the scale (C..B, every octave), in volts on the 1 V/oct CV, so 1 cent = 1/1200 V
+    this.tuneCv = new Float64Array(12);
 
     // state
     this.cvTarget = dacVoltage(33, this.c.VREF, this.c.R_DAC, this.c.R2_DAC);
@@ -1253,6 +1467,8 @@ class TB303Voice {
   setComponent(name, value) { if (name in this.c) { this.c[name] = value; this._derive(); } }
   setFx(name, on) { if (name in this.fx) this.fx[name] = !!on; }
   setKnob(name, value) { if (name in this.knobs) { this.knobs[name] = value; this._derive(); } }
+  // cents: 12 offsets, C first; the next note picks it up (a held note keeps its pitch)
+  setTune(cents) { for (let i = 0; i < 12; i++) { const c = +(cents && cents[i]) || 0; this.tuneCv[i] = c / 1200; } }
 
   _derive() {
     const c = this.c, k = this.knobs;
@@ -1278,9 +1494,10 @@ class TB303Voice {
     this.kFb = c.A_Q21 * k.resonance; // VR4 linear (B) taper
     this.fbA = Math.exp(-1 / (c.C15 * c.R98 * this.fs)); // feedback HPF corner (~72 Hz)
     // Millman sum at Q10 base: G = 1/R
-    const g73 = 1 / c.R73, g72 = 1 / c.R72, g63 = 1 / c.R63, g71 = 1 / c.R71;
-    const gs = g73 + g72 + g63 + g71;
-    this.wCut = g73 / gs; this.wEnv = g72 / gs; this.wAcc = g63 / gs;
+    // key track (KT > 0 closes the pot's switch): op-amp buffer drives KT * (CV - V_KT) into R_KT
+    const g73 = 1 / c.R73, g72 = 1 / c.R72, g63 = 1 / c.R63, g71 = 1 / c.R71, gKt = c.KT > 0 ? 1 / c.R_KT : 0;
+    const gs = g73 + g72 + g63 + g71 + gKt;
+    this.wCut = g73 / gs; this.wEnv = g72 / gs; this.wAcc = g63 / gs; this.wKt = c.KT * gKt / gs;
     this.vCutPot = c.V_CUT * k.cutoff;
     this.envModFrac = audioTaper(k.envmod);
     // envelopes
@@ -1301,7 +1518,7 @@ class TB303Voice {
     {
       const ra = Math.max(c.VR4 * k.resonance, 1), rb = Math.max(c.VR4 * (1 - k.resonance), 1);
       const rs = c.R_ACC + c.VR7 * k.accent * (1 - k.accent);
-      const gl = 1 / (c.R63 + 1 / (g73 + g72 + g71)), gb = 1 / rb, dt = 1 / this.fs;
+      const gl = 1 / (c.R63 + 1 / (g73 + g72 + g71 + gKt)), gb = 1 / rb, dt = 1 / this.fs;
       const tap = (gsrc) => { const sum = gsrc + gb + gl; return { a: gsrc / sum, b: gb / sum, tgt: gsrc / (gsrc + gl), k: Math.exp(-dt * gb * (gsrc + gl) / sum / c.C_ACC) }; };
       this.wowOn = tap(1 / (rs + ra)); this.wowOff = tap(0);
     }
@@ -1393,7 +1610,7 @@ class TB303Voice {
   // note: 0..63 DAC code (33 = A, 110 Hz)
   noteOn(code, accent, slide) {
     code = Math.max(0, Math.min(63, code | 0));
-    this.cvTarget = dacVoltage(code, this.c.VREF, this.c.R_DAC, this.c.R2_DAC);
+    this.cvTarget = dacVoltage(code, this.c.VREF, this.c.R_DAC, this.c.R2_DAC) + this.tuneCv[code % 12];
     const legato = this.gate && slide;
     this.slide = !!slide;
     if (!legato) {
@@ -1524,7 +1741,8 @@ class TB303Voice {
 
     // --- VCF control: Millman sum at Q10 base, expo current
     const vEnvMod = this.accentNote ? 0 : this.envVcf * this.envModFrac;
-    const vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * vAccF;
+    let vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * vAccF;
+    if (this.wKt > 0) vb += this.wKt * (this.cv - c.V_KT);
     const Il = Math.min(c.I_REF * Math.exp(vb / VT), 2e-3);
 
     // approx. unit gaussian from four uniforms (xorshift32), one per source
@@ -1669,7 +1887,7 @@ class DeClick {
 
 // The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
 // The AudioWorklet and the main-thread fallback both run this, so they sound the same.
-// Messages: knob, component, wave, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
+// Messages: knob, component, wave, tune, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
 class TB303Engine {
   constructor(fs, onStep = () => {}) {
     this.fs = fs; this.onStep = onStep;
@@ -1682,6 +1900,7 @@ class TB303Engine {
     if (m.type === 'knob') this.slew.set('k', m.name, m.value);
     else if (m.type === 'component') this.slew.set('c', m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value;
+    else if (m.type === 'tune') v.setTune(m.value);
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
     else if (m.type === 'pattern') this.pattern = m.value;
@@ -1721,7 +1940,7 @@ class TB303Engine {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, CMP_MODES, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpAtkMs, cmpHoldMs, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
 </script>
 <script id="worklet-src" type="text/plain">
 // AudioWorklet processor: the shared TB303Engine (from the model, loaded into the worklet first) on the audio thread
@@ -1770,13 +1989,8 @@ const KNOBS = [
   { id: 'dlyhi',     name: 'High cut',  ref: '1k–20 kHz',  def: 0.55, fx: 'dly' },
   { id: 'dlymix',    name: 'Return',    ref: 'wet level',  def: 0.35, fx: 'dly' },
   { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
-  { id: 'cmpthr',    name: 'Threshold', ref: '-40–0 dB',   def: 0.5,  fx: 'cmp' },
-  { id: 'cmprng',    name: 'Range',     ref: '0–200%',     def: 0.5,  fx: 'cmp' },
-  { id: 'cmpatk',    name: 'Attack',    ref: 'lookahead',  def: 0.3,  fx: 'cmp' },
-  { id: 'cmphold',   name: 'Hold',      ref: '0–500 ms',   def: 0,    fx: 'cmp' },
+  { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.5, fx: 'cmp' },
   { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.4,  fx: 'cmp' },
-  { id: 'cmpmix',    name: 'Mix',       ref: '0–100%',     def: 0.7,  fx: 'cmp' },
-  { id: 'cmpmode',   name: 'Mode',      ref: 'Peak/ISP/RMS', def: 0,  fx: 'cmp', hidden: true },
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33
@@ -1819,6 +2033,7 @@ const state = {
   wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
+  tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
 };
 const SOUND_BUILTIN = {
   'Stock 303': { knobs: {}, parts: {} },
@@ -1849,6 +2064,8 @@ function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return 
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
   if (!x || typeof x !== 'object') return out;
+  // sounds saved before the two-dial Compactor (no Amount) load with it off
+  if (x.knobs && typeof x.knobs === 'object' && !('cmpamt' in x.knobs)) x = { ...x, knobs: { ...x.knobs, cmpamt: 0 } };
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
@@ -1857,17 +2074,19 @@ function cleanSettings(x) {
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
   if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
+  if (Array.isArray(x.tune) && x.tune.length === 12) out.tune = x.tune.map(c => typeof c === 'number' && isFinite(c) ? Math.round(Math.min(100, Math.max(-100, c)) * 10) / 10 : 0);
   return out;
 }
 function snapshot() {
   const parts = {};
   for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && partChanged(k)) parts[k] = state.parts[k];
-  return { knobs: { ...state.knobs }, parts, wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
+  return { knobs: { ...state.knobs }, parts, ...(state.tune.some(c => c) && { tune: [...state.tune] }), wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
   if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly };
+  if (sess.tune) state.tune = sess.tune;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
 }
@@ -2637,14 +2856,16 @@ function generatePattern(len, dens = null) {
 const GEN_DENS = [null, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
 const gen = { dens: 0, bars: 1, ...store.get('gen', {}) };
 function drawGen() {
-  document.getElementById('o-dens').textContent = GEN_DENS[gen.dens] == null ? 'Any' : Math.round(GEN_DENS[gen.dens] * 100) + '%';
+  document.getElementById('o-dens').textContent = GEN_DENS[gen.dens] == null ? 'any' : Math.round(GEN_DENS[gen.dens] * 100) + '%';
   document.getElementById('o-bars').textContent = gen.bars;
+  document.querySelector('input[data-g=dens]').value = gen.dens; document.querySelector('input[data-g=bars]').value = gen.bars;
 }
 
 // ---------- engineering notation ----------
 const PFX = [[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
 function fmt(v, unit) {
   if (unit === '×' || unit === 'Hz') return +v.toPrecision(4) + ' ' + unit;
+  if (unit === '%') return Math.round(v * 100) + ' %';
   if (unit === 'V') return +v.toPrecision(4) + ' V';
   for (const [m, p] of PFX) if (Math.abs(v) >= m * 0.9999) return +(v / m).toPrecision(3) + ' ' + p + unit;
   return v.toExponential(2) + ' ' + unit;
@@ -2653,19 +2874,28 @@ function fmt(v, unit) {
 // ---------- knobs ----------
 const panel = document.getElementById('panel');
 const KNOB_A0 = -150, KNOB_SWEEP = 300; // dial travel in degrees, 0 = straight up
+// Dial look (Johnny, from his reference): a ring of separate wedge segments that light up to the value, ghost where unlit,
+// the readout above and the label below. No pointer line and no centre number.
+const KNOB_SEGS = 24, KNOB_RI = 17.5, KNOB_RO = 28.5, KNOB_GAP = 2.6; // segments round the 300° sweep; viewBox is 64 units
+const knobAngle = (p) => KNOB_A0 + KNOB_SWEEP * Math.min(1, Math.max(0, p));
+const segPath = (i) => {
+  const w = KNOB_SWEEP / KNOB_SEGS, a0 = KNOB_A0 + i * w + KNOB_GAP / 2, a1 = KNOB_A0 + (i + 1) * w - KNOB_GAP / 2;
+  const pt = (deg, r) => { const t = (deg - 90) * Math.PI / 180; return `${(32 + r * Math.cos(t)).toFixed(2)} ${(32 + r * Math.sin(t)).toFixed(2)}`; };
+  return `M${pt(a0, KNOB_RO)}A${KNOB_RO} ${KNOB_RO} 0 0 1 ${pt(a1, KNOB_RO)}L${pt(a1, KNOB_RI)}A${KNOB_RI} ${KNOB_RI} 0 0 0 ${pt(a0, KNOB_RI)}Z`;
+};
+const SEG_ALL = Array.from({ length: KNOB_SEGS }, (_, i) => segPath(i));
+const SEG_LIT = SEG_ALL.map((_, i) => SEG_ALL.slice(0, i + 1).join(''));
+// segments lit for a value: none at 0, all at 1
+const arcPath = (p) => { const n = Math.round(Math.min(1, Math.max(0, p)) * KNOB_SEGS); return n ? SEG_LIT[n - 1] : ''; };
 function knobSVG() {
-  // Live-style dial: thick value arc over a dark track, and a dark pointer that runs out through the ring
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path class="trk" d="M19.5 53.65 A25 25 0 1 1 44.5 53.65" fill="none" stroke="var(--line)" stroke-width="3.6"/>
-    <path class="arc" d="" fill="none" stroke="var(--fg)" stroke-width="3.6"/>
-    <line class="ptr" x1="32" y1="32" x2="32" y2="4.5" stroke="var(--bg)" stroke-width="3" stroke-linecap="round"/>
+    <path class="trk" d="${SEG_ALL.join('')}"/>
+    <path class="arc" d=""/>
   </svg>`;
 }
-function arcPath(p) {
-  const a0 = KNOB_A0, a = a0 + KNOB_SWEEP * p, r = 25, cx = 32, cy = 32;
-  const pt = (deg) => { const t = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
-  const [x0, y0] = pt(a0), [x1, y1] = pt(a);
-  return p < 0.002 ? '' : `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${KNOB_SWEEP * p > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+// redraw one dial's ring for a 0-1 position
+function knobDraw(el, p) {
+  el.querySelector('.arc').setAttribute('d', arcPath(p));
 }
 function knobText(id, p) {
   const c = state.parts;
@@ -2674,16 +2904,13 @@ function knobText(id, p) {
     case 'cutoff': return (preview.wCut * c.V_CUT * p * 1000).toFixed(1) + ' mV';
     case 'resonance': return 'k = ' + (c.A_Q21 * p).toFixed(1);
     case 'decay': return fmt(c.R138 + c.VR6 * Math.pow(p, 2.74), 'Ω');
-    case 'dist': return 'gain ×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
+    case 'dist': return '×' + Math.round(1 + (c.RAT_RD * Math.pow(p, 2.74) + 1) * (1 / c.RAT_RG1 + 1 / c.RAT_RG2));
     case 'filter': return fmt(Math.round(1 / (2 * Math.PI * (c.RAT_RF + 100e3 * p) * c.RAT_CFLT)), 'Hz');
     case 'dlytime': return dlyDiv(p)[0];
     case 'dlyfb': return Math.round(95 * p) + '%';
     case 'dlylo': return fmt(Math.round(dlyLo(p)), 'Hz');
     case 'dlyhi': { const f = dlyHi(p); return f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : Math.round(f) + ' Hz'; }
-    case 'cmpthr': return cmpThrDb(p).toFixed(1) + ' dB';
-    case 'cmprng': return Math.round(200 * p) + '%';
-    case 'cmpatk': return cmpAtkMs(p).toFixed(1) + ' ms';
-    case 'cmphold': return Math.round(cmpHoldMs(p)) + ' ms';
+    case 'cmpamt': return p <= 0 ? 'off' : Math.round(100 * p) + '%';
     case 'cmprel': return Math.round(cmpRelMs(p)) + ' ms';
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
@@ -2710,21 +2937,28 @@ function lexText(id, p) {
   }
   return '';
 }
-// One binding for every dial: vertical drag (Shift = fine), wheel, arrow and Page keys, Home/End, double-click.
+// One binding for every dial: vertical drag (Shift = fine), arrow and Page keys, Home/End, double-click.
 // host is the dial itself, or a container whose dials are found by pick(e) and named by data-k.
 // set(k, value, event) and nudge(k, delta, event) receive dial units; min/max enable Home/End.
 function bindDial(host, { pick = () => host, get, set, nudge = (k, d, e) => set(k, get(k) + d, e), drag = 160, fine = 600, step = .02, page = .1, min, max, reset, start, focus = false }) {
   let d = null;
   const at = (e) => { const el = pick(e); return el && { el, k: el.dataset.k }; };
   host.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return; // only a held main button (or a finger) turns a dial
     const t = at(e); if (!t) return;
     t.el.setPointerCapture(e.pointerId); if (focus) t.el.focus();
     d = { k: t.k, y: e.clientY, v: get(t.k), id: e.pointerId, el: t.el }; start?.(t.k, t.el);
   });
-  host.addEventListener('pointermove', (e) => { if (d && e.pointerId === d.id) set(d.k, d.v + (d.y - e.clientY) / (e.shiftKey ? fine : drag), e); });
+  // Dials move only while the button is held (Johnny): a move with no button down ends any drag that missed its release
+  // (released outside the window, capture lost), and the wheel / trackpad scroll no longer turns them on hover.
   const end = () => { if (d) d.el.dispatchEvent(new Event('dialend')); d = null; };
-  host.addEventListener('pointerup', end); host.addEventListener('pointercancel', end);
-  host.addEventListener('wheel', (e) => { const t = at(e); if (!t) return; e.preventDefault(); nudge(t.k, -Math.sign(e.deltaY) * step, e); }, { passive: false });
+  host.addEventListener('pointermove', (e) => {
+    if (!d || e.pointerId !== d.id) return;
+    if (e.pointerType === 'mouse' && !(e.buttons & 1)) { end(); return; }
+    set(d.k, d.v + (d.y - e.clientY) / (e.shiftKey ? fine : drag), e);
+  });
+  host.addEventListener('pointerup', end); host.addEventListener('pointercancel', end); host.addEventListener('lostpointercapture', end);
+  addEventListener('blur', end);
   host.addEventListener('keydown', (e) => {
     const t = at(e); if (!t) return;
     const delta = { ArrowUp: step, ArrowRight: step, ArrowDown: -step, ArrowLeft: -step, PageUp: page, PageDown: -page }[e.key];
@@ -2743,15 +2977,14 @@ for (const k of KNOBS) {
     <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
   (k.fx ? document.getElementById('fx-' + k.fx + '-knobs') : panel).appendChild(wrap);
   const el = wrap.querySelector('.knob');
-  knobEls[k.id] = { el, arc: el.querySelector('.arc'), ptr: el.querySelector('.ptr'), val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
+  knobEls[k.id] = { el, val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
   bindDial(el, { get: () => state.knobs[k.id], set: (_, v) => setKnob(k.id, v), min: 0, max: 1, reset: () => setKnob(k.id, k.def), start: () => wrap.classList.add('active') });
   el.addEventListener('dialend', () => wrap.classList.remove('active'));
 }
 function drawKnob(id) {
-  if (id === 'cmpmode' || id === 'dlypp') { drawCmpMode(); return; }
+  if (id === 'dlypp') { drawDlyMode(); return; }
   const p = state.knobs[id], k = knobEls[id]; if (!k) return;
-  k.arc.setAttribute('d', arcPath(p));
-  k.ptr.setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
+  knobDraw(k.el, p);
   k.el.setAttribute('aria-valuenow', Math.round(p * 100));
   k.val.textContent = knobText(id, p);
   if (id.startsWith('lex')) drawLex();
@@ -2838,7 +3071,7 @@ function paintCell(b) {
   const col = +b.dataset.col, s = state.pattern[col]; if (!s) return false;
   const t = b.dataset.t, v = +b.dataset.v, { o, k } = splitCode(s.code), before = s.code + ':' + s.gate + s.accent + s.slide;
   if (paint.t === 'k') {
-    if (paint.on) { if (t === 'k') { s.code = clampCode(24 + v + 12 * o); s.gate = true; } else if (t === 'o') return false; else s.gate = true; }
+    if (paint.on) { if (t === 'k') { s.code = clampCode(24 + v + 12 * o); s.gate = true; } else return false; }
     else s.gate = false;
   } else if (paint.t === 'o') { if (t !== 'o') return false; s.code = clampCode(24 + k + 12 * paint.oct); }
   else { if (t !== paint.t) return false; s[t] = paint.on; }
@@ -2867,6 +3100,7 @@ seq.addEventListener('pointerdown', (e) => {
 });
 addEventListener('pointermove', (e) => {
   if (!paint || e.pointerId !== paint.id) return;
+  if (e.pointerType === 'mouse' && !(e.buttons & 1)) { paint = null; return; } // button released somewhere we didn't hear: stop painting
   const b = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('#seq button[data-t]'); if (!b) return;
   if (paintCell(b)) { renderSeq(); pushPattern(); }
 });
@@ -2888,28 +3122,71 @@ seq.addEventListener('keydown', (e) => {
 });
 
 // ---------- side controls ----------
+const sideIn = Object.fromEntries([...document.querySelectorAll('.sq-side input[data-a]')].map(el => [el.dataset.a, el]));
 function renderSide() {
-  document.getElementById('o-len').textContent = state.pattern.length;
+  document.getElementById('o-len').textContent = sideIn.len.value = state.pattern.length;
+  sideIn.gate.value = Math.round(state.gate * 100);
   document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
-  const codes = state.pattern.map(s => s.code), lo = Math.min(...codes), hi = Math.max(...codes);
-    for (const btn of document.querySelectorAll('.stp button[data-a="tr"]')) btn.disabled = +btn.dataset.d < 0 ? lo <= 0 : hi >= 59;
 }
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-document.querySelector('.sq-side').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-a]'); if (!b) return;
-  const d = +b.dataset.d, P = state.pattern;
-  switch (b.dataset.a) {
-    case 'len':
-      if (d < 0 && P.length > 1) tail.unshift(P.pop());
-      else if (d > 0) extendTo(P.length + 1);
-      break;
-    case 'gate': state.gate = Math.min(0.95, Math.max(0.1, Math.round((state.gate + d * 0.05) * 100) / 100)); sendGroove(); break;
-    case 'shift': if (d > 0) P.unshift(P.pop()); else P.push(P.shift()); break;
-    case 'tr': if (P.every(s => s.code + d >= 0 && s.code + d <= 59)) for (const s of P) s.code += d; break;
+// sliders, as in the Shyoy: Length and Step len set values; Shift and Transpose spring back to centre when let go
+let sprBase = null;
+const sprReset = () => { sprBase = null; for (const a of ['shift', 'tr']) { sideIn[a].value = 0; document.getElementById('o-' + a).textContent = '0'; } };
+for (const a of ['shift', 'tr']) {
+  const el = sideIn[a];
+  const grab = () => { if (!sprBase) { pushUndo(); sprBase = state.pattern.map(st => ({ ...st })); } };
+  el.addEventListener('pointerdown', grab); el.addEventListener('focus', grab);
+  el.addEventListener('change', () => { if (el.matches(':focus-visible')) return; sprReset(); });
+  el.addEventListener('pointerup', sprReset); el.addEventListener('pointercancel', sprReset); el.addEventListener('blur', sprReset);
+}
+document.querySelector('.sq-side').addEventListener('input', (e) => {
+  const el = e.target.closest('input[data-a]'); if (!el) return;
+  const v = +el.value, P = state.pattern;
+  switch (el.dataset.a) {
+    case 'len': while (P.length > v && P.length > 1) tail.unshift(P.pop()); extendTo(v); break;
+    case 'gate': state.gate = v / 100; sendGroove(); break;
+    case 'shift': {
+      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
+      const n = sprBase.length, k = ((v % n) + n) % n;
+      state.pattern = sprBase.map((_, i) => ({ ...sprBase[(i - k + n) % n] }));
+      renderSeq(); pushPattern(); document.getElementById('o-shift').textContent = (v > 0 ? '+' : '') + v; return;
+    }
+    case 'tr': {
+      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
+      const codes = sprBase.map(st => st.code), lo = Math.min(...codes), hi = Math.max(...codes);
+      const d = Math.max(-lo, Math.min(59 - hi, v));
+      state.pattern = sprBase.map(st => ({ ...st, code: st.code + d }));
+      renderSeq(); pushPattern(); document.getElementById('o-tr').textContent = (d > 0 ? '+' : '') + d; return;
+    }
   }
   renderSeq(); pushPattern();
 });
+// Undo next to the pattern tools: the same undo as Functions › Undo
+{
+  const fu = document.getElementById('fn-undo'), pu = document.getElementById('p-undo');
+  pu.onclick = () => fu.click();
+  new MutationObserver(() => { pu.disabled = fu.disabled; }).observe(fu, { attributes: true, attributeFilter: ['disabled'] });
+}
+// Randomise accents, slides or octaves: each rewrites only its own property on the notes (steps with the gate on) and
+// leaves the notes and the other properties alone; rests are untouched. Tap again for another roll; Undo puts it back.
+const RND_OCT = [[-1, 3], [0, 5], [1, 2], [2, 0.4], [-2, 0.4]]; // octave lane, weight: mostly 0 and -1, some +1, a rare extreme
+const rndOct = () => { let r = Math.random() * RND_OCT.reduce((a, [, w]) => a + w, 0); for (const [o, w] of RND_OCT) if ((r -= w) < 0) return o; return 0; };
+function randomise(kind) {
+  const P = state.pattern; if (!P.some(st => st.gate)) { sqSay('No notes to change: put some notes in first.'); return; }
+  pushUndo();
+  for (const st of P) {
+    if (!st.gate) continue;
+    if (kind === 'accent') st.accent = Math.random() < 0.3;
+    else if (kind === 'slide') st.slide = Math.random() < 0.25;
+    else { const { k } = splitCode(st.code); st.code = clampCode(24 + k + 12 * rndOct()); }
+  }
+  renderSeq(); pushPattern();
+  sqSay(`New random ${kind === 'accent' ? 'accents' : kind === 'slide' ? 'slides' : 'octaves'}. Tap again for another roll; Undo puts it back.`);
+}
+document.getElementById('r-acc').onclick = () => randomise('accent');
+document.getElementById('r-sld').onclick = () => randomise('slide');
+document.getElementById('r-oct').onclick = () => randomise('octave');
 // Duplicate steps: repeat the pattern until it fills the next of 16, 32 or 64 steps (a 5-step riff becomes 16, then 32)
 document.getElementById('p-dup').onclick = () => {
   const P = state.pattern, n = P.length, to = [16, 32, 64].find(x => x > n);
@@ -2930,11 +3207,9 @@ document.getElementById('p-shuf').onclick = () => {
   sqSay(`Shuffled ${P.length} steps. Tap again for another order; Functions › Undo puts it back.`);
 };
 drawGen();
-document.querySelector('.sq-side').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-g]'); if (!b) return;
-  const d = +b.dataset.d;
-  if (b.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, gen.dens + d));
-  else gen.bars = Math.min(4, Math.max(1, gen.bars + d));
+document.querySelector('.sq-gen').addEventListener('input', (e) => {
+  const el = e.target.closest('input[data-g]'); if (!el) return;
+  if (el.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, +el.value)); else gen.bars = Math.min(4, Math.max(1, +el.value));
   store.set('gen', gen); drawGen();
 });
 document.getElementById('rand').onclick = () => {
@@ -2945,10 +3220,43 @@ document.getElementById('rand').onclick = () => {
   sqSay(`From ${g.src}: ${d}. Functions › Undo puts the old one back.`);
 };
 
+
+// Arrows on the right of the roll: move every note up or down a semitone (the note rows) or an octave (the octave rows).
+// A real transpose, so B up a semitone becomes C in the next octave lane. If any note would go past the top or bottom
+// of the range nothing moves (so the riff keeps its shape) and a message says so; rests just follow, clamped.
+document.querySelector('.nudge').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-nudge]'); if (!b) return;
+  const d = +b.dataset.nudge, P = state.pattern, notes = P.filter(st => st.gate);
+  if (!notes.length) { sqSay('No notes to move: put some notes in first.'); return; }
+  if (notes.some(st => st.code + d < 0 || st.code + d > 59)) { sqSay(`Already at the ${d > 0 ? 'top' : 'bottom'} of the range.`); return; }
+  pushUndo();
+  for (const st of P) st.code = clampCode(st.code + d);
+  renderSeq(); pushPattern();
+});
+
+// Alter accents, slides or octaves: a variation rather than a new roll. About a quarter of the notes (at least one) get
+// the change: an accent or slide flipped on or off, or an octave jump up or down within range. Undo puts it back.
+function alterLane(kind) {
+  const notes = state.pattern.filter(st => st.gate); if (!notes.length) { sqSay('No notes to vary: put some notes in first.'); return; }
+  pushUndo();
+  const pick = [...notes].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(notes.length / 4)));
+  for (const st of pick) {
+    if (kind === 'octave') { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; }
+    else st[kind] = !st[kind];
+  }
+  renderSeq(); pushPattern();
+  const n = pick.length, w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
+  sqSay(`Altered ${n} ${w[n > 1 ? 1 : 0]}. Tap again for more; Undo puts it back.`);
+}
+document.getElementById('a-acc').onclick = () => alterLane('accent');
+document.getElementById('a-sld').onclick = () => alterLane('slide');
+document.getElementById('a-oct').onclick = () => alterLane('octave');
+
 // ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
-if (!'ABCD'.includes(sel.g) || !(sel.n >= 0 && sel.n < 12)) sel = { g: 'A', n: 0 };
+// eight patterns, 1-8 (Johnny): they live in what was bank A; other old slots stay in storage but are not shown
+if (sel.g !== 'A' || !(sel.n >= 0 && sel.n < 8)) sel = { g: 'A', n: 0 };
 const slotKey = (g, n) => g + (n + 1);
 let clip = store.get('clip', null);
 function blankPattern(len = 16) { return Array.from({ length: len }, () => restStep(24)); }
@@ -2961,7 +3269,7 @@ function storeSlot() {
 // slots that are empty, or still hold an untouched random pick, get a random preset
 function fillSlots(force) {
   const cur = slotKey(sel.g, sel.n); let n = 0;
-  for (const g of 'ABCD') for (let i = 0; i < 12; i++) {
+  for (const g of 'A') for (let i = 0; i < 8; i++) {
     const k = slotKey(g, i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
@@ -2999,7 +3307,7 @@ document.getElementById('p-clear').onclick = () => { state.pattern = blankPatter
 function pushPattern() { store.set('pattern', state.pattern); storeSlot(); sendPattern(); renderBank(); saveSession(); }
 
 // ---------- chains: right-click slots to play several patterns in a row ----------
-let chain = (store.get('chain', null) || []).filter(k => /^[A-D]([1-9]|1[0-2])$/.test(k));
+let chain = (store.get('chain', null) || []).filter(k => /^A[1-8]$/.test(k));
 let chainOffs = []; // start step of each chained pattern in the joined sequence
 const slotPattern = (k) => cleanSettings(banks[k]).pattern || blankPattern();
 function sendPattern() {
@@ -3038,6 +3346,12 @@ function toggleChain(b) {
   if (chain.length === 1 && chain[0] === slotKey(sel.g, sel.n) && pos >= 0) chain = [];
   store.set('chain', chain); sendPattern(); renderChain();
 }
+// number keys 1-8 pick that pattern slot in the current bank (Johnny), except while typing
+document.addEventListener('keydown', (e) => {
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || !/^Digit[1-8]$/.test(e.code)) return;
+  if (e.target.closest?.('input[type=text], textarea, select, [contenteditable=""], [contenteditable=true]') || document.getElementById('options').open) return;
+  e.preventDefault(); document.querySelector(`#bk-n [data-n="${+e.code.slice(5) - 1}"]`)?.click();
+});
 
 // ---------- functions menu ----------
 const fnBtn = document.getElementById('fn-btn'), fnMenu = document.getElementById('fn-menu'), sqMsg = document.getElementById('sq-msg');
@@ -3186,8 +3500,7 @@ function partRow(k) {
 function drawPartKnob(k) {
   const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL;
   for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
-    el.querySelector('.arc').setAttribute('d', arcPath(t));
-    el.querySelector('.ptr').setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * t} 32 32)`);
+    knobDraw(el, t);
     el.setAttribute('aria-valuenow', Math.round(t * 100));
   }
 }
@@ -3227,15 +3540,14 @@ tabsEl.addEventListener('keydown', (e) => {
   if (j === undefined) return; e.preventDefault();
   selectTab(TABS[(j + TABS.length) % TABS.length], true);
 });
-// redraw the board on the next frame when it is showing (safe to call before the board code has run)
-function renderBoardSoon() { const bp = document.getElementById('pane-board'); if (!bp || bp.hidden || bp._raf) return; bp._raf = requestAnimationFrame(() => { bp._raf = 0; renderBoard(); }); }
 function applyPart(k, val) {
   state.parts[k] = val;
   if (k === 'I_REF') queueMicrotask(drawTrim);
+  if (k === 'KT' || k === 'R_KT') queueMicrotask(drawKeyTrack);
   for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', partChanged(k, val)); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
-  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx(); renderBoardSoon();
+  for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderTabsSoon(); renderFx();
 }
 let tabTimer = 0;
 function renderTabsSoon() { clearTimeout(tabTimer); tabTimer = setTimeout(renderTabs, 120); }
@@ -3256,7 +3568,7 @@ function snapReal(k, v) {
   for (const x of seriesValues(k)) { const dd = Math.abs(Math.log(x / v)); if (dd < bd) { bd = dd; best = x; } }
   return best;
 }
-// one series step up or down from the current value (arrow keys and the wheel)
+// one series step up or down from the current value (arrow keys)
 function stepReal(k, dir) {
   const cur = state.parts[k], vs = seriesValues(k);
   const next = dir > 0 ? vs.find(x => x > cur * 1.001) : [...vs].reverse().find(x => x < cur * 0.999);
@@ -3351,7 +3663,7 @@ async function initAudio() {
   document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
+  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   sendDeclick();
   drawScope();
@@ -3387,7 +3699,7 @@ playBtn.onclick = async () => {
   status.textContent = playing ? (node ? 'Running · AudioWorklet' : 'Running · main thread') : 'Stopped';
   if (!playing) markStep(-1);
 };
-// tempo dial: drag, wheel or arrows, 60-200 BPM; double-click to type a value
+// tempo dial: drag or arrows, 60-200 BPM; double-click to type a value
 // spacebar plays and stops, except while typing in a text field
 const typing = (t) => t.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]');
 document.addEventListener('keydown', (e) => {
@@ -3411,8 +3723,7 @@ const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById
 bpmKnob.innerHTML = knobSVG();
 function drawBpm() {
   const p = (state.bpm - 60) / 140;
-  bpmKnob.querySelector('.arc').setAttribute('d', arcPath(p));
-  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
+  knobDraw(bpmKnob, p);
   bpmKnob.setAttribute('aria-valuenow', state.bpm); bpmVal.textContent = state.bpm;
 }
 function setBpm(v) {
@@ -3424,14 +3735,29 @@ bindDial(bpmKnob, { get: () => state.bpm, set: (_, v) => setBpm(v), drag: 2, fin
 
 // the waveform switch sits at the left of the voice panel; component randomise and its undo at the right
 panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="name">Waveform</span>
+  <div class="wave-row"><svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 L9 1 V11 L17 1 V11"/></svg>
   <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
+  <svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 V1 H10 V11 H19 V1"/></svg></div>
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
+// Key track: the KT part (a TD-3-MO / Devil Fish style mod), as a full front-panel dial after Reso
+document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: higher notes open the filter. About a third is exact 1 V/oct; full is about 300%, so low notes almost vanish. 0 is the stock 303. Double-click to reset.">
+  <div class="knob" data-k="KT" tabindex="0" role="slider" aria-label="Key track" aria-valuemin="0" aria-valuemax="100" id="knob-kt">${knobSVG()}</div>
+  <div class="name">Key track</div><div class="ref">KT 100K(B)</div><div class="val" id="kt-val"></div></div>`);
+const ktEl = document.getElementById('knob-kt');
+function drawKeyTrack() {
+  drawPartKnob('KT');
+  const el = document.getElementById('kt-val'); if (!el) return;
+  el.textContent = state.parts.KT > 0 ? Math.round(preview.wKt / (VT * Math.LN2) * 100) + '%' : 'off';
+}
+bindDial(ktEl, { get: () => partT('KT'), set: (_, t) => { setPartT('KT', t, true); drawKeyTrack(); }, min: 0, max: 1,
+  reset: () => { applyPart('KT', COMPONENTS.KT.v); drawKeyTrack(); }, start: () => ktEl.parentElement.classList.add('active') });
+ktEl.addEventListener('dialend', () => ktEl.parentElement.classList.remove('active'));
 panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="name">Components</span>
   <div class="trim" title="TM3 filter frequency trimmer: shifts the cutoff about an octave either way. Double-click to reset.">
     <div class="knob" data-k="I_REF" tabindex="0" role="slider" aria-label="Filter trim (TM3)" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
     <span class="tname">Filter trim</span><span class="tval" id="trim-val"></span></div>
-  <button type="button" class="mini" id="parts-rand" title="New machine: every part lands somewhere inside its real tolerance (±5% resistors, ±10–20% capacitors), like another unit off the line">New unit</button>
+  <button type="button" class="mini" id="parts-rand" title="New unit: every part lands inside its real tolerance, like another 303 off the line">New unit</button>
   <button type="button" class="mini" id="parts-bend" title="Messed up: every part bent well outside spec, circuit-bending style. Tuning parts are left alone so it stays in tune">Messed up</button>
   <button type="button" class="mini" id="parts-undo" disabled>Undo</button></div>`);
 // TM3 filter trimmer: the factory cutoff calibration pot, shown as a little trimmer under the voice knobs
@@ -3444,7 +3770,7 @@ function drawTrim() {
 }
 bindDial(trimEl, { get: () => partT('I_REF'), set: (_, t) => { setPartT('I_REF', t); drawTrim(); }, drag: 240, fine: 800, focus: true,
   reset: () => { applyPart('I_REF', COMPONENTS.I_REF.v); drawTrim(); } });
-drawTrim();
+drawTrim(); drawKeyTrack();
 const partsUndo = [];
 function syncPartsUndo() { document.getElementById('parts-undo').disabled = !partsUndo.length; }
 document.getElementById('parts-rand').onclick = () => FUNCTIONS.parts();
@@ -3520,21 +3846,92 @@ function renderFx() {
     document.getElementById('fx-' + n).classList.toggle('on', !!state.fx[n]);
   }
   document.getElementById('fx-cmp').classList.toggle('on', !!(state.fx.lex || state.fx.dly)); // the Compactor acts on the returns
-  drawCmpMode();
+  drawDlyMode();
 }
-// Compactor detector: Peak, ISP or RMS (stored as the cmpmode knob: 0, 0.5, 1)
-const cmpModeEl = document.getElementById('cmp-mode');
+// Delay mode: ping-pong or mono (stored as the dlypp knob)
 const dlyModeEl = document.getElementById('dly-mode');
-function drawCmpMode() {
-  const m = Math.round(state.knobs.cmpmode * 2); for (const b of cmpModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === m);
+function drawDlyMode() {
   const pp = state.knobs.dlypp >= 0.5 ? 1 : 0; for (const b of dlyModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === pp);
 }
-dlyModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('dlypp', +b.dataset.m); drawCmpMode(); } });
-cmpModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('cmpmode', b.dataset.m / 2); drawCmpMode(); } });
+dlyModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('dlypp', +b.dataset.m); drawDlyMode(); } });
 for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
   renderFx(); saveSession();
 };
+
+// ---------- tuning: a fine offset for each of the 12 notes, in cents, the same in every octave ----------
+// The offsets add to the pitch CV (1 V/oct, so 1 cent = 1/1200 V) as each note starts; all 0 is the stock 303.
+// They belong to the sound, so presets and the session keep them. The temperaments are laid out from a root note.
+const TUNE_MAX = 100;
+const tuneEl = document.getElementById('tu-faders'), tuneSeg = 20; // segments each side of the zero line, 5 cents each
+const cents = (r) => 1200 * Math.log2(r);
+// each system: cents above the root for the 12 notes of the scale
+const TUNINGS = {
+  just: { name: 'Just intonation', at: [1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8].map(cents) },
+  pyth: { name: 'Pythagorean', at: [1, 256/243, 9/8, 32/27, 81/64, 4/3, 729/512, 3/2, 128/81, 27/16, 16/9, 243/128].map(cents) },
+  // quarter-comma meantone: pure major thirds from fifths of 696.58 cents, from the flat third to the sharp fifth
+  mean: { name: 'Quarter-comma meantone', at: Array.from({ length: 12 }, (_, i) => { const k = [0, 7, 2, -3, 4, -1, 6, 1, 8, 3, -2, 5][i]; return ((k * 1200 * Math.log2(5) / 4) % 1200 + 1200) % 1200; }) },
+};
+const tuneRound = (c) => Math.round(Math.min(TUNE_MAX, Math.max(-TUNE_MAX, c)) * 10) / 10;
+let tuneRoot = Math.min(11, Math.max(0, store.get('tuneRoot', 9) | 0)), tuneSys = '';
+const tuneUndo = [];
+let tuneUndoAt = 0;
+function pushTuneUndo(force) {
+  const now = Date.now(); if (!force && now - tuneUndoAt < 1200) { tuneUndoAt = now; return; } // a run of wheel or key steps is one undo
+  tuneUndoAt = now; tuneUndo.push([...state.tune]); if (tuneUndo.length > 50) tuneUndo.shift();
+  document.getElementById('tu-undo').disabled = false;
+}
+function sendTune() { send({ type: 'tune', value: [...state.tune] }); }
+function setTune(arr, sys = '') {
+  state.tune = arr.map(tuneRound); tuneSys = sys; sendTune(); drawTune(); saveSession();
+}
+function tuneText(c) { return c === 0 ? '0 c' : (c > 0 ? '+' : '−') + Math.abs(c).toFixed(Number.isInteger(c) ? 0 : 1) + ' c'; }
+tuneEl.innerHTML = NOTE.map((n, i) => `<div class="tu-col">
+    <span class="val" data-k="${i}" title="Click to put ${n.toLowerCase()} back to 0">0 c</span>
+    <div class="tu-bar" data-k="${i}" tabindex="0" role="slider" aria-label="${n} fine tune, cents" aria-valuemin="${-TUNE_MAX}" aria-valuemax="${TUNE_MAX}">${
+      Array.from({ length: 2 * tuneSeg + 1 }, (_, j) => `<i data-s="${tuneSeg - j}"></i>`).join('')}</div>
+    <span class="mname">${n.toLowerCase()}</span></div>`).join('');
+const tuneCols = [...tuneEl.querySelectorAll('.tu-col')].map((col) => ({ val: col.querySelector('.val'), bar: col.querySelector('.tu-bar'), segs: [...col.querySelectorAll('i')] }));
+function drawTune() {
+  state.tune.forEach((c, i) => {
+    const t = tuneCols[i], step = TUNE_MAX / tuneSeg;
+    t.val.textContent = tuneText(c); t.val.classList.toggle('changed', c !== 0);
+    t.bar.setAttribute('aria-valuenow', c); t.bar.setAttribute('aria-valuetext', tuneText(c).replace('c', 'cents'));
+    for (const s of t.segs) { const j = +s.dataset.s; s.classList.toggle('on', j === 0 || (j > 0 ? c > (j - 1) * step : c < (j + 1) * step)); }
+  });
+  for (const b of document.querySelectorAll('#tu-root button')) b.setAttribute('aria-pressed', +b.dataset.r === tuneRoot);
+  for (const b of document.querySelectorAll('#tu-sys button')) b.setAttribute('aria-pressed', b.dataset.t === tuneSys);
+}
+bindDial(tuneEl, {
+  pick: (e) => e.target.closest('.tu-bar'), get: (k) => state.tune[k], drag: 1.2, fine: 12, step: 1, page: 10, min: -TUNE_MAX, max: TUNE_MAX, focus: true,
+  start: () => pushTuneUndo(true),
+  set: (k, c, e) => { const t = [...state.tune]; t[k] = e?.shiftKey ? c : Math.round(c); setTune(t); },
+  nudge: (k, d, e) => { pushTuneUndo(); const t = [...state.tune]; t[k] = (e.shiftKey ? d / 10 : d) + t[k]; setTune(t); },
+  reset: (k) => { const t = [...state.tune]; t[k] = 0; setTune(t); },
+});
+tuneEl.addEventListener('click', (e) => { const v = e.target.closest('.val'); if (!v) return; pushTuneUndo(true); const t = [...state.tune]; t[+v.dataset.k] = 0; setTune(t); });
+// a temperament, laid out from the root note; Drift is a slightly out-of-tune old unit (each note a few cents off)
+function applyTuning(sys) {
+  if (sys === 'drift') { setTune(state.tune.map(() => (Math.random() + Math.random() + Math.random() - 1.5) * 8), ''); return; }
+  const at = TUNINGS[sys].at;
+  setTune(Array.from({ length: 12 }, (_, i) => { const d = (i - tuneRoot + 12) % 12; return at[d] - 100 * d; }), sys);
+}
+document.getElementById('tu-sys').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-t]'); if (!b) return;
+  pushTuneUndo(true); applyTuning(b.dataset.t);
+  sqSay(b.dataset.t === 'drift' ? 'Every note a few cents out, like an old unit.' : `${TUNINGS[b.dataset.t].name} from ${NOTE[tuneRoot].toLowerCase()}.`);
+});
+document.getElementById('tu-root').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-r]'); if (!b) return;
+  tuneRoot = +b.dataset.r; store.set('tuneRoot', tuneRoot);
+  if (tuneSys) { pushTuneUndo(true); applyTuning(tuneSys); } else drawTune(); // a temperament still as laid out follows the new root
+});
+document.getElementById('tu-reset').onclick = () => { if (state.tune.some(c => c)) pushTuneUndo(true); setTune(new Array(12).fill(0)); sqSay('Back to equal temperament.'); };
+document.getElementById('tu-undo').onclick = () => {
+  const u = tuneUndo.pop(); if (u) setTune(u);
+  document.getElementById('tu-undo').disabled = !tuneUndo.length;
+};
+drawTune();
 
 // ---------- preset auto-namer ----------
 // Five styles, often mixed: alien word-part mashups, messed-up desserts, cosmology, ancient Greek-ish,
@@ -3605,13 +4002,14 @@ const NAMER = (() => {
 })();
 
 // ---------- presets ----------
-function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave, fx: x.fx }; }
+function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, ...(x.tune && { tune: x.tune }), wave: x.wave, fx: x.fx }; }
 function patternSnap() { return { bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; }
 function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
   state.wave = c.wave || 'saw';
+  state.tune = c.tune || new Array(12).fill(0); sendTune();
   state.fx = c.fx || { rat: false, lex: false, dly: false };
   for (const n in state.fx) { preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] }); }
   renderFx();
@@ -3619,7 +4017,7 @@ function applySound(x) {
   for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
   drawWave();
-  renderParts(); renderFrontMods(); drawTrim(); for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderBoardSoon();
+  renderParts(); renderFrontMods(); drawTrim(); drawKeyTrack(); drawTune(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
 function applyPattern(x) {
   const c = cleanSettings(x);
@@ -3852,12 +4250,12 @@ function pmTags(v) {
   return t;
 }
 
-// ---------- projects: everything at once (sound, effects, tempo, all 48 bank slots, chain) ----------
-const SLOT_RE = /^[A-D]([1-9]|1[0-2])$/;
+// ---------- projects: everything at once (sound, effects, tempo, the 8 pattern slots, chain) ----------
+const SLOT_RE = /^A[1-8]$/;
 function projectSnap() {
   storeSlot();
   return { sound: soundSnap(), bpm: state.bpm, sel: { ...sel }, chain: [...chain],
-    banks: Object.fromEntries(Object.entries(banks).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
+    banks: Object.fromEntries(Object.entries(banks).filter(([k]) => SLOT_RE.test(k)).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])) };
 }
 // a preset is a whole project, or (folded in from the old separate lists) just a sound or just a pattern
 const sndOnlyEl = document.getElementById('prj-sndonly');
@@ -3882,7 +4280,7 @@ function applyProject(x) {
     }
     store.set('banks', banks);
   }
-  if (x.sel && 'ABCD'.includes(x.sel.g) && x.sel.n >= 0 && x.sel.n < 12) sel = { g: x.sel.g, n: x.sel.n | 0 };
+  if (x.sel && x.sel.g === 'A' && x.sel.n >= 0 && x.sel.n < 8) sel = { g: 'A', n: x.sel.n | 0 }; else sel = { g: 'A', n: 0 };
   store.set('bankSel', sel);
   chain = Array.isArray(x.chain) ? x.chain.filter(k => SLOT_RE.test(k)) : [];
   store.set('chain', chain); playingSlot = '';
@@ -3982,7 +4380,7 @@ fileEl.addEventListener('change', async () => {
     if (j.version === 3) unmigrateTree(j);
     let ns = 0, np = 0;
     const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
-    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave, fx: c.fx }));
+    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx }));
     add(j.patternPresets, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
     if (j.projectPresets && typeof j.projectPresets === 'object') { for (const [n, x] of Object.entries(j.projectPresets)) { const nm = n.trim().slice(0, 40); if (nm && x && typeof x === 'object') prjBar.user[nm] = x; } prjBar.save(); prjBar.render(''); }
     if (j.presets) { // version 1 files: combined presets
@@ -4023,113 +4421,13 @@ if (navigator.requestMIDIAccess) {
   }, () => { midiStatus.textContent = 'MIDI access was refused or is not available here.'; });
 } else document.getElementById('midi-status').textContent = 'This browser has no Web MIDI. Chrome and Edge have it.';
 
-// ---------- circuit board: a stylised PCB showing every part at its live value (just for fun, not the real layout) ----------
-const boardEl = document.getElementById('board'), boardInfo = document.getElementById('board-info');
-const BOARD_BLOCKS = {
-  CV: 'PITCH CV DAC', Slide: 'SLIDE', VCO: 'VCO', Square: 'SQUARE SHAPER', VCF: 'VCF · DIODE LADDER',
-  Env: 'FILTER ENVELOPE', Accent: 'ACCENT SWEEP', VCA: 'VCA · OUTPUT', RAT: 'PROCO RAT', '224': 'LEXICON 224', Noise: 'NOISE',
-};
-const BOARD_COLS = { CV: 3, Slide: 2, VCO: 6, Square: 3, VCF: 5, Accent: 3, Env: 3, VCA: 7, RAT: 5, '224': 4, Noise: 4 };
-const POT_KNOB = { VR2: 'tuning', VR4: 'resonance', VR5: 'envmod', VR6: 'decay', VR7: 'accent' };
-const BAND = ['#111', '#7a3b12', '#d22', '#f07c1a', '#f2d21b', '#2a9a3a', '#2361d6', '#8a3fc8', '#888', '#f4f4f4'];
-const GOLD = '#c9a43a', SILVER = '#c8c8c8';
-// colour bands for the nominal value: 4 bands for an E24 part (±5% gold), 5 bands for an in-between value (±1% brown)
-function bands(k, v) {
-  const nom = snapReal(k, v), e24 = Math.abs(v / nom - 1) <= tolerance(k) + 1e-6;
-  const x = e24 ? nom : v, digits = e24 ? 2 : 3;
-  const exp = Math.floor(Math.log10(x)) - (digits - 1), m = Math.round(x / Math.pow(10, exp));
-  const ds = String(m).padStart(digits, '0').split('').map(Number);
-  const mult = exp >= 0 ? BAND[exp] : exp === -1 ? GOLD : SILVER;
-  return { cols: [...ds.map(d => BAND[d]), mult, e24 ? GOLD : BAND[1]], prec: !e24 };
-}
-const CELL_W = 88, CELL_H = 76, PAD = 14, HEAD = 22;
-function partSVG(k, cx, cy) {
-  const d = COMPONENTS[k], v = state.parts[k], chg = partChanged(k, v);
-  const lead = (x1, x2) => `<line class="lead" x1="${x1}" y1="${cy}" x2="${x2}" y2="${cy}"/>`;
-  const pads = `<circle class="pad" cx="${cx - 34}" cy="${cy}" r="4"/><circle class="pad" cx="${cx + 34}" cy="${cy}" r="4"/>`;
-  let body;
-  if (/^VR/.test(k)) {
-    const t = POT_KNOB[k] ? state.knobs[POT_KNOB[k]] : toSlider(k, v) / SL, a = (KNOB_A0 + KNOB_SWEEP * t) * Math.PI / 180;
-    body = `${pads}${lead(cx - 34, cx + 34)}<rect class="pot" x="${cx - 17}" y="${cy - 17}" width="34" height="34" rx="3"/><circle class="shaft" cx="${cx}" cy="${cy}" r="11"/>`
-      + `<line class="slot" x1="${cx}" y1="${cy}" x2="${(cx + Math.sin(a) * 10).toFixed(1)}" y2="${(cy - Math.cos(a) * 10).toFixed(1)}"/>`;
-  } else if (d.block === '224') {
-    let pins = ''; for (let i = 0; i < 6; i++) pins += `<rect class="pin" x="${cx - 18 + i * 7}" y="${cy - 14}" width="3" height="4"/><rect class="pin" x="${cx - 18 + i * 7}" y="${cy + 10}" width="3" height="4"/>`;
-    body = `${pins}<rect class="chip" x="${cx - 22}" y="${cy - 10}" width="44" height="20" rx="2"/><circle class="notch" cx="${cx - 16}" cy="${cy}" r="2.5"/>`;
-  } else if (d.unit === 'Ω') {
-    const b = bands(k, v), w = 40, x0 = cx - w / 2;
-    body = `${pads}${lead(cx - 34, cx + 34)}<rect class="res${b.prec ? ' prec' : ''}" x="${x0}" y="${cy - 7}" width="${w}" height="14" rx="6"/>`
-      + b.cols.map((c, i) => `<rect x="${(i < b.cols.length - 1 ? x0 + 7 + i * 5.5 : x0 + w - 9).toFixed(1)}" y="${cy - 7}" width="3" height="14" fill="${c}"/>`).join('');
-  } else if (d.unit === 'F') {
-    if (d.v >= 1e-6) body = `${pads}${lead(cx - 34, cx + 34)}<circle class="elec" cx="${cx}" cy="${cy}" r="14"/><path class="minus" d="M${cx + 9.9} ${cy - 9.9}A14 14 0 0 1 ${cx + 9.9} ${cy + 9.9}" /><path class="vent" d="M${cx - 6} ${cy}h12M${cx} ${cy - 6}v12"/>`;
-    else if (d.v < 1e-9) body = `${pads}${lead(cx - 34, cx + 34)}<circle class="cer" cx="${cx}" cy="${cy}" r="10"/>`;
-    else body = `${pads}${lead(cx - 34, cx + 34)}<rect class="film" x="${cx - 13}" y="${cy - 10}" width="26" height="20" rx="3"/>`;
-  } else {
-    body = `${pads}${lead(cx - 34, cx + 34)}<rect class="trim" x="${cx - 10}" y="${cy - 10}" width="20" height="20" rx="2"/><circle class="tw" cx="${cx}" cy="${cy}" r="6.5"/><path class="tx" d="M${cx - 4} ${cy}h8M${cx} ${cy - 4}v8"/>`;
-  }
-  const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  return `<g class="part${chg ? ' chg' : ''}" data-k="${k}" tabindex="0" role="button" aria-label="${k} ${esc(fmt(v, d.unit))}"><title>${k}: ${esc(fmt(v, d.unit))}${chg ? ` (stock ${esc(fmt(d.v, d.unit))})` : ''}</title>`
-    + `<rect class="hit" x="${cx - CELL_W / 2 + 2}" y="${cy - CELL_H / 2 + 2}" width="${CELL_W - 4}" height="${CELL_H - 4}" rx="4"/>${body}`
-    + `<text class="ref" x="${cx}" y="${cy - 22}">${esc(k.replace(/^RAT_|^LEX_/, ''))}</text><text class="pv" x="${cx}" y="${cy + 31}">${esc(fmt(v, d.unit))}</text></g>`;
-}
-// lay blocks out in shelves, signal order, on a board of the given width
-function layoutBoard(blocks, W, solo) {
-  let x = PAD, y = PAD + 26, rowH = 0, out = '', maxX = 0;
-  for (const b of blocks) {
-    const keys = Object.keys(COMPONENTS).filter(k => COMPONENTS[k].block === b); if (!keys.length) continue;
-    const cols = Math.min(keys.length, BOARD_COLS[b] || 4), rows = Math.ceil(keys.length / cols);
-    const bw = cols * CELL_W + 12, bh = rows * CELL_H + HEAD + 8;
-    if (x + bw > W - PAD) { x = PAD; y += rowH + 12; rowH = 0; }
-    out += solo ? '' : `<rect class="blk" x="${x}" y="${y}" width="${bw}" height="${bh}" rx="6"/><text class="blkname" x="${x + 9}" y="${y + 15}">${BOARD_BLOCKS[b] || b}</text>`;
-    keys.forEach((k, i) => {
-      const cx = x + 6 + (i % cols) * CELL_W + CELL_W / 2, cy = y + HEAD + Math.floor(i / cols) * CELL_H + CELL_H / 2;
-      if (i % cols && COMPONENTS[k].block !== '224') out += `<line class="trace" x1="${cx - CELL_W + 34}" y1="${cy}" x2="${cx - 34}" y2="${cy}"/>`;
-      out += partSVG(k, cx, cy);
-    });
-    maxX = Math.max(maxX, x + bw); x += bw + 12; rowH = Math.max(rowH, bh);
-  }
-  return { svg: out, h: y + rowH + PAD, w: maxX + PAD };
-}
-function boardSVG(title, cls, blocks, W) {
-  const L = layoutBoard(blocks, W, blocks.length === 1); W = L.w; const holes = [[10, 10], [W - 10, 10], [10, L.h - 10], [W - 10, L.h - 10]];
-  return { h: L.h, w: W, svg: `<rect class="pcb ${cls}" x="0" y="0" width="${W}" height="${L.h}" rx="10"/>`
-    + holes.map(([x, y]) => `<circle class="hole" cx="${x}" cy="${y}" r="5"/>`).join('')
-    + `<text class="silk-title" x="${PAD + 10}" y="${PAD + 12}">${title}</text>${L.svg}` };
-}
-
-function renderBoard() {
-  const W = 1180, ver = document.getElementById('ver').textContent;
-  const main = boardSVG(`TB-303 · MAIN BOARD · MODEL ${ver}`, 'g', ['CV', 'Slide', 'VCO', 'Square', 'VCF', 'Accent', 'Env', 'VCA'], W);
-  const rat = boardSVG('PROCO RAT', 'r', ['RAT'], W), lex = boardSVG('LEXICON 224 · DIGITAL', 'l', ['224'], W);
-  const y2 = main.h + 18, H = y2 + Math.max(rat.h, lex.h), BW = Math.max(main.w, rat.w + 18 + lex.w);
-  boardEl.setAttribute('viewBox', `0 0 ${BW} ${H}`);
-  boardEl.innerHTML = main.svg + `<g transform="translate(0 ${y2})">${rat.svg}</g><g transform="translate(${rat.w + 18} ${y2})">${lex.svg}</g>`;
-  const cur = boardInfo.dataset.k; if (cur) boardEl.querySelector(`.part[data-k="${cur}"]`)?.classList.add('sel');
-}
-function boardSay(k) {
-  const d = COMPONENTS[k], v = state.parts[k], t = tolerance(k), chg = partChanged(k, v);
-  const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  boardInfo.dataset.k = k;
-  boardInfo.innerHTML = `<b>${k}</b> <span class="bv${chg ? ' changed' : ''}">${esc(fmt(v, d.unit))}</span> · ${esc(d.note)}. Stock ${esc(fmt(d.v, d.unit))}${t ? `, ±${+(t * 100).toFixed(1)}%` : ''}.`
-    + (d.fixed ? '' : ` <button type="button" class="mini" id="board-edit">Edit</button>`);
-  for (const g of boardEl.querySelectorAll('.part.sel')) g.classList.remove('sel');
-  boardEl.querySelector(`.part[data-k="${k}"]`)?.classList.add('sel');
-}
-boardEl.addEventListener('click', (e) => { const g = e.target.closest('.part'); if (g) boardSay(g.dataset.k); });
-boardEl.addEventListener('keydown', (e) => { const g = e.target.closest('.part'); if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); boardSay(g.dataset.k); } });
-boardInfo.addEventListener('click', (e) => {
-  if (e.target.id !== 'board-edit') return;
-  const k = boardInfo.dataset.k; selectTab(COMPONENTS[k].block); showSec('circuit');
-  if (optDlg.showModal) optDlg.showModal(); else optDlg.setAttribute('open', '');
-  showDetail(k); partsEl.querySelector(`.knob[data-k="${k}"]`)?.focus();
-});
-
 // ---------- main tabs ----------
 const mtabs = document.getElementById('mtabs');
 function showPane(name, focus) {
   if (name === 'rat' || name === 'lex') name = 'fx'; // the RAT and 224 tabs became one
   if (!document.getElementById('pane-' + name)) name = 'seq';
   for (const b of mtabs.querySelectorAll('[role=tab]')) { const on = b.dataset.pane === name; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); }
-  for (const p of document.querySelectorAll('.main > .pane')) p.hidden = p.id !== 'pane-' + name; renderBoardSoon();
+  for (const p of document.querySelectorAll('.main > .pane')) p.hidden = p.id !== 'pane-' + name;
   store.set('mainTab', name);
 }
 mtabs.addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) showPane(b.dataset.pane, true); });
@@ -4141,5 +4439,62 @@ mtabs.addEventListener('keydown', (e) => {
 showPane(store.get('mainTab', 'seq'));
 
 renderFx(); renderSeq(); renderBank(); renderParts(); renderFrontMods(); readouts();
+
+// ---------- fit the screen to the window (the Elixir Synth way) ----------
+// On a desktop window the screen is a fixed 1000 x 647 pane (the shape of Johnny's MacBook Pro display, 1.545:1),
+// scaled as a whole to fill the window with the dark case round it, so every page reads the same at any window size
+// and nothing moves when you switch tabs. The scale goes on the root, so the Options sheet scales with the screen.
+// Phones and iPads get the same screen, just smaller (Johnny): no separate compact layout.
+(() => {
+  const root = document.documentElement, W = 1000, H = 647;
+  root.classList.add('fit');
+  const fit = () => {
+    const vw = visualViewport?.width || innerWidth, vh = visualViewport?.height || innerHeight;
+    const pad = Math.min(vw, vh) < 600 ? 4 : 16; // a phone needs every pixel
+    const k = Math.min((vw - pad) / W, (vh - pad) / H, 2.2);
+    root.style.setProperty('--k', k.toFixed(4));
+  };
+  addEventListener('resize', fit); addEventListener('orientationchange', fit); visualViewport?.addEventListener('resize', fit); fit();
+})();
+
+// ---------- slider fill ----------
+// Each range slider's segmented bar is lit up to --f (its value as 0..1); programmatic value changes don't fire events, so it is re-read often.
+(() => {
+  const paint = (el) => { const f = (el.value - el.min) / ((el.max - el.min) || 1); const s = f.toFixed(4); if (el.dataset.f !== s) { el.dataset.f = s; el.style.setProperty('--f', s); } };
+  const all = () => document.querySelectorAll('input[type=range]').forEach(paint);
+  addEventListener('input', (e) => { if (e.target.type === 'range') paint(e.target); }, true);
+  all(); setInterval(all, 120);
+})();
+
+// ---------- status line ----------
+// One line along the bottom of the screen carries every message (Functions, Generate, presets) and, when Tooltips is on
+// in Options › Monitor, what the control under the pointer does. Messages win over tooltips and fade after a few seconds.
+// The controls' title attributes become data-tip, so the browser's own tooltip boxes never pop up over the screen.
+(() => {
+  const line = document.getElementById('sl-text'), main = document.querySelector('.main');
+  const tipsBtn = document.getElementById('tips-on');
+  let tipsOn = store.get('tips', true), msg = '', msgT = 0, tip = '';
+  const show = () => { const t = msg || (tipsOn ? tip : ''); line.textContent = t; line.classList.toggle('msg', !!msg); };
+  const say = (t) => { msg = (t || '').trim(); clearTimeout(msgT); if (msg) msgT = setTimeout(() => { msg = ''; show(); }, 5000); show(); };
+  // mirror the old popup message spots into the line
+  for (const id of ['sq-msg', 'prj-msg', 'snd-msg', 'pat-msg']) {
+    const el = document.getElementById(id); if (!el) continue;
+    new MutationObserver(() => { if (el.textContent.trim()) say(el.textContent); }).observe(el, { childList: true, characterData: true, subtree: true });
+  }
+  const tipOf = (t) => {
+    const el = t?.closest?.('[title], [data-tip]'); if (!el || !main.contains(el)) return '';
+    if (el.hasAttribute('title')) { if (el.title) el.dataset.tip = el.title; el.removeAttribute('title'); }
+    return el.dataset.tip || '';
+  };
+  main.addEventListener('pointerover', (e) => { tip = tipOf(e.target); show(); });
+  main.addEventListener('pointerleave', () => { tip = ''; show(); });
+  main.addEventListener('focusin', (e) => { tip = tipOf(e.target); show(); });
+  // strip titles up front too, so a first hover never shows the browser's box
+  const strip = () => main.querySelectorAll('[title]').forEach(el => { if (el.title) el.dataset.tip = el.title; el.removeAttribute('title'); });
+  strip(); new MutationObserver(strip).observe(main, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] });
+  const renderTips = () => { tipsBtn.setAttribute('aria-pressed', tipsOn); tipsBtn.textContent = tipsOn ? 'On' : 'Off'; };
+  tipsBtn.onclick = () => { tipsOn = !tipsOn; store.set('tips', tipsOn); renderTips(); show(); };
+  renderTips();
+})();
 })();
 </script>

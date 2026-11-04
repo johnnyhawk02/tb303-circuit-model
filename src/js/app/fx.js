@@ -59,17 +59,14 @@ function renderFx() {
     document.getElementById('fx-' + n).classList.toggle('on', !!state.fx[n]);
   }
   document.getElementById('fx-cmp').classList.toggle('on', !!(state.fx.lex || state.fx.dly)); // the Compactor acts on the returns
-  drawCmpMode();
+  drawDlyMode();
 }
-// Compactor detector: Peak, ISP or RMS (stored as the cmpmode knob: 0, 0.5, 1)
-const cmpModeEl = document.getElementById('cmp-mode');
+// Delay mode: ping-pong or mono (stored as the dlypp knob)
 const dlyModeEl = document.getElementById('dly-mode');
-function drawCmpMode() {
-  const m = Math.round(state.knobs.cmpmode * 2); for (const b of cmpModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === m);
+function drawDlyMode() {
   const pp = state.knobs.dlypp >= 0.5 ? 1 : 0; for (const b of dlyModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === pp);
 }
-dlyModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('dlypp', +b.dataset.m); drawCmpMode(); } });
-cmpModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('cmpmode', b.dataset.m / 2); drawCmpMode(); } });
+dlyModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('dlypp', +b.dataset.m); drawDlyMode(); } });
 for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
   renderFx(); saveSession();
