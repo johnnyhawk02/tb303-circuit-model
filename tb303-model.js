@@ -906,7 +906,7 @@ class TB303Voice {
       revtype: 0, plateprog: 0.5, platepre: 0.2, platedecay: 0.45, platedamp: 0.6, platebw: 0.75, platelo: 0.35, platediff: 0.88, platemod: 0.5, platemix: 0.5,
       sprprog: 2 / 3, sprdwell: 0.4, sprdecay: 0.5, sprtension: 0.5, sprtone: 0.5, sprlo: 0.4, sprmix: 0.5,
       cnvprog: 0, cnvpre: 0.2, cnvdecay: 1, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
-      cmpamt: 0.5, cmprel: 0.4,
+      cmpamt: 0.4, cmprel: 0.14142,
       dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
     this.fx = { rat: false, lex: false, dly: false };
     this.bpm = 128;

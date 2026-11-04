@@ -131,7 +131,7 @@ inline const std::array<KnobInfo, K::COUNT>& knobs() {
         { "lexxover", "Crossover", 0.443, "lex" }, { "lextreble", "Treble", 0.834, "lex" }, { "lexdepth", "Depth", 0.5, "lex" },
         { "lexdiff", "Diffusion", 0.55, "lex" }, { "lexpre", "Predelay", 0.2, "lex" }, { "lexme", "Mode enh", 0.5, "lex" },
         { "lexpitch", "Pitch", 0.2, "lex" }, { "lexmix", "Return", 0.5, "lex" },
-        { "cmpamt", "Amount", 0.5, "cmp" }, { "cmprel", "Release", 0.4, "cmp" },
+        { "cmpamt", "Amount", 0.4, "cmp" }, { "cmprel", "Release", 0.14142, "cmp" },
         { "dlypp", "Ping-pong", 1, "dly" }, { "dlytime", "Time", 0.7, "dly" }, { "dlyfb", "Feedback", 0.35, "dly" },
         { "dlylo", "Low cut", 0.3, "dly" }, { "dlyhi", "High cut", 0.55, "dly" }, { "dlymix", "Return", 0.35, "dly" },
         { "revtype", "Reverb", 0, "rev" },
@@ -970,7 +970,7 @@ public:
         // the JS voice's own constructor defaults; the app (and the plugin) then sends the panel values
         const double kd[K::COUNT] = { 0.5, 0.35, 0.7, 0.6, 0.3, 0.7, 0.8, 0.5, 0.4, 0.5,
             0.125, 0.3, 0.27, 0.443, 0.834, 0.5, 0.55, 0.2, 0.5, 0.2, 0.5,
-            0.5, 0.4,
+            0.4, 0.14142,
             1, 0.7, 0.35, 0.3, 0.55, 0.35,
             0, 0.5, 0.2, 0.45, 0.6, 0.75, 0.35, 0.88, 0.5, 0.5,
             2.0 / 3, 0.4, 0.5, 0.5, 0.5, 0.4, 0.5,

@@ -51,8 +51,8 @@ const KNOBS = [
   { id: 'dlyhi',     name: 'High cut',  ref: '1k–20 kHz',  def: 0.55, fx: 'dly' },
   { id: 'dlymix',    name: 'Return',    ref: 'wet level',  def: 0.35, fx: 'dly' },
   { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
-  { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.5, fx: 'cmp' },
-  { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.4,  fx: 'cmp' },
+  { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.4, fx: 'cmp' },
+  { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.14142, fx: 'cmp' }, // 20 ms
 ];
 const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 // original example line, A minor-ish, codes around A = 33
@@ -126,8 +126,8 @@ function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return 
 function cleanSettings(x) {
   const out = { knobs: {}, parts: {} };
   if (!x || typeof x !== 'object') return out;
-  // sounds saved before the two-dial Compactor (no Amount) load with it off
-  if (x.knobs && typeof x.knobs === 'object' && !('cmpamt' in x.knobs)) x = { ...x, knobs: { ...x.knobs, cmpamt: 0 } };
+  // sounds saved before the two-dial Compactor (no Amount) load with the house setting: 40%, 20 ms release
+  if (x.knobs && typeof x.knobs === 'object' && !('cmpamt' in x.knobs)) x = { ...x, knobs: { ...x.knobs, cmpamt: 0.4, cmprel: 0.14142 } };
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
