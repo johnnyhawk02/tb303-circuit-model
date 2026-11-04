@@ -84,6 +84,7 @@ seq.addEventListener('pointerdown', (e) => {
 });
 addEventListener('pointermove', (e) => {
   if (!paint || e.pointerId !== paint.id) return;
+  if (e.pointerType === 'mouse' && !(e.buttons & 1)) { paint = null; return; } // button released somewhere we didn't hear: stop painting
   const b = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('#seq button[data-t]'); if (!b) return;
   if (paintCell(b)) { renderSeq(); pushPattern(); }
 });

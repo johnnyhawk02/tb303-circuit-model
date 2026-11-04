@@ -67,21 +67,28 @@ function lexText(id, p) {
   }
   return '';
 }
-// One binding for every dial: vertical drag (Shift = fine), wheel, arrow and Page keys, Home/End, double-click.
+// One binding for every dial: vertical drag (Shift = fine), arrow and Page keys, Home/End, double-click.
 // host is the dial itself, or a container whose dials are found by pick(e) and named by data-k.
 // set(k, value, event) and nudge(k, delta, event) receive dial units; min/max enable Home/End.
 function bindDial(host, { pick = () => host, get, set, nudge = (k, d, e) => set(k, get(k) + d, e), drag = 160, fine = 600, step = .02, page = .1, min, max, reset, start, focus = false }) {
   let d = null;
   const at = (e) => { const el = pick(e); return el && { el, k: el.dataset.k }; };
   host.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return; // only a held main button (or a finger) turns a dial
     const t = at(e); if (!t) return;
     t.el.setPointerCapture(e.pointerId); if (focus) t.el.focus();
     d = { k: t.k, y: e.clientY, v: get(t.k), id: e.pointerId, el: t.el }; start?.(t.k, t.el);
   });
-  host.addEventListener('pointermove', (e) => { if (d && e.pointerId === d.id) set(d.k, d.v + (d.y - e.clientY) / (e.shiftKey ? fine : drag), e); });
+  // Dials move only while the button is held (Johnny): a move with no button down ends any drag that missed its release
+  // (released outside the window, capture lost), and the wheel / trackpad scroll no longer turns them on hover.
   const end = () => { if (d) d.el.dispatchEvent(new Event('dialend')); d = null; };
-  host.addEventListener('pointerup', end); host.addEventListener('pointercancel', end);
-  host.addEventListener('wheel', (e) => { const t = at(e); if (!t) return; e.preventDefault(); nudge(t.k, -Math.sign(e.deltaY) * step, e); }, { passive: false });
+  host.addEventListener('pointermove', (e) => {
+    if (!d || e.pointerId !== d.id) return;
+    if (e.pointerType === 'mouse' && !(e.buttons & 1)) { end(); return; }
+    set(d.k, d.v + (d.y - e.clientY) / (e.shiftKey ? fine : drag), e);
+  });
+  host.addEventListener('pointerup', end); host.addEventListener('pointercancel', end); host.addEventListener('lostpointercapture', end);
+  addEventListener('blur', end);
   host.addEventListener('keydown', (e) => {
     const t = at(e); if (!t) return;
     const delta = { ArrowUp: step, ArrowRight: step, ArrowDown: -step, ArrowLeft: -step, PageUp: page, PageDown: -page }[e.key];

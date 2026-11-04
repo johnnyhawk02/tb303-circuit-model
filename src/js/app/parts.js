@@ -98,7 +98,7 @@ function snapReal(k, v) {
   for (const x of seriesValues(k)) { const dd = Math.abs(Math.log(x / v)); if (dd < bd) { bd = dd; best = x; } }
   return best;
 }
-// one series step up or down from the current value (arrow keys and the wheel)
+// one series step up or down from the current value (arrow keys)
 function stepReal(k, dir) {
   const cur = state.parts[k], vs = seriesValues(k);
   const next = dir > 0 ? vs.find(x => x > cur * 1.001) : [...vs].reverse().find(x => x < cur * 0.999);

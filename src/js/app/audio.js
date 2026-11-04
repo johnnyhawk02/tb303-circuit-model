@@ -55,7 +55,7 @@ playBtn.onclick = async () => {
   status.textContent = playing ? (node ? 'Running · AudioWorklet' : 'Running · main thread') : 'Stopped';
   if (!playing) markStep(-1);
 };
-// tempo dial: drag, wheel or arrows, 60-200 BPM; double-click to type a value
+// tempo dial: drag or arrows, 60-200 BPM; double-click to type a value
 // spacebar plays and stops, except while typing in a text field
 const typing = (t) => t.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]');
 document.addEventListener('keydown', (e) => {
