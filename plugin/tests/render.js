@@ -15,6 +15,7 @@ for (let i = 0; i < N; i += S.block) {
     for (const k in x.knobs || {}) e.message({ type: 'knob', name: k, value: x.knobs[k] });
     for (const k in x.parts || {}) e.message({ type: 'component', name: k, value: x.parts[k] });
     for (const k in x.fx || {}) e.message({ type: 'fx', name: k, value: x.fx[k] });
+    if (x.tune) e.message({ type: 'tune', value: x.tune });
     if (x.wave) e.message({ type: 'wave', value: x.wave });
   }
   if (!started) { e.message({ type: 'play', value: true }); started = true; }

@@ -579,13 +579,133 @@ void Scope::paint(juce::Graphics& g) {
     g.setColour(shadow); g.strokePath(p, juce::PathStrokeType(2.2f), juce::AffineTransform::translation(2, 2));
     g.setColour(ink); g.strokePath(p, juce::PathStrokeType(2.2f));
 }
+// ---------- tuning (tuning.js) ----------
+namespace {
+struct TuningSys { const char* id; const char* label; const char* name; const char* tip; };
+const TuningSys SYS[4] = {
+    { "just", "Just", "Just intonation", "Pure intervals from the root (5-limit just intonation): thirds and fifths beat-free, far keys sour" },
+    { "pyth", "Pythagorean", "Pythagorean", "Pure fifths from the root: bright, wide major thirds" },
+    { "mean", "Meantone", "Quarter-comma meantone", "Quarter-comma meantone from the root: pure major thirds, one howling wolf fifth" },
+    { "drift", "Drift", "", "Every note a few cents out at random, like an old unit whose DAC has drifted" },
+};
+double centsOf(double r) { return 1200 * std::log2(r); }
+// cents above the root for the 12 notes of the scale
+std::array<double, 12> sysCents(const juce::String& id) {
+    std::array<double, 12> a {};
+    if (id == "just") { const double r[12] = { 1, 16./15, 9./8, 6./5, 5./4, 4./3, 45./32, 3./2, 8./5, 5./3, 9./5, 15./8 }; for (int i = 0; i < 12; i++) a[(size_t)i] = centsOf(r[i]); }
+    if (id == "pyth") { const double r[12] = { 1, 256./243, 9./8, 32./27, 81./64, 4./3, 729./512, 3./2, 128./81, 27./16, 16./9, 243./128 }; for (int i = 0; i < 12; i++) a[(size_t)i] = centsOf(r[i]); }
+    if (id == "mean") { const int k[12] = { 0, 7, 2, -3, 4, -1, 6, 1, 8, 3, -2, 5 }; for (int i = 0; i < 12; i++) a[(size_t)i] = std::fmod(std::fmod(k[i] * 1200 * std::log2(5.0) / 4, 1200) + 1200, 1200); }
+    return a;
+}
+constexpr int SEG = 20; // segments each side of the zero line, 5 cents each
+juce::String centsText(double c) { return c == 0 ? juce::String("0 c") : juce::String(c > 0 ? "+" : "-") + juce::String(std::fabs(c), std::fabs(c - std::round(c)) < 1e-9 ? 0 : 1) + " c"; }
+}
+
+TuningPage::TuningPage(TB303Processor& p) : proc(p) {
+    for (int i = 0; i < 4; i++) {
+        sys[i].setButtonText(SYS[i].label); sys[i].setTooltip(SYS[i].tip);
+        sys[i].onClick = [this, i] { undoPoint(true); apply(SYS[i].id);
+            if (say) say(juce::String(SYS[i].id) == "drift" ? juce::String("Every note a few cents out, like an old unit.") : juce::String(SYS[i].name) + " from " + juce::String(NOTE[proc.tuneRoot]).toLowerCase() + "."); };
+        addAndMakeVisible(sys[i]);
+    }
+    for (int i = 0; i < 12; i++) {
+        root[i].setButtonText(juce::String(NOTE[i]).toLowerCase());
+        root[i].onClick = [this, i] { proc.tuneRoot = i; if (sysOn.isNotEmpty()) { undoPoint(true); apply(sysOn); } refresh(); };
+        addAndMakeVisible(root[i]);
+    }
+    reset.setTooltip("Every note back to 0 cents: equal temperament, the stock 303");
+    reset.onClick = [this] { const auto t = proc.tune(); if (std::any_of(t.begin(), t.end(), [](double c) { return c != 0; })) undoPoint(true);
+        proc.setTune({}); sysOn = {}; refresh(); if (say) say("Back to equal temperament."); };
+    undo.onClick = [this] { proc.undoTune(); sysOn = {}; refresh(); };
+    addAndMakeVisible(reset); addAndMakeVisible(undo);
+    for (auto* l : { &rowLab, &rootLab, &note }) { l->setColour(juce::Label::textColourId, dim); l->setFont(lcd(12.5f)); addAndMakeVisible(*l); }
+    rowLab.setText("tuning", juce::dontSendNotification); rootLab.setText("root", juce::dontSendNotification);
+    note.setText(U("±100 cents a note, every octave · shift for fine · double-click for 0"), juce::dontSendNotification);
+    note.setJustificationType(juce::Justification::centredRight);
+    refresh();
+}
+void TuningPage::resized() {
+    auto r = getLocalBounds().reduced(4, 0);
+    auto top = r.removeFromTop(26);
+    rowLab.setBounds(top.removeFromLeft(72));
+    for (auto& b : sys) { b.setBounds(top.removeFromLeft(b.getButtonText() == "Pythagorean" ? 110 : 84)); top.removeFromLeft(6); }
+    undo.setBounds(top.removeFromRight(64)); top.removeFromRight(6); reset.setBounds(top.removeFromRight(64));
+    auto foot = r.removeFromBottom(24);
+    rootLab.setBounds(foot.removeFromLeft(72));
+    for (auto& b : root) { b.setBounds(foot.removeFromLeft(32)); foot.removeFromLeft(2); }
+    note.setBounds(foot);
+    r.removeFromTop(8); r.removeFromBottom(8);
+    faders = r;
+}
+juce::Rectangle<float> TuningPage::barOf(int i) const {
+    const float cw = faders.getWidth() / 12.0f, segH = 6.0f, h = (2 * SEG + 1) * segH;
+    const float top = faders.getY() + 18 + juce::jmax(0.0f, (faders.getHeight() - 36 - h) / 2);
+    return { faders.getX() + cw * i + cw / 2 - 17, top, 34, h };
+}
+int TuningPage::colAt(juce::Point<int> p) const {
+    if (!faders.contains(p)) return -1;
+    return juce::jlimit(0, 11, (int)((p.x - faders.getX()) / (faders.getWidth() / 12.0f)));
+}
+void TuningPage::paint(juce::Graphics& g) {
+    const auto t = proc.tune();
+    for (int i = 0; i < 12; i++) {
+        const auto b = barOf(i); const double c = t[(size_t)i], step = 100.0 / SEG;
+        g.setFont(lcd(12.5f));
+        lcdText(g, centsText(c), { b.getX() - 20, b.getY() - 20, b.getWidth() + 40, 16 }, juce::Justification::centred, c != 0 ? ink : dim, false);
+        lcdText(g, juce::String(NOTE[i]).toLowerCase(), { b.getX() - 20, b.getBottom() + 4, b.getWidth() + 40, 16 }, juce::Justification::centred);
+        for (int j = SEG; j >= -SEG; j--) {
+            const float y = b.getY() + (SEG - j) * 6.0f;
+            if (j == 0) { g.setColour(ink); g.fillRect(b.getX() - 4, y + 2, b.getWidth() + 8, 2.0f); continue; }
+            const bool on = j > 0 ? c > (j - 1) * step : c < (j + 1) * step;
+            if (on) { g.setColour(shadow); g.fillRect(b.getX() + 2, y + 2.2f, b.getWidth(), 4.0f); }
+            g.setColour(on ? ink : ghost); g.fillRect(b.getX(), y, b.getWidth(), 4.0f);
+        }
+    }
+}
+void TuningPage::refresh() {
+    for (int i = 0; i < 4; i++) sys[i].setToggleState(sysOn == SYS[i].id, juce::dontSendNotification);
+    for (int i = 0; i < 12; i++) root[i].setToggleState(i == proc.tuneRoot, juce::dontSendNotification);
+    undo.setEnabled(proc.canUndoTune());
+    repaint();
+}
+void TuningPage::undoPoint(bool force) {
+    const auto now = juce::Time::getMillisecondCounter();
+    if (force || now - lastUndo > 1200) proc.pushTuneUndo(); // a run of wheel steps is one undo
+    lastUndo = now;
+}
+void TuningPage::set(int i, double c) { auto t = proc.tune(); t[(size_t)i] = c; proc.setTune(t); sysOn = {}; refresh(); }
+void TuningPage::apply(const juce::String& id) {
+    TB303Processor::Tune t {};
+    if (id == "drift") { auto& R = juce::Random::getSystemRandom(); for (auto& c : t) c = (R.nextDouble() + R.nextDouble() + R.nextDouble() - 1.5) * 8; proc.setTune(t); sysOn = {}; refresh(); return; }
+    const auto at = sysCents(id);
+    for (int i = 0; i < 12; i++) { const int d = (i - proc.tuneRoot + 12) % 12; t[(size_t)i] = at[(size_t)d] - 100 * d; }
+    proc.setTune(t); sysOn = id; refresh();
+}
+void TuningPage::mouseDown(const juce::MouseEvent& e) {
+    drag = colAt(e.getPosition()); if (drag < 0) return;
+    // the readout above a fader resets it, like the web app
+    if (e.position.y < barOf(drag).getY() - 2) { undoPoint(true); set(drag, 0); drag = -1; return; }
+    undoPoint(true); dragY = e.position.y; dragFrom = proc.tune()[(size_t)drag];
+}
+void TuningPage::mouseDrag(const juce::MouseEvent& e) {
+    if (drag < 0) return;
+    const bool fine = e.mods.isShiftDown();
+    const double c = dragFrom + (dragY - e.position.y) / (fine ? 12.0 : 1.2);
+    set(drag, fine ? c : std::round(c));
+}
+void TuningPage::mouseDoubleClick(const juce::MouseEvent& e) { const int i = colAt(e.getPosition()); if (i >= 0) set(i, 0); }
+void TuningPage::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) {
+    const int i = colAt(e.getPosition()); if (i < 0 || w.deltaY == 0) return;
+    undoPoint(false); set(i, proc.tune()[(size_t)i] + (w.deltaY > 0 ? 1 : -1) * (e.mods.isShiftDown() ? 0.1 : 1));
+}
+
 } // namespace ui
 
 // ---------------------------------------------------------------------------------------------------
 static juce::String knobName(const char* id) { return tb303::knobs()[(size_t)tb303::knobIndex(id)].name; }
-static const char* TAB_NAMES[] = { "Sequencer", "Mods", "FX", "Circuit", "Board", "Monitor", "MIDI", "About" };
+static const char* TAB_NAMES[] = { "Sequencer", "Mods", "FX", "Tuning", "Circuit", "Board", "Monitor", "MIDI", "About" };
 
-TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), proc(p), grid(p), circuit(p), board(p), scope(p) {
+TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), proc(p), grid(p), tuning(p), circuit(p), board(p), scope(p) {
     setLookAndFeel(&lnf);
     auto& s = proc.apvts;
 
@@ -783,6 +903,8 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
 
     // ---- circuit, board ----
     circuit.say = [this](const juce::String& m) { say(m); };
+    tuning.say = [this](const juce::String& m) { say(m); };
+    addChildComponent(tuning);
     addChildComponent(circuit);
     boardView.setViewedComponent(&board, false); boardView.setScrollBarsShown(true, false);
     boardInfo.setColour(juce::Label::textColourId, ui::dim); boardInfo.setFont(ui::lcd(12.0f));
@@ -796,7 +918,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     };
     boardEdit.onClick = [this] {
         if (board.sel < 0) return;
-        circuit.showBlock(PARTS_META[board.sel].block); circuit.showDetail(board.sel); showTab(3);
+        circuit.showBlock(PARTS_META[board.sel].block); circuit.showDetail(board.sel); showTab(4);
     };
     boardEdit.setVisible(false);
     for (auto* c : std::initializer_list<juce::Component*> { &boardView, &boardInfo, &boardEdit }) boardPage.addAndMakeVisible(c);
@@ -907,10 +1029,11 @@ void TB303Editor::refreshAll() {
 void TB303Editor::showTab(int t) {
     tab = t;
     for (int i = 0; i < NTABS; ++i) tabBtn[i].setToggleState(i == t, juce::dontSendNotification);
-    juce::Component* pages[NTABS] = { &seqPage, &modsPage, &fxPage, &circuit, &boardPage, &monitorPage, &midiPage, &aboutPage };
+    juce::Component* pages[NTABS] = { &seqPage, &modsPage, &fxPage, &tuning, &circuit, &boardPage, &monitorPage, &midiPage, &aboutPage };
     for (int i = 0; i < NTABS; ++i) pages[i]->setVisible(i == t);
-    if (t == 3) circuit.refresh();
-    if (t == 4) { board.layout(board.getWidth()); board.repaint(); }
+    if (t == 3) tuning.refresh();
+    if (t == 4) circuit.refresh();
+    if (t == 5) { board.layout(board.getWidth()); board.repaint(); }
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -1046,8 +1169,8 @@ void TB303Editor::timerCallback() {
         partsUndo.setEnabled(proc.canUndoParts());
         if (tab == 1) for (auto& c : mods.getChildren()) c->repaint();
         if (tab == 2) for (auto* c : { &rat, &dly, &cmp, &lex }) for (auto* ch : c->getChildren()) ch->repaint();
-        if (tab == 3) circuit.refresh();
-        if (tab == 4) board.repaint();
+        if (tab == 4) circuit.refresh();
+        if (tab == 5) board.repaint();
         // Lexicon: program buttons, LCD, chorus names, note
         const auto q = lexParams(Kn); const auto& LP = lexPrograms()[(size_t)q.prog];
         const bool chorus = LP.alg == ALG_CHORUS;
@@ -1089,7 +1212,8 @@ void TB303Editor::timerCallback() {
         const bool on = proc.apvts.getRawParameterValue(id)->load() > 0.5f;
         if (sec->lit != on) { sec->lit = on; sec->repaint(); }
     }
-    if (tab == 5) scope.repaint();
+    if (tab == 6) scope.repaint();
+    if (const auto tn = proc.tune(); tn != lastTune) { lastTune = tn; if (tab == 3) tuning.refresh(); }
 }
 
 // the LCD pane: yellow-green glass with a sheen, a faint pixel grid, warm backlight bleeding in from the
@@ -1162,7 +1286,7 @@ void TB303Editor::resized() {
     auto tabs = r.removeFromTop(26);
     for (auto& b : tabBtn) { b.setBounds(tabs.removeFromLeft(92)); tabs.removeFromLeft(4); }
     r.removeFromTop(8);
-    for (auto* pg : std::initializer_list<juce::Component*> { &seqPage, &modsPage, &fxPage, &circuit, &boardPage, &monitorPage, &midiPage, &aboutPage }) pg->setBounds(r);
+    for (auto* pg : std::initializer_list<juce::Component*> { &seqPage, &modsPage, &fxPage, &tuning, &circuit, &boardPage, &monitorPage, &midiPage, &aboutPage }) pg->setBounds(r);
 
     // sequencer page
     {

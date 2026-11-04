@@ -64,6 +64,13 @@ public:
     tb303::Knobs allKnobs() const;
     double knobValue(int k) const;
 
+    // ---- microtuning (message thread): cents for C..B, every octave; part of the sound (tuning.js) ----
+    using Tune = std::array<double, 12>;
+    Tune tune() const;
+    void setTune(const Tune& t);             // rounds to 0.1 c, clamps to ±100
+    int tuneRoot = 9;                        // the temperaments' root (A), kept with the plug-in's state
+    void pushTuneUndo(); bool undoTune(); bool canUndoTune() const { return !tuneUndo.empty(); }
+
     // ---- presets (web app formats) ----
     void applySound(const juce::var& sound);
     void applyPreset(const juce::var& preset); // honours Sound only
@@ -117,6 +124,12 @@ private:
     int partsSeen = -1;
     tb303::Parts sentParts {};
     std::vector<tb303::Parts> partsUndo;
+
+    mutable juce::SpinLock tuneLock;
+    Tune tuneCents {};
+    std::atomic<int> tuneVersion { 0 };
+    int tuneSeen = -1;
+    std::vector<Tune> tuneUndo;
 
     // published sequence
     mutable juce::SpinLock patternLock;

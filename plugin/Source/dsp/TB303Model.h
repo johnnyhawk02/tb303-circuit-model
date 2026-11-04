@@ -597,6 +597,9 @@ public:
 
     void setComponent(int i, double v) { c[i] = v; derive(); }
     void setKnob(int i, double v) { knobs[i] = v; derive(); }
+    // microtuning: cents for the 12 notes (C first, every octave), held as volts on the 1 V/oct CV; the next note picks it up
+    double tuneCv[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    void setTune(const double* cents) { for (int i = 0; i < 12; i++) tuneCv[i] = cents[i] / 1200; }
 
     void derive() {
         const Knobs& k = knobs;
@@ -650,7 +653,7 @@ public:
     // note: 0..63 DAC code (33 = A, 110 Hz)
     void noteOn(int code, bool accent, bool slide_) {
         code = std::max(0, std::min(63, code));
-        cvTarget = dacVoltage(code, c[P::VREF], c[P::R_DAC], c[P::R2_DAC]);
+        cvTarget = dacVoltage(code, c[P::VREF], c[P::R_DAC], c[P::R2_DAC]) + tuneCv[code % 12];
         const bool legato = gate && slide_;
         slide = slide_;
         if (!legato) {

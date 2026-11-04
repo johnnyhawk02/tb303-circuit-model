@@ -174,6 +174,34 @@ private:
     void drawPart(juce::Graphics&, int k, juce::Point<float> c);
 };
 
+// Tuning page (tuning.js): 12 upright segmented faders, one per note, ±100 cents in every octave,
+// temperaments laid out from a root, Drift, Reset and Undo
+class TuningPage : public juce::Component {
+public:
+    explicit TuningPage(TB303Processor& p);
+    void paint(juce::Graphics&) override;
+    void resized() override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseDrag(const juce::MouseEvent&) override;
+    void mouseDoubleClick(const juce::MouseEvent&) override;
+    void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+    void refresh();
+    std::function<void(const juce::String&)> say;
+private:
+    TB303Processor& proc;
+    juce::TextButton sys[4], reset { "Reset" }, undo { "Undo" }, root[12];
+    juce::Label rowLab, rootLab, note;
+    juce::Rectangle<int> faders;
+    juce::String sysOn;                     // the temperament as laid out, until a fader moves
+    int drag = -1; float dragY = 0; double dragFrom = 0;
+    juce::uint32 lastUndo = 0;
+    int colAt(juce::Point<int>) const;
+    juce::Rectangle<float> barOf(int i) const;
+    void apply(const juce::String& id);
+    void set(int i, double c);
+    void undoPoint(bool force);
+};
+
 class Scope : public juce::Component {
 public:
     explicit Scope(TB303Processor& p) : proc(p) {}
@@ -225,7 +253,7 @@ private:
     std::vector<std::unique_ptr<ui::Knob>> knobs;
     juce::TextButton newUnit { "New unit" }, messedUp { "Messed up" }, partsUndo { "Undo" };
     // tabs
-    static constexpr int NTABS = 8;
+    static constexpr int NTABS = 9;
     juce::TextButton tabBtn[NTABS];
     int tab = 0;
     // sequencer
@@ -246,6 +274,7 @@ private:
     juce::Label lexLcd, lexNote;
     std::vector<ui::Knob*> lexKnobs;
     // options pages
+    ui::TuningPage tuning;
     ui::CircuitPage circuit;
     juce::Component boardPage; juce::Viewport boardView; ui::BoardView board; juce::Label boardInfo; juce::TextButton boardEdit { "Edit" };
     juce::Component monitorPage; ui::Scope scope; juce::Label readouts, readoutVals, dcText;
@@ -261,6 +290,7 @@ private:
     int lastStep = -2, lastModel = -1;
     tb303::Parts lastParts {};
     tb303::Knobs lastKnobs {};
+    TB303Processor::Tune lastTune {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TB303Editor)
 };

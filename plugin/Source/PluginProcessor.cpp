@@ -200,7 +200,7 @@ void TB303Processor::prepareToPlay(double sampleRate, int) {
     engine = std::make_unique<Engine>(sampleRate, (uint32_t)juce::Random::getSystemRandom().nextInt() | 1u);
     lastKnob.fill(-1.0f);
     std::fill(lastMod.begin(), lastMod.end(), -1.0f);
-    partsSeen = -1; patternSeen = -1; sentParts.fill(-1.0); lastFade = -1;
+    partsSeen = -1; tuneSeen = -1; patternSeen = -1; sentParts.fill(-1.0); lastFade = -1;
     held.clear(); hostSynced = false;
     engine->dc.setOn(*pDeclick > 0.5f);
     lastDeclick = *pDeclick > 0.5f;
@@ -241,6 +241,11 @@ void TB303Processor::pushAllParams(bool instant) {
             for (int p = 0; p < P::COUNT; ++p)
                 if (!isModPart(p) && extraParts[(size_t)p] != sentParts[(size_t)p]) { sentParts[(size_t)p] = extraParts[(size_t)p]; setP(p, extraParts[(size_t)p]); }
         }
+    }
+    const int tv = tuneVersion.load();
+    if (tv != tuneSeen) {
+        const juce::SpinLock::ScopedTryLockType lock(tuneLock);
+        if (lock.isLocked()) { tuneSeen = tv; e.v.setTune(tuneCents.data()); }
     }
     e.v.square = *pWave > 0.5f;
     e.v.fxRat = *pRat > 0.5f; e.v.fxLex = *pLex > 0.5f; e.v.fxDly = *pDly > 0.5f;
@@ -431,6 +436,19 @@ juce::String TB303Processor::undoParts() {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// microtuning
+TB303Processor::Tune TB303Processor::tune() const { const juce::SpinLock::ScopedLockType lock(tuneLock); return tuneCents; }
+void TB303Processor::setTune(const Tune& t) {
+    {
+        const juce::SpinLock::ScopedLockType lock(tuneLock);
+        for (size_t i = 0; i < 12; i++) { const double c = std::isfinite(t[i]) ? juce::jlimit(-100.0, 100.0, t[i]) : 0.0; tuneCents[i] = jsRound(c * 10) / 10; }
+    }
+    ++tuneVersion;
+}
+void TB303Processor::pushTuneUndo() { tuneUndo.push_back(tune()); if (tuneUndo.size() > 50) tuneUndo.erase(tuneUndo.begin()); }
+bool TB303Processor::undoTune() { if (tuneUndo.empty()) return false; const auto t = tuneUndo.back(); tuneUndo.pop_back(); setTune(t); return true; }
+
+// ---------------------------------------------------------------------------------------------------
 // web-app JSON. Same rules as cleanSettings() / applySound() / applyProject().
 void TB303Processor::applySound(const juce::var& x) {
     const auto* kn = x.getProperty("knobs", {}).getDynamicObject();
@@ -454,6 +472,10 @@ void TB303Processor::applySound(const juce::var& x) {
         }
         setPart(p, v);
     }
+    Tune tn {};
+    if (const auto* ta = x.getProperty("tune", {}).getArray(); ta && ta->size() == 12)
+        for (int i = 0; i < 12; i++) { const auto j = (*ta)[i]; if (j.isDouble() || j.isInt() || j.isInt64()) tn[(size_t)i] = j; }
+    setTune(tn);
     setParam(apvts, "wave", x.getProperty("wave", "saw").toString() == "square" ? 1.0f : 0.0f);
     const auto fx = x.getProperty("fx", {});
     setParam(apvts, "fx_rat", (bool)fx.getProperty("rat", false) ? 1.0f : 0.0f);
@@ -503,6 +525,8 @@ juce::var TB303Processor::soundSnapshot() const {
         if (std::fabs(v - d) > (d != 0 ? 1e-4 * std::fabs(d) : 1e-9)) pa->setProperty(parts()[p].id, juce::String(v, 4, true).getDoubleValue());
     }
     s->setProperty("parts", juce::var(pa));
+    const auto tn = tune();
+    if (std::any_of(tn.begin(), tn.end(), [](double c) { return c != 0; })) { juce::Array<juce::var> ta; for (double c : tn) ta.add(c); s->setProperty("tune", ta); }
     s->setProperty("wave", *pWave > 0.5f ? "square" : "saw");
     auto* fx = new juce::DynamicObject();
     fx->setProperty("rat", *pRat > 0.5f); fx->setProperty("lex", *pLex > 0.5f); fx->setProperty("dly", *pDly > 0.5f);
@@ -674,6 +698,7 @@ void TB303Processor::getStateInformation(juce::MemoryBlock& dest) {
             if (!isModPart(p) && extraParts[(size_t)p] != parts()[p].v) ps << parts()[p].id << "=" << juce::String(extraParts[(size_t)p], 9, true) << ";";
     }
     extra.setProperty("parts", ps, nullptr);
+    { juce::StringArray ts; for (double t : tune()) ts.add(juce::String(t)); extra.setProperty("tune", ts.joinIntoString(";"), nullptr); extra.setProperty("tuneRoot", tuneRoot, nullptr); }
     state.removeChild(state.getChildWithName("Extra"), nullptr);
     state.appendChild(extra, nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary(*xml, dest);
@@ -712,6 +737,10 @@ void TB303Processor::setStateInformation(const void* data, int size) {
         }
     }
     ++partsVersion;
+    Tune tn {};
+    const auto ts = juce::StringArray::fromTokens(extra.getProperty("tune").toString(), ";", "");
+    if (ts.size() == 12) for (int i = 0; i < 12; i++) tn[(size_t)i] = ts[i].getDoubleValue();
+    setTune(tn); tuneRoot = juce::jlimit(0, 11, (int)extra.getProperty("tuneRoot", 9));
     publish();
 }
 

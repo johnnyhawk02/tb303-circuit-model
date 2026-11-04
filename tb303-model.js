@@ -584,6 +584,8 @@ class TB303Voice {
     this.cmp = new Compactor(sampleRate);
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
+    // microtuning: an offset per note of the scale (C..B, every octave), in volts on the 1 V/oct CV, so 1 cent = 1/1200 V
+    this.tuneCv = new Float64Array(12);
 
     // state
     this.cvTarget = dacVoltage(33, this.c.VREF, this.c.R_DAC, this.c.R2_DAC);
@@ -610,6 +612,8 @@ class TB303Voice {
   setComponent(name, value) { if (name in this.c) { this.c[name] = value; this._derive(); } }
   setFx(name, on) { if (name in this.fx) this.fx[name] = !!on; }
   setKnob(name, value) { if (name in this.knobs) { this.knobs[name] = value; this._derive(); } }
+  // cents: 12 offsets, C first; the next note picks it up (a held note keeps its pitch)
+  setTune(cents) { for (let i = 0; i < 12; i++) { const c = +(cents && cents[i]) || 0; this.tuneCv[i] = c / 1200; } }
 
   _derive() {
     const c = this.c, k = this.knobs;
@@ -750,7 +754,7 @@ class TB303Voice {
   // note: 0..63 DAC code (33 = A, 110 Hz)
   noteOn(code, accent, slide) {
     code = Math.max(0, Math.min(63, code | 0));
-    this.cvTarget = dacVoltage(code, this.c.VREF, this.c.R_DAC, this.c.R2_DAC);
+    this.cvTarget = dacVoltage(code, this.c.VREF, this.c.R_DAC, this.c.R2_DAC) + this.tuneCv[code % 12];
     const legato = this.gate && slide;
     this.slide = !!slide;
     if (!legato) {
@@ -1026,7 +1030,7 @@ class DeClick {
 
 // The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
 // The AudioWorklet and the main-thread fallback both run this, so they sound the same.
-// Messages: knob, component, wave, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
+// Messages: knob, component, wave, tune, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
 class TB303Engine {
   constructor(fs, onStep = () => {}) {
     this.fs = fs; this.onStep = onStep;
@@ -1039,6 +1043,7 @@ class TB303Engine {
     if (m.type === 'knob') this.slew.set('k', m.name, m.value);
     else if (m.type === 'component') this.slew.set('c', m.name, m.value);
     else if (m.type === 'wave') v.waveform = m.value;
+    else if (m.type === 'tune') v.setTune(m.value);
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
     else if (m.type === 'pattern') this.pattern = m.value;
