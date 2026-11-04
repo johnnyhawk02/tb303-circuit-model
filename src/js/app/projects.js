@@ -69,6 +69,18 @@ document.getElementById('prj-export').onclick = () => {
   download('tb303-presets.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: prjBar.user });
   prjBar.say(`Exported all ${c} preset${c === 1 ? '' : 's'} to tb303-presets.json.`);
 };
+// Export favourites: every starred preset (factory and own) in the Export all format
+document.getElementById('prj-exfav').onclick = () => {
+  const out = {};
+  for (const v of store.get('fav.prj', [])) {
+    const nm = v.slice(2), x = v[0] === 'u' ? prjBar.user[nm] : PROJECT_BUILTIN[nm];
+    if (x && !(nm in out)) out[nm] = x;
+  }
+  const c = Object.keys(out).length;
+  if (!c) { prjBar.say('No favourites yet. Tap ☆ on a preset to add it.'); return; }
+  download('tb303-favourites.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: out });
+  prjBar.say(`Exported ${c} favourite${c === 1 ? '' : 's'} to tb303-favourites.json.`);
+};
 // Import file (Preset menu) and Import (Options › File) take any file this page has exported: one project, a presets
 // file (Export all, favourites), or an older settings file with separate sound and pattern lists
 const soundPick = (c) => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx });
