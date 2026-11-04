@@ -40,7 +40,7 @@
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
     </div>
-    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
+    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
     <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
@@ -68,24 +68,24 @@
         <span class="rlab rlab-in">edit</span>
         <div class="acts">
           <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
-          <button type="button" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle</button>
           <button type="button" id="p-clear">Clear</button>
           <button type="button" id="p-undo" disabled>Undo</button>
         </div>
-      </div>
-      <div class="sq-row sq-edit">
-        <span class="rlab">randomise</span>
-        <div class="acts">
-          <button type="button" id="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Acc</button>
-          <button type="button" id="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Sld</button>
-          <button type="button" id="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Oct</button>
-        </div>
-        <span class="rlab rlab-in">alter</span>
-        <div class="acts">
-          <button type="button" id="a-acc" title="Vary the accents: about a quarter of the notes gain or lose an accent; tap again for more">Acc</button>
-          <button type="button" id="a-sld" title="Vary the slides: about a quarter of the notes gain or lose a slide; tap again for more">Sld</button>
-          <button type="button" id="a-oct" title="Vary the octaves: about a quarter of the notes jump an octave up or down; tap again for more">Oct</button>
-        </div>
+        <div class="fn rmenu"><button type="button" id="rm-btn" aria-haspopup="menu" aria-expanded="false" title="Randomise, alter, shuffle and generate the pattern">Randomise</button><div class="fn-menu" id="rm-menu" role="menu" hidden>
+          <span class="mh">randomise</span>
+          <button type="button" role="menuitem" data-rm="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
+          <button type="button" role="menuitem" data-rm="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Slides</button>
+          <button type="button" role="menuitem" data-rm="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Octaves</button>
+          <span class="mh">alter</span>
+          <button type="button" role="menuitem" data-rm="a-acc" title="Vary the accents: about a quarter of the notes gain or lose an accent; again for more">Accents</button>
+          <button type="button" role="menuitem" data-rm="a-sld" title="Vary the slides: about a quarter of the notes gain or lose a slide; again for more">Slides</button>
+          <button type="button" role="menuitem" data-rm="a-oct" title="Vary the octaves: about a quarter of the notes jump an octave up or down; again for more">Octaves</button>
+          <button type="button" role="menuitem" data-rm="alter" title="Vary the whole pattern: about a quarter of the steps change note, octave, accent, slide or rest">Whole pattern</button>
+          <span class="mh">pattern</span>
+          <button type="button" role="menuitem" data-rm="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle steps</button>
+          <button type="button" role="menuitem" data-rm="rand" title="New pattern from a random factory one, at the density and bars set below">Generate</button>
+          <button type="button" role="menuitem" data-rm="p-refill" title="Give every slot you have not edited a new generated pattern">Refill slots</button>
+        </div></div>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div>
         <div class="nudge" role="group" aria-label="Shift the notes">
