@@ -754,6 +754,7 @@ html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
         <button type="button" id="prj-save">Save</button>
         <button type="button" id="prj-del">Delete</button>
         <button type="button" id="prj-export" title="Saves every preset under My presets to one file. Import file loads them all back in.">Export all</button>
+        <button type="button" id="prj-exfav" title="Saves every starred preset, factory and your own, to one file in the same format as Export all.">Export favourites</button>
         <button type="button" id="prj-import">Import file</button>
         <label class="pm-opt" title="Loading a preset changes only the sound and effects, and keeps your patterns and tempo"><input type="checkbox" id="prj-sndonly"> Sound only</label>
         <input type="file" id="prj-file" accept=".json,application/json" hidden>
@@ -5461,6 +5462,18 @@ document.getElementById('prj-export').onclick = () => {
   }
   download('tb303-presets.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: prjBar.user });
   prjBar.say(`Exported all ${c} preset${c === 1 ? '' : 's'} to tb303-presets.json.`);
+};
+// Export favourites: every starred preset (factory and own) in the Export all format
+document.getElementById('prj-exfav').onclick = () => {
+  const out = {};
+  for (const v of store.get('fav.prj', [])) {
+    const nm = v.slice(2), x = v[0] === 'u' ? prjBar.user[nm] : PROJECT_BUILTIN[nm];
+    if (x && !(nm in out)) out[nm] = x;
+  }
+  const c = Object.keys(out).length;
+  if (!c) { prjBar.say('No favourites yet. Tap ☆ on a preset to add it.'); return; }
+  download('tb303-favourites.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: out });
+  prjBar.say(`Exported ${c} favourite${c === 1 ? '' : 's'} to tb303-favourites.json.`);
 };
 // Import file (Preset menu) and Import (Options › File) take any file this page has exported: one project, a presets
 // file (Export all, favourites), or an older settings file with separate sound and pattern lists
