@@ -251,8 +251,11 @@ document.querySelector('.sq-gen').addEventListener('input', (e) => {
 });
 document.getElementById('rand').onclick = () => {
   pushUndo();
-  const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
-  state.pattern = g.pattern; tail = []; renderSeq(); pushPattern();
+  // Generate keeps the pattern's length (Johnny) but writes all 64 steps: a phrase of Bars bars, repeated out to 64,
+  // so lengthening the pattern afterwards brings in more of the generated riff instead of rests
+  const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]), n = state.pattern.length;
+  const full = Array.from({ length: 64 }, (_, i) => ({ ...g.pattern[i % g.pattern.length] }));
+  state.pattern = full.slice(0, n); tail = full.slice(n); renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
   sqSay(`From ${g.src}: ${d}. Undo puts the old one back.`);
 };
