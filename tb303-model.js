@@ -608,25 +608,30 @@ class SpringReverb {
 }
 
 // Convolution: uniformly partitioned overlap-save FFT convolution (512-sample blocks), with the work
-// for the older partitions spread across each block so no single sample does it all. The impulse
-// responses are generated (seeded noise, band-split so the highs die first, a density build-up and
-// early reflections per program), so they are the same every time and need no files. Decay is applied
-// per partition, so turning it costs nothing. L and R share one complex FFT (hL + i hR).
-// The wet signal is one block (about 11 ms) late, which counts toward the predelay.
-const CNV_B = 512, CNV_N = 1024, CNV_SECS = 3, CNV_BUILD = 8;
+// for the older partitions spread across each block so no single sample does it all. L and R share
+// one complex FFT (hL + i hR). The wet signal is one block (about 11 ms) late, which counts toward
+// the predelay. Two kinds of impulse response:
+//  - recorded ones (ir: an id in irs/irs.json), handed in with setIR() as decoded samples at the host
+//    rate and scaled by CNV_IR_GAIN; Length trims them (a fade over the last 30%), full at the top.
+//  - generated ones: seeded noise, band-split so the highs die first, a density build-up and early
+//    reflections, the same every time. Decay (or Gate) is applied per partition, so turning it is free.
+const CNV_B = 512, CNV_N = 1024, CNV_SECS = 3, CNV_BUILD = 8, CNV_IR_GAIN = 0.17752 * 1.15;
 const CNV_PROGRAMS = [
-  { name: 'Plate', short: 'Plate', build: 0.002, hf: 0.85, er: [] },
-  { name: 'Room', short: 'Room', build: 0.012, hf: 0.4, er: [[4.3, 0.5, -0.6], [7.9, -0.42, 0.7], [11.3, 0.36, 0.2], [14.1, -0.3, -0.8], [17.9, 0.26, 0.5], [23.3, -0.2, -0.3]] },
-  { name: 'Chamber', short: 'Chamber', build: 0.006, hf: 0.6, er: [[6.1, 0.4, 0.5], [9.7, -0.33, -0.5], [13.9, 0.27, 0.8], [19.3, -0.2, -0.7]] },
-  { name: 'Concert hall', short: 'Hall', build: 0.035, hf: 0.5, er: [[17, 0.3, -0.5], [23, 0.27, 0.6], [31, -0.22, -0.2], [41, 0.2, 0.8], [53, -0.16, -0.7], [67, 0.12, 0.3]] },
-  { name: 'Church', short: 'Church', build: 0.08, hf: 0.33, er: [[29, 0.22, 0.4], [47, -0.2, -0.6], [71, 0.16, 0.7], [97, -0.12, -0.3]] },
-  { name: 'Gated (1980s)', short: 'Gated', build: 0.003, hf: 0.75, gate: true, er: [] },
+  { name: 'EMT 140 plate', short: 'Plate 140', ir: 'plate140' },
+  { name: 'EMT 140 plate, bright', short: 'Plate 140 Br', ir: 'plate140b' },
+  { name: 'Drum room', short: 'Drum room', ir: 'drumroom' },
+  { name: 'Grain silo', short: 'Silo', ir: 'silo' },
+  { name: 'Concrete garage', short: 'Garage', ir: 'garage' },
+  { name: 'Musikverein, Vienna', short: 'Musikverein', ir: 'musikverein' },
+  { name: 'On a Star', short: 'On a Star', ir: 'star' },
+  { name: 'Church (generated)', short: 'Church', build: 0.08, hf: 0.33, er: [[29, 0.22, 0.4], [47, -0.2, -0.6], [71, 0.16, 0.7], [97, -0.12, -0.3]] },
+  { name: 'Gated, 1980s (generated)', short: 'Gated', build: 0.003, hf: 0.75, gate: true, er: [] },
 ];
 function convParams(k) {
   const prog = revProg(k.cnvprog, CNV_PROGRAMS.length), P = CNV_PROGRAMS[prog];
   return {
-    prog, P, pre: 250 * k.cnvpre * k.cnvpre,
-    rt: P.gate ? revEx(0.12, 1, k.cnvdecay) : revEx(0.2, 4, k.cnvdecay),
+    prog, P, pre: 250 * k.cnvpre * k.cnvpre, full: !!P.ir && k.cnvdecay >= 0.99,
+    rt: P.ir ? revEx(0.2, 3, k.cnvdecay) : P.gate ? revEx(0.12, 1, k.cnvdecay) : revEx(0.2, 4, k.cnvdecay),
     tone: revEx(1000, 20000, k.cnvtone), lo: revEx(20, 1000, k.cnvlo), width: 1.5 * k.cnvwidth, wet: 2 * audioTaper(k.cnvmix),
   };
 }
@@ -646,19 +651,27 @@ function cnvFFT(re, im, inv, cs, sn) { // in place, radix 2, N = re.length
   }
 }
 class ConvReverb {
-  constructor(fs) { this.fs = fs; this.prog = -1; this.L = 0; this.R = 0; this.ready = false; this.P = Math.ceil(CNV_SECS * fs / CNV_B); this.rt = -1; this.gate = false; }
+  constructor(fs) { this.fs = fs; this.prog = -1; this.L = 0; this.R = 0; this.ready = false; this.P = Math.ceil(CNV_SECS * fs / CNV_B); this.rt = -1; this.mode = ''; this.ext = {}; }
+  // a recorded impulse response, decoded at the host rate (Float32Array per channel)
+  setIR(id, L, R) {
+    this.ext[id] = { L, R: R || L };
+    if (this.prog >= 0 && CNV_PROGRAMS[this.prog].ir === id) this.dirty = true;
+  }
   derive(k) {
     const q = convParams(k), fs = this.fs;
     this.q = q; this.wet = q.wet;
     if (q.prog !== this.prog) { this.prog = q.prog; this.dirty = true; }
     this.preD = Math.max(0, Math.round(q.pre * fs / 1000 - CNV_B));
     this.lpA = onePoleA(q.tone, fs); this.hpA = Math.exp(-2 * Math.PI * q.lo / fs); this.width = q.width;
-    if (q.rt !== this.rt || !!q.P.gate !== this.gate) {
-      this.rt = q.rt; this.gate = !!q.P.gate;
+    const mode = q.P.ir ? (q.full ? 'full' : 'len') : q.P.gate ? 'gate' : 'exp';
+    if (q.rt !== this.rt || mode !== this.mode) {
+      this.rt = q.rt; this.mode = mode;
       this.pg = this.pg || new Float64Array(this.P); let n = 0;
       for (let p = 0; p < this.P; p++) {
         const t = (p + 0.5) * CNV_B / fs;
-        const g = this.gate ? (t < q.rt * 0.8 ? 1 : Math.max(0, 1 - (t - q.rt * 0.8) / (q.rt * 0.2))) : Math.exp(-6.9078 * t / q.rt);
+        const g = mode === 'full' ? 1 : mode === 'exp' ? Math.exp(-6.9078 * t / q.rt)
+          : mode === 'gate' ? (t < q.rt * 0.8 ? 1 : Math.max(0, 1 - (t - q.rt * 0.8) / (q.rt * 0.2)))
+          : (t < q.rt * 0.7 ? 1 : Math.max(0, 1 - (t - q.rt * 0.7) / (q.rt * 0.3)));
         this.pg[p] = g; if (g > 1e-4) n = p + 1;
       }
       this.nG = n;
@@ -685,6 +698,10 @@ class ConvReverb {
     this.dirty = false; this.built = 0; this.seed = [0x9e3779b9 + this.prog * 7919, 0x85ebca6b + this.prog * 104729];
     this.gs = [[0, 0], [0, 0]]; // per channel: two one-pole states for the band split
     const fs = this.fs, P = CNV_PROGRAMS[this.prog];
+    // a recorded IR: nothing to build until its samples arrive (setIR marks it dirty again)
+    this.src = P.ir ? this.ext[P.ir] || null : null;
+    this.nIR = P.ir ? (this.src ? Math.min(this.P, Math.ceil(this.src.L.length / CNV_B)) : 0) : this.P;
+    if (P.ir) return;
     this.g0 = Math.sqrt(13.8 * 3 / (fs * 1.5)); // unit energy at 1.5 s
     this.aLo = onePoleA(400, fs); this.aHi = onePoleA(3500, fs);
     this.hfK = 3.4539 * (1 / P.hf - 1); // the highs die faster: extra decay per second, relative to 2 s
@@ -697,8 +714,17 @@ class ConvReverb {
   }
   _buildSome() {
     const N = CNV_N, B = CNV_B, fs = this.fs, P = CNV_PROGRAMS[this.prog], fr = this.fr, fi = this.fi;
-    for (let c = 0; c < CNV_BUILD && this.built < this.P; c++) {
+    for (let c = 0; c < CNV_BUILD && this.built < this.nIR; c++) {
       const p = this.built;
+      if (this.src) {
+        const sL = this.src.L, sR = this.src.R, o = p * B, m = Math.min(B, sL.length - o);
+        for (let n = 0; n < m; n++) { fr[n] = sL[o + n] * CNV_IR_GAIN; fi[n] = (o + n < sR.length ? sR[o + n] : 0) * CNV_IR_GAIN; }
+        for (let n = m; n < N; n++) { fr[n] = 0; fi[n] = 0; }
+        cnvFFT(fr, fi, false, this.cs, this.sn);
+        this.hr.set(fr, p * N); this.hi.set(fi, p * N);
+        this.built++;
+        continue;
+      }
       for (let n = 0; n < B; n++) {
         const s = p * B + n, t = s / fs;
         const env = this.g0 * (1 - Math.exp(-t / P.build)), eh = Math.exp(-this.hfK * t);
@@ -752,7 +778,7 @@ class ConvReverb {
       for (let n = 0; n < N; n++) { fr[n] = ar[n]; fi[n] = ai[n]; ar[n] = 0; ai[n] = 0; }
       cnvFFT(fr, fi, true, this.cs, this.sn);
       for (let n = 0; n < B; n++) { this.outL[n] = fr[B + n] / N; this.outR[n] = fi[B + n] / N; }
-      if (this.built < this.P) this._buildSome();
+      if (this.built < this.nIR) this._buildSome();
       this.nAct = Math.min(this.built, this.nG); this.next = 1;
     }
     // tone, then width (mid/side)
@@ -879,7 +905,7 @@ class TB303Voice {
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
       revtype: 0, plateprog: 0.5, platepre: 0.2, platedecay: 0.45, platedamp: 0.6, platebw: 0.75, platelo: 0.35, platediff: 0.88, platemod: 0.5, platemix: 0.5,
       sprprog: 2 / 3, sprdwell: 0.4, sprdecay: 0.5, sprtension: 0.5, sprtone: 0.5, sprlo: 0.4, sprmix: 0.5,
-      cnvprog: 0.6, cnvpre: 0.2, cnvdecay: 0.7, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
+      cnvprog: 0, cnvpre: 0.2, cnvdecay: 1, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
       cmpamt: 0.5, cmprel: 0.4,
       dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
     this.fx = { rat: false, lex: false, dly: false };
@@ -1361,6 +1387,7 @@ class TB303Engine {
     else if (m.type === 'pattern') this.pattern = m.value;
     else if (m.type === 'bpm') { this.bpm = m.value; v.bpm = m.value; v.dly.derive(v.knobs, m.value); }
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
+    else if (m.type === 'ir') v.conv.setIR(m.id, m.L, m.R);
     else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
   }
   // a 16th note; shuffle lengthens the even steps and shortens the odd ones. Returns its length in samples.
@@ -1395,4 +1422,4 @@ class TB303Engine {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams, REV_TYPES, revType, DattorroPlate, PLATE_PROGRAMS, plateParams, SpringReverb, SPRING_PROGRAMS, springParams, ConvReverb, CNV_PROGRAMS, convParams };
+if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams, REV_TYPES, revType, DattorroPlate, PLATE_PROGRAMS, plateParams, SpringReverb, SPRING_PROGRAMS, springParams, ConvReverb, CNV_PROGRAMS, convParams, CNV_IR_GAIN };

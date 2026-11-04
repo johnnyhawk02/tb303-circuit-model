@@ -82,7 +82,7 @@ function revText(id, p) {
     case 'sprtone': return hz(b.tone);
     case 'sprlo': return hz(b.lo);
     case 'cnvpre': return Math.round(Math.max(c.pre, 1000 * 512 / (ctx ? ctx.sampleRate : 48000))) + ' ms';
-    case 'cnvdecay': return sec(c.rt);
+    case 'cnvdecay': return c.full ? 'full' : sec(c.rt);
     case 'cnvtone': return hz(c.tone);
     case 'cnvlo': return hz(c.lo);
     case 'cnvwidth': return pc(c.width);

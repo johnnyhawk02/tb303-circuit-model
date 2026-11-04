@@ -39,7 +39,14 @@ const REV_PROGS = {
 const REV_NOTES = {
   plate: (q) => `Jon Dattorro's published plate (JAES 1997): four input diffusers into a figure-eight tank with modulated allpasses. ${q.P.name}: every delay scaled ×${q.P.size}. Damping is the high cut inside the tank, Bandwidth the one before it.`,
   spring: (q) => `A dispersive spring model after Välimäki, Parker and Abel (JAES 2010): each spring is a delay loop through ${SPRING_STAGES} stretched allpasses, so every echo smears into the falling drip. ${q.P.name}, transit ${q.P.ms.join(' / ')} ms. Dwell drives the tank, Tension lengthens the chirp.`,
-  conv: (q) => `Partitioned FFT convolution with a generated impulse response (${q.P.name}): seeded noise with the highs dying first${q.P.er.length ? ', a build-up and early reflections' : ''}. ${q.P.gate ? 'Decay sets the gate length. ' : ''}The wet signal is one 512-sample block late, which is the shortest predelay.`,
+  conv: (q) => {
+    if (q.P.ir) {
+      const m = irMeta?.irs.find(x => x.id === q.P.ir);
+      return (m ? `${m.character} ${m.credit}, ${m.licence}. ` : irFailed ? 'The impulse responses could not be loaded. ' : 'Recorded impulse response; it loads when audio starts. ') +
+        'Length trims the response (full at the top). Partitioned FFT convolution, one 512-sample block late, which is the shortest predelay.';
+    }
+    return `Partitioned FFT convolution with a generated impulse response: seeded noise with the highs dying first${q.P.er.length ? ', a build-up and early reflections' : ''}. ${q.P.gate ? 'Decay sets the gate length. ' : ''}The wet signal is one 512-sample block late, which is the shortest predelay.`;
+  },
 };
 {
   const el = document.getElementById('rev-type');
@@ -49,6 +56,24 @@ const REV_NOTES = {
     const b = e.target.closest('button[data-i]'); if (!b) return;
     const [knob, list] = REV_PROGS[REV_TYPES[revType(state.knobs)].id]; setKnob(knob, list.length > 1 ? b.dataset.i / (list.length - 1) : 0);
   });
+}
+// recorded impulse responses for Conv (irs/irs.json): the list loads when Conv is shown, the samples when audio is running,
+// decoded at the audio rate on this thread and handed to the engine
+let irMeta = null, irFailed = false, irMetaP = null, irSentTo = null;
+function loadIRMeta() {
+  irMetaP ||= fetch('irs/irs.json').then(r => r.json()).then(m => { irMeta = m; drawLex(); return m; }).catch(() => { irFailed = true; irMetaP = null; drawLex(); return null; });
+  return irMetaP;
+}
+async function loadIRs() {
+  if (!ctx || irSentTo === ctx) return; irSentTo = ctx;
+  const m = await loadIRMeta(); if (!m) { irSentTo = null; return; }
+  for (const ir of m.irs) {
+    try {
+      const buf = await ctx.decodeAudioData(await (await fetch('irs/' + ir.file)).arrayBuffer());
+      const L = buf.getChannelData(0), R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+      send({ type: 'ir', id: ir.id, L: L.slice(), R: R.slice() });
+    } catch (e) { console.warn('IR', ir.id, e && e.message); }
+  }
 }
 const LEX_CHORUS_NAMES = { lexbass: 'Pair 1', lexmid: 'Pair 2', lexxover: 'Pair 3', lextreble: 'Pair 4', lexdepth: 'Wander' };
 let revShown = '';
@@ -65,11 +90,12 @@ function drawLex() {
   const sel = revProg(state.knobs[pk], list.length);
   for (const b of progs.children) b.setAttribute('aria-checked', +b.dataset.i === sel);
   const lcd = document.getElementById('lex-lcd'), note = document.getElementById('lex-note');
+  if (T.id === 'conv') { loadIRMeta(); loadIRs(); }
   if (T.id !== 'lex') {
     const q = { plate: plateParams, spring: springParams, conv: convParams }[T.id](state.knobs);
     lcd.textContent = `${sel + 1} ${q.P.name.toUpperCase()}`;
     for (const k of KNOBS) if (k.rev === T.id && knobEls[k.id]) {
-      knobEls[k.id].name.textContent = k.id === 'cnvdecay' && q.P.gate ? 'Gate' : k.name;
+      knobEls[k.id].name.textContent = k.id === 'cnvdecay' ? (q.P.gate ? 'Gate' : q.P.ir ? 'Length' : 'Decay') : k.name;
       knobEls[k.id].val.textContent = knobText(k.id, state.knobs[k.id]);
     }
     note.textContent = REV_NOTES[T.id](q);
