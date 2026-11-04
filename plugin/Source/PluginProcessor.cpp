@@ -455,7 +455,7 @@ void TB303Processor::applySound(const juce::var& x) {
         if (old) {
             const auto num = [kn](const char* id, double d) { const auto j = kn->getProperty(id); return (j.isDouble() || j.isInt() || j.isInt64()) ? (double)j : d; };
             const auto [amt, rel] = cmpFromOld(num("cmpthr", 0.5), num("cmpmix", 0.7), num("cmprel", 0.4), num("cmphold", 0));
-            knMig = kn->clone(); knMig->setProperty("cmpamt", amt); knMig->setProperty("cmprel", rel); kn = knMig.get();
+            knMig = kn->clone().release(); knMig->setProperty("cmpamt", amt); knMig->setProperty("cmprel", rel); kn = knMig.get();
         }
     }
     for (int k = 0; k < K::COUNT; ++k) {
