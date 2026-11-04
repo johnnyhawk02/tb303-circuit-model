@@ -270,7 +270,10 @@ private:
     // mods + fx
     juce::Component modsPage, fxPage;
     ui::Section mods { "Mods" }, fold { "Folder" }, rat { "Drive" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" };
-    juce::TextButton dlyMode[2], lexProg[9], revTypeBtn[4], drvTypeBtn[3];
+    juce::TextButton dlyMode[2], lexProg[9];
+    // the drive pedal and the reverb unit are picked from dropdown menus (as the web app's FX page)
+    juce::TextButton drvMenuBtn, revMenuBtn;
+    void showTypeMenu(juce::TextButton& btn, const char* param, std::initializer_list<const char*> names, int current);
     std::vector<ui::Knob*> drvKnobs[3]; // the drive slot: only the selected pedal's dials show
     int shownDrv = -1;
     std::vector<ui::Knob*> revKnobs[4];
