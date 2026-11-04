@@ -711,6 +711,10 @@ html.fit .fxpane .fxb.blk-route { padding: 10px 0 0; gap: 0; }
 .blk-route > .fxname { width: 72px; flex: none; align-self: flex-start; margin-top: 15px; line-height: 20px; }
 html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
 .route-ctl { gap: 8px; }
+
+/* Sequencer foot (Johnny): no row labels; a long Length slider on its own line, then Step len, Shift and Transpose */
+html.fit .sq-row.sq-side { flex-wrap: wrap; row-gap: 6px; }
+html.fit .sq-foot .sld.len { flex: 1 0 100%; grid-template-columns: 64px minmax(0, 1fr) 36px; margin-right: 0; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -755,8 +759,8 @@ html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- controls above the roll (the pattern and what you do to it) and below it (its shape, and Generate);
-           a label column on the left so every row lines up -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (a long Length slider, then step length,
+           shift and transpose); Generate lives in the Randomise menu (key G) -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
@@ -773,7 +777,7 @@ html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
           <button type="button" role="menuitem" data-rm="alter" title="Vary the whole pattern: about a quarter of the steps change note, octave, accent, slide or rest">Whole pattern</button>
           <span class="mh">pattern</span>
           <button type="button" role="menuitem" data-rm="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle steps</button>
-          <button type="button" role="menuitem" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled, at the density and bars set below">Generate</button>
+          <button type="button" role="menuitem" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled; the length stays">Generate</button>
           <button type="button" role="menuitem" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill slots</button>
         </div></div>
         <div class="fn rmenu"><button type="button" id="tm-btn" aria-haspopup="menu" aria-expanded="false" title="Copy, paste, double, clear, undo and move the notes">Tools</button><div class="fn-menu" id="tm-menu" role="menu" hidden>
@@ -797,16 +801,10 @@ html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
       <div class="sq-foot"><div class="sq-foot-rows">
       <div class="sq-row sq-side">
-        <span class="rlab">shape</span>
-        <label class="sld"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
+        <label class="sld len"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
         <label class="sld"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
         <label class="sld spr" title="Drag to rotate the pattern; springs back to centre"><span>Shift</span><input type="range" data-a="shift" min="-16" max="16" step="1" value="0" aria-label="Shift pattern by steps"><output id="o-shift">0</output></label>
         <label class="sld spr" title="Drag to transpose the pattern; springs back to centre"><span>Transpose</span><input type="range" data-a="tr" min="-12" max="12" step="1" value="0" aria-label="Transpose pattern by semitones"><output id="o-tr">0</output></label>
-      </div>
-      <div class="sq-row sq-gen">
-        <span class="rlab">generate</span>
-        <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
-        <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars in the generated phrase, repeated out to 64 steps"><output id="o-bars">1</output></label>
       </div></div>
         <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
         <div class="nudge dpad" role="group" aria-label="Move the notes">
@@ -3549,13 +3547,6 @@ function generatePattern(len, dens = null) {
   if (!out.some(st => st.gate)) out[0].gate = true;
   return { pattern: out, src: src.name, did };
 }
-const GEN_DENS = [null, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
-const gen = { dens: 0, bars: 1, ...store.get('gen', {}) };
-function drawGen() {
-  document.getElementById('o-dens').textContent = GEN_DENS[gen.dens] == null ? 'any' : Math.round(GEN_DENS[gen.dens] * 100) + '%';
-  document.getElementById('o-bars').textContent = gen.bars;
-  document.querySelector('input[data-g=dens]').value = gen.dens; document.querySelector('input[data-g=bars]').value = gen.bars;
-}
 
 // ---------- engineering notation ----------
 const PFX = [[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
@@ -3969,19 +3960,12 @@ function shuffleSteps() {
   tail = []; renderSeq(); pushPattern();
   sqSay(`Shuffled ${P.length} steps. Again for another order; Undo puts it back.`);
 }
-drawGen();
-document.querySelector('.sq-gen').addEventListener('input', (e) => {
-  const el = e.target.closest('input[data-g]'); if (!el) return;
-  if (el.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, +el.value)); else gen.bars = Math.min(4, Math.max(1, +el.value));
-  store.set('gen', gen); drawGen();
-});
 document.getElementById('rand').onclick = () => {
   pushUndo();
-  // Generate keeps the pattern's length (Johnny) but writes all 64 steps: a phrase of Bars bars, repeated out to 64,
-  // so lengthening the pattern afterwards brings in more of the generated riff instead of rests
-  const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]), n = state.pattern.length;
-  const full = Array.from({ length: 64 }, (_, i) => ({ ...g.pattern[i % g.pattern.length] }));
-  state.pattern = full.slice(0, n); tail = full.slice(n); renderSeq(); pushPattern();
+  // Generate keeps the pattern's length (Johnny) but writes all 64 steps (a bar and three variations of it, at the
+  // source's own density), so lengthening the pattern afterwards brings in more of the generated riff instead of rests
+  const g = generatePattern(64), n = state.pattern.length;
+  state.pattern = g.pattern.slice(0, n); tail = g.pattern.slice(n); renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
   sqSay(`From ${g.src}: ${d}. Undo puts the old one back.`);
 };
@@ -4047,7 +4031,7 @@ function fillSlots(force) {
     const k = slotKey('A', i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
-    const gp = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
+    const gp = generatePattern(16);
     banks[k] = { shuffle: 0, gate: 0.5, pattern: gp.pattern, auto: true, name: gp.src }; n++;
   }
   store.set('banks', banks); return n;

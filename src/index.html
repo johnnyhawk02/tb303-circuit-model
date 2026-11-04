@@ -59,8 +59,8 @@
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- controls above the roll (the pattern and what you do to it) and below it (its shape, and Generate);
-           a label column on the left so every row lines up -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (a long Length slider, then step length,
+           shift and transpose); Generate lives in the Randomise menu (key G) -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
@@ -77,7 +77,7 @@
           <button type="button" role="menuitem" data-rm="alter" title="Vary the whole pattern: about a quarter of the steps change note, octave, accent, slide or rest">Whole pattern</button>
           <span class="mh">pattern</span>
           <button type="button" role="menuitem" data-rm="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle steps</button>
-          <button type="button" role="menuitem" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled, at the density and bars set below">Generate</button>
+          <button type="button" role="menuitem" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled; the length stays">Generate</button>
           <button type="button" role="menuitem" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill slots</button>
         </div></div>
         <div class="fn rmenu"><button type="button" id="tm-btn" aria-haspopup="menu" aria-expanded="false" title="Copy, paste, double, clear, undo and move the notes">Tools</button><div class="fn-menu" id="tm-menu" role="menu" hidden>
@@ -101,16 +101,10 @@
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
       <div class="sq-foot"><div class="sq-foot-rows">
       <div class="sq-row sq-side">
-        <span class="rlab">shape</span>
-        <label class="sld"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
+        <label class="sld len"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
         <label class="sld"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
         <label class="sld spr" title="Drag to rotate the pattern; springs back to centre"><span>Shift</span><input type="range" data-a="shift" min="-16" max="16" step="1" value="0" aria-label="Shift pattern by steps"><output id="o-shift">0</output></label>
         <label class="sld spr" title="Drag to transpose the pattern; springs back to centre"><span>Transpose</span><input type="range" data-a="tr" min="-12" max="12" step="1" value="0" aria-label="Transpose pattern by semitones"><output id="o-tr">0</output></label>
-      </div>
-      <div class="sq-row sq-gen">
-        <span class="rlab">generate</span>
-        <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
-        <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars in the generated phrase, repeated out to 64 steps"><output id="o-bars">1</output></label>
       </div></div>
         <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
         <div class="nudge dpad" role="group" aria-label="Move the notes">
