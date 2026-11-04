@@ -804,7 +804,7 @@ html.fit .pm .pm-del { height: var(--menu-h); }
       <div class="sq-row sq-gen">
         <span class="rlab">generate</span>
         <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
-        <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars to generate"><output id="o-bars">1</output></label>
+        <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars in the generated phrase, repeated out to 64 steps"><output id="o-bars">1</output></label>
       </div></div>
         <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
         <div class="nudge dpad" role="group" aria-label="Move the notes">
@@ -4007,8 +4007,11 @@ document.querySelector('.sq-gen').addEventListener('input', (e) => {
 });
 document.getElementById('rand').onclick = () => {
   pushUndo();
-  const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
-  state.pattern = g.pattern; tail = []; renderSeq(); pushPattern();
+  // Generate keeps the pattern's length (Johnny) but writes all 64 steps: a phrase of Bars bars, repeated out to 64,
+  // so lengthening the pattern afterwards brings in more of the generated riff instead of rests
+  const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]), n = state.pattern.length;
+  const full = Array.from({ length: 64 }, (_, i) => ({ ...g.pattern[i % g.pattern.length] }));
+  state.pattern = full.slice(0, n); tail = full.slice(n); renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
   sqSay(`From ${g.src}: ${d}. Undo puts the old one back.`);
 };
