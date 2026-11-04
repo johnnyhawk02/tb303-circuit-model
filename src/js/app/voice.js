@@ -6,7 +6,7 @@ panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="nam
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
 // Key track: the KT part (a TD-3-MO / Devil Fish style mod), as a full front-panel dial after Reso
-document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: feeds the pitch CV into the filter so higher notes open it. About 66% of the dial is exact 1 V/oct. 0 switches it out, which is the stock 303. Double-click to reset.">
+document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: higher notes open the filter. About 66% is exact 1 V/oct; 0 is the stock 303. Double-click to reset.">
   <div class="knob" data-k="KT" tabindex="0" role="slider" aria-label="Key track" aria-valuemin="0" aria-valuemax="100" id="knob-kt">${knobSVG()}</div>
   <div class="name">Key track</div><div class="ref">KT 100K(B)</div><div class="val" id="kt-val"></div></div>`);
 const ktEl = document.getElementById('knob-kt');
@@ -22,7 +22,7 @@ panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="nam
   <div class="trim" title="TM3 filter frequency trimmer: shifts the cutoff about an octave either way. Double-click to reset.">
     <div class="knob" data-k="I_REF" tabindex="0" role="slider" aria-label="Filter trim (TM3)" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
     <span class="tname">Filter trim</span><span class="tval" id="trim-val"></span></div>
-  <button type="button" class="mini" id="parts-rand" title="New machine: every part lands somewhere inside its real tolerance (±5% resistors, ±10–20% capacitors), like another unit off the line">New unit</button>
+  <button type="button" class="mini" id="parts-rand" title="New unit: every part lands inside its real tolerance, like another 303 off the line">New unit</button>
   <button type="button" class="mini" id="parts-bend" title="Messed up: every part bent well outside spec, circuit-bending style. Tuning parts are left alone so it stays in tune">Messed up</button>
   <button type="button" class="mini" id="parts-undo" disabled>Undo</button></div>`);
 // TM3 filter trimmer: the factory cutoff calibration pot, shown as a little trimmer under the voice knobs

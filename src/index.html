@@ -129,7 +129,7 @@
         <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
         <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars to generate"><output id="o-bars">1</output></label>
         <div class="acts">
-          <button type="button" class="rnd" id="rand" title="New pattern made from a random factory pattern, looped, reversed, doubled or shuffled, at the density and bars set here">Generate</button>
+          <button type="button" class="rnd" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled, at this density and length">Generate</button>
           <button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button>
         </div>
       </div>
@@ -167,7 +167,7 @@
         <div class="seg cmp-mode" id="dly-mode" role="radiogroup" aria-label="Delay mode"><button type="button" role="radio" data-m="1">Ping-pong</button><button type="button" role="radio" data-m="0">Mono</button></div></div>
       <div class="fxknobs" id="fx-dly-knobs"></div>
     </section>
-    <section class="fxb blk-cmp" id="fx-cmp" aria-label="Compactor sidechain" title="Ducks the delay and 224 returns, keyed from the dry synth. Threshold is the synth level that ducks them to silence; Range shapes how quieter levels count; Attack is lookahead">
+    <section class="fxb blk-cmp" id="fx-cmp" aria-label="Compactor sidechain" title="Ducks the delay and 224 returns when the synth plays. Threshold: level that ducks to silence. Attack is lookahead.">
       <div class="fxh"><span class="fxname">Compactor</span><span class="fxsub">returns, keyed by the synth</span>
         <div class="seg cmp-mode" id="cmp-mode" role="radiogroup" aria-label="Detector"><button type="button" role="radio" data-m="0">Peak</button><button type="button" role="radio" data-m="1">ISP</button><button type="button" role="radio" data-m="2">RMS</button></div></div>
       <div class="fxknobs" id="fx-cmp-knobs"></div>

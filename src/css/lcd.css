@@ -296,3 +296,7 @@ html.fit .main { grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding
 .sl-text.msg { color: var(--ink); }
 /* the old popup message boxes are now only sources for the line */
 .sq-msg, .pm-foot .hint[role=status] { display: none !important; }
+/* the status line can never widen the screen: one line, clipped with an ellipsis */
+html.fit .main { grid-template-columns: minmax(0, 1fr); }
+.sline { min-width: 0; overflow: hidden; }
+.sl-text { flex: 1 1 0; min-width: 0; }
