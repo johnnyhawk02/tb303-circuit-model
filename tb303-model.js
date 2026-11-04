@@ -438,8 +438,332 @@ class Lexicon224 {
   memoryUse() { return { words: this.words, of: this.memWords, scale: this.scale }; }
 }
 
+// ---------------------------------------------------------------------------
+// The other reverbs on the reverb slot: a plate, a spring tank and a convolution reverb. Unlike the
+// 224 these are not models of one unit; they are well-known published algorithms, run clean at the
+// host rate. revType(k) picks one: 0 = Lexicon 224, 1 = plate, 2 = spring, 3 = convolution.
+const REV_TYPES = [{ id: 'lex', name: 'Lexicon 224', short: '224' }, { id: 'plate', name: 'Plate', short: 'Plate' }, { id: 'spring', name: 'Spring', short: 'Spring' }, { id: 'conv', name: 'Convolution', short: 'Conv' }];
+const revType = (k) => Math.max(0, Math.min(3, Math.round((k.revtype || 0) * 3)));
+const revProg = (p, n) => Math.max(0, Math.min(n - 1, Math.round(p * (n - 1))));
+const revEx = (lo, hi, p) => lo * Math.pow(hi / lo, p);
+const onePoleA = (fc, fs) => Math.exp(-2 * Math.PI * Math.min(fc, 0.45 * fs) / fs);
+
+// Plate: Jon Dattorro's network "in the style of Griesinger" (Effect Design Part 1, JAES 1997), as
+// published: a bandwidth filter, four input allpass diffusers, then a figure-eight tank of two halves,
+// each a modulated allpass, a delay, a damping filter, an allpass and a delay, with his output taps.
+// The programs scale every length (Medium = his own lengths). Low cut on the input keeps the 303's
+// bass out of the tank.
+const PLATE_PROGRAMS = [
+  { name: 'Tiny plate', short: 'Tiny', size: 0.5 }, { name: 'Small plate', short: 'Small', size: 0.72 },
+  { name: 'Medium plate (Dattorro)', short: 'Medium', size: 1 }, { name: 'Large plate', short: 'Large', size: 1.3 },
+  { name: 'Huge plate', short: 'Huge', size: 1.65 },
+];
+const PLATE_IN = [142, 107, 379, 277];
+function plateParams(k) {
+  const prog = revProg(k.plateprog, PLATE_PROGRAMS.length);
+  return {
+    prog, P: PLATE_PROGRAMS[prog],
+    pre: 250 * k.platepre * k.platepre, rt: revEx(0.3, 20, k.platedecay),
+    damp: revEx(1000, 20000, k.platedamp), bw: revEx(1000, 20000, k.platebw), lo: revEx(20, 1000, k.platelo),
+    diff: k.platediff, mod: 2 * k.platemod, wet: 2 * audioTaper(k.platemix),
+  };
+}
+class DattorroPlate {
+  constructor(fs) { this.fs = fs; this.prog = -1; this.L = 0; this.R = 0; }
+  derive(k) {
+    const q = plateParams(k), fs = this.fs;
+    if (q.prog !== this.prog) this._layout(q.prog);
+    this.q = q; this.wet = q.wet;
+    this.preD = Math.max(0, Math.round(q.pre * fs / 1000));
+    this.bwA = onePoleA(q.bw, fs); this.dmA = onePoleA(q.damp, fs); this.hpA = Math.exp(-2 * Math.PI * q.lo / fs);
+    this.g1 = 0.85 * q.diff; this.g2 = 0.708 * q.diff;
+    const th = (this.half[0] + this.half[1]) / 2 / fs; // seconds round one half of the tank
+    this.decay = Math.min(0.98, Math.pow(10, -1.5 * th / q.rt));
+    this.exc = q.mod * 16 * this.sc; // modulated allpass excursion in samples
+  }
+  _layout(prog) {
+    const fs = this.fs, sc = this.sc = fs / 29761 * PLATE_PROGRAMS[prog].size;
+    this.prog = prog;
+    const L = (n) => Math.max(2, Math.round(n * sc));
+    const line = (n) => ({ b: new Float64Array(n + 1), n, w: 0 });
+    this.pre = line(Math.ceil(0.25 * fs) + 2);
+    this.ind = PLATE_IN.map(n => line(L(n)));
+    this.len = LEX_TANK.map(L);
+    this.tk = this.len.map((n, i) => line(n + ((i & 3) === 0 ? Math.ceil(4 * 16 * sc) + 4 : 0)));
+    this.half = [0, 4].map(o => this.len[o] + this.len[o + 1] + this.len[o + 2] + this.len[o + 3]);
+    const tap = (t) => [t[0], Math.max(1, Math.round(t[1] * sc)), t[2]];
+    this.tapsL = LEX_TAPS_L.map(tap); this.tapsR = LEX_TAPS_R.map(tap);
+    this.reset();
+  }
+  reset() {
+    if (this.prog < 0) return;
+    for (const l of [this.pre, ...this.ind, ...this.tk]) { l.b.fill(0); l.w = 0; }
+    this.bwS = 0; this.hp = 0; this.hpIn = 0; this.dm = [0, 0]; this.fb = [0, 0]; this.ph = 0; this.L = this.R = 0;
+  }
+  // delay line: write x, read the sample d back (d <= n)
+  static _rd(l, d) { let i = l.w - d; if (i < 0) i += l.b.length; return l.b[i]; }
+  static _wr(l, x) { l.w = l.w + 1 === l.b.length ? 0 : l.w + 1; l.b[l.w] = x; }
+  static _ap(l, g, x) { const vd = DattorroPlate._rd(l, l.n); let w = x + g * vd; if (w < 1e-30 && w > -1e-30) w = 0; DattorroPlate._wr(l, w); return vd - g * w; }
+  run(x) {
+    const rd = DattorroPlate._rd, wr = DattorroPlate._wr, ap = DattorroPlate._ap;
+    this.hp = this.hpA * (this.hp + x - this.hpIn); this.hpIn = x;
+    wr(this.pre, this.hp);
+    let u = rd(this.pre, this.preD);
+    this.bwS = u + this.bwA * (this.bwS - u); u = this.bwS;
+    u = ap(this.ind[0], this.g1, u); u = ap(this.ind[1], this.g1, u); u = ap(this.ind[2], this.g2, u); u = ap(this.ind[3], this.g2, u);
+    this.ph += 0.9 / this.fs; if (this.ph >= 1) this.ph -= 1;
+    const lfo = [Math.sin(2 * Math.PI * this.ph), Math.cos(2 * Math.PI * this.ph)];
+    const tk = this.tk, len = this.len, dec = this.decay;
+    const f0 = this.fb[1], f1 = this.fb[0];
+    for (let s = 0; s < 2; s++) {
+      const o = s * 4;
+      let a = u + dec * (s ? f1 : f0);
+      // modulated allpass, read with linear interpolation
+      const m = tk[o], dl = len[o] + this.exc * (1 + lfo[s]), di = Math.floor(dl), fr = dl - di;
+      const vd = rd(m, di) * (1 - fr) + rd(m, di + 1) * fr, w = a - 0.7 * vd;
+      wr(m, w); a = vd + 0.7 * w;
+      wr(tk[o + 1], a);
+      let v = rd(tk[o + 1], len[o + 1]);
+      let d = v + this.dmA * (this.dm[s] - v); if (d < 1e-30 && d > -1e-30) d = 0; this.dm[s] = d; v = d * dec;
+      v = ap(tk[o + 2], 0.5, v);
+      wr(tk[o + 3], v);
+      this.fb[s] = rd(tk[o + 3], len[o + 3]);
+    }
+    const sum = (T) => { let y = 0; for (let i = 0; i < T.length; i++) { const t = T[i]; y += t[2] * rd(tk[t[0]], t[1]); } return y; };
+    this.L = 0.38 * sum(this.tapsL); this.R = 0.38 * sum(this.tapsR);
+  }
+}
+
+// Spring: a dispersive delay-line model after Välimäki, Parker and Abel ("Parametric spring
+// reverberation effect", JAES 2010). Each spring is a feedback loop around a delay (the transit time)
+// and a cascade of stretched first-order allpasses, A(z) = (a + z^-K) / (1 + a z^-K), which delays
+// high frequencies more than low ones: every trip round the loop smears the echo into the falling
+// "drip" chirp. K puts the chirp's top near 4.3 kHz, where real springs stop passing sound. Dwell is
+// the drive into the tank (as on a Fender reverb), Tension sets the allpass coefficient (longer chirp).
+const SPRING_PROGRAMS = [
+  { name: 'One spring', short: '1 spring', ms: [36] },
+  { name: 'Two springs', short: '2 springs', ms: [31.5, 37.3] },
+  { name: 'Three springs', short: '3 springs', ms: [33.1, 37.7, 41.9] },
+  { name: 'Long tank', short: 'Long tank', ms: [44.3, 51.1, 58.7] },
+];
+const SPRING_STAGES = 48;
+function springParams(k) {
+  const prog = revProg(k.sprprog, SPRING_PROGRAMS.length);
+  return {
+    prog, P: SPRING_PROGRAMS[prog],
+    dwell: revEx(0.5, 8, k.sprdwell), rt: revEx(0.4, 6, k.sprdecay), a: 0.45 + 0.33 * k.sprtension,
+    tone: revEx(1500, 6000, k.sprtone), lo: revEx(50, 1000, k.sprlo), wet: 2 * audioTaper(k.sprmix),
+  };
+}
+class SpringReverb {
+  constructor(fs) { this.fs = fs; this.K = Math.max(1, Math.round(fs / (2 * 4300))); this.prog = -1; this.L = 0; this.R = 0; }
+  derive(k) {
+    const q = springParams(k), fs = this.fs;
+    if (q.prog !== this.prog) this._layout(q.prog);
+    this.q = q; this.wet = q.wet;
+    this.dw = q.dwell; this.dwN = 1 / Math.sqrt(q.dwell);
+    this.a = q.a; this.lpA = onePoleA(q.tone, fs); this.hpA = Math.exp(-2 * Math.PI * q.lo / fs);
+    // loop time: the transit delay plus the chirp's mean group delay
+    const gd = SPRING_STAGES * this.K * 0.5 * ((1 - q.a) / (1 + q.a) + (1 + q.a) / (1 - q.a));
+    this.g = this.sp.map(s => Math.pow(10, -3 * (s.d + gd) / fs / q.rt));
+  }
+  _layout(prog) {
+    const fs = this.fs, K = this.K; this.prog = prog;
+    this.sp = SPRING_PROGRAMS[prog].ms.map(ms => {
+      const d = Math.round(ms * 0.001 * fs);
+      return { d, buf: new Float64Array(d + 1), w: 0, xh: new Float64Array(SPRING_STAGES * K), yh: new Float64Array(SPRING_STAGES * K), lp1: 0, lp2: 0, fb: 0 };
+    });
+    // the stretched allpasses repeat their pattern above fs / 2K; cut that mirror image off the output
+    const fc = 0.85 * fs / (2 * K);
+    this.olL = [lexLowpass(fc, 0.5412, fs), lexLowpass(fc, 1.3066, fs)]; this.olR = [lexLowpass(fc, 0.5412, fs), lexLowpass(fc, 1.3066, fs)];
+    this.reset();
+  }
+  reset() {
+    if (this.prog < 0) return;
+    for (const f of [...this.olL, ...this.olR]) f.x1 = f.x2 = f.y1 = f.y2 = 0;
+    for (const s of this.sp) { s.buf.fill(0); s.xh.fill(0); s.yh.fill(0); s.w = 0; s.lp1 = s.lp2 = s.fb = 0; }
+    this.j = 0; this.hp = 0; this.hpIn = 0; this.dc = [0, 0, 0, 0]; this.L = this.R = 0;
+  }
+  run(x) {
+    this.hp = this.hpA * (this.hp + x - this.hpIn); this.hpIn = x;
+    const u = Math.tanh(this.hp * this.dw) * this.dwN;
+    const K = this.K, a = this.a, j = this.j, lpA = this.lpA, n = this.sp.length;
+    let l = 0, r = 0;
+    for (let i = 0; i < n; i++) {
+      const s = this.sp[i], xh = s.xh, yh = s.yh;
+      let v = u + this.g[i] * s.fb;
+      for (let m = 0, o = j; m < SPRING_STAGES; m++, o += K) { let y = a * v + xh[o] - a * yh[o]; if (y < 1e-30 && y > -1e-30) y = 0; xh[o] = v; yh[o] = y; v = y; }
+      s.lp1 = v + lpA * (s.lp1 - v); s.lp2 = s.lp1 + lpA * (s.lp2 - s.lp1);
+      s.w = s.w + 1 === s.buf.length ? 0 : s.w + 1; s.buf[s.w] = s.lp2;
+      let ri = s.w - s.d; if (ri < 0) ri += s.buf.length;
+      s.fb = s.buf[ri];
+      if (n === 1) { l += s.fb; r += s.fb; } else if (i === 2) { l += 0.5 * s.fb; r += 0.5 * s.fb; } else if (i & 1) r += s.fb; else l += s.fb;
+    }
+    this.j = j + 1 === K ? 0 : j + 1;
+    // DC blockers on the outputs
+    this.dc[0] = 0.9995 * (this.dc[0] + l - this.dc[1]); this.dc[1] = l;
+    this.dc[2] = 0.9995 * (this.dc[2] + r - this.dc[3]); this.dc[3] = r;
+    this.L = 0.75 * lexBiq(this.olL, this.dc[0]); this.R = 0.75 * lexBiq(this.olR, this.dc[2]);
+  }
+}
+
+// Convolution: uniformly partitioned overlap-save FFT convolution (512-sample blocks), with the work
+// for the older partitions spread across each block so no single sample does it all. The impulse
+// responses are generated (seeded noise, band-split so the highs die first, a density build-up and
+// early reflections per program), so they are the same every time and need no files. Decay is applied
+// per partition, so turning it costs nothing. L and R share one complex FFT (hL + i hR).
+// The wet signal is one block (about 11 ms) late, which counts toward the predelay.
+const CNV_B = 512, CNV_N = 1024, CNV_SECS = 3, CNV_BUILD = 8;
+const CNV_PROGRAMS = [
+  { name: 'Plate', short: 'Plate', build: 0.002, hf: 0.85, er: [] },
+  { name: 'Room', short: 'Room', build: 0.012, hf: 0.4, er: [[4.3, 0.5, -0.6], [7.9, -0.42, 0.7], [11.3, 0.36, 0.2], [14.1, -0.3, -0.8], [17.9, 0.26, 0.5], [23.3, -0.2, -0.3]] },
+  { name: 'Chamber', short: 'Chamber', build: 0.006, hf: 0.6, er: [[6.1, 0.4, 0.5], [9.7, -0.33, -0.5], [13.9, 0.27, 0.8], [19.3, -0.2, -0.7]] },
+  { name: 'Concert hall', short: 'Hall', build: 0.035, hf: 0.5, er: [[17, 0.3, -0.5], [23, 0.27, 0.6], [31, -0.22, -0.2], [41, 0.2, 0.8], [53, -0.16, -0.7], [67, 0.12, 0.3]] },
+  { name: 'Church', short: 'Church', build: 0.08, hf: 0.33, er: [[29, 0.22, 0.4], [47, -0.2, -0.6], [71, 0.16, 0.7], [97, -0.12, -0.3]] },
+  { name: 'Gated (1980s)', short: 'Gated', build: 0.003, hf: 0.75, gate: true, er: [] },
+];
+function convParams(k) {
+  const prog = revProg(k.cnvprog, CNV_PROGRAMS.length), P = CNV_PROGRAMS[prog];
+  return {
+    prog, P, pre: 250 * k.cnvpre * k.cnvpre,
+    rt: P.gate ? revEx(0.12, 1, k.cnvdecay) : revEx(0.2, 4, k.cnvdecay),
+    tone: revEx(1000, 20000, k.cnvtone), lo: revEx(20, 1000, k.cnvlo), width: 1.5 * k.cnvwidth, wet: 2 * audioTaper(k.cnvmix),
+  };
+}
+function cnvFFT(re, im, inv, cs, sn) { // in place, radix 2, N = re.length
+  const N = re.length;
+  for (let i = 1, j = 0; i < N; i++) {
+    let bit = N >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= N; len <<= 1) {
+    const h = len >> 1, st = N / len;
+    for (let i = 0; i < N; i += len) for (let k = 0; k < h; k++) {
+      const wr = cs[k * st], wi = inv ? sn[k * st] : -sn[k * st];
+      const a = i + k, b = a + h, xr = re[b] * wr - im[b] * wi, xi = re[b] * wi + im[b] * wr;
+      re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+    }
+  }
+}
+class ConvReverb {
+  constructor(fs) { this.fs = fs; this.prog = -1; this.L = 0; this.R = 0; this.ready = false; this.P = Math.ceil(CNV_SECS * fs / CNV_B); this.rt = -1; this.gate = false; }
+  derive(k) {
+    const q = convParams(k), fs = this.fs;
+    this.q = q; this.wet = q.wet;
+    if (q.prog !== this.prog) { this.prog = q.prog; this.dirty = true; }
+    this.preD = Math.max(0, Math.round(q.pre * fs / 1000 - CNV_B));
+    this.lpA = onePoleA(q.tone, fs); this.hpA = Math.exp(-2 * Math.PI * q.lo / fs); this.width = q.width;
+    if (q.rt !== this.rt || !!q.P.gate !== this.gate) {
+      this.rt = q.rt; this.gate = !!q.P.gate;
+      this.pg = this.pg || new Float64Array(this.P); let n = 0;
+      for (let p = 0; p < this.P; p++) {
+        const t = (p + 0.5) * CNV_B / fs;
+        const g = this.gate ? (t < q.rt * 0.8 ? 1 : Math.max(0, 1 - (t - q.rt * 0.8) / (q.rt * 0.2))) : Math.exp(-6.9078 * t / q.rt);
+        this.pg[p] = g; if (g > 1e-4) n = p + 1;
+      }
+      this.nG = n;
+    }
+  }
+  _alloc() {
+    const P = this.P, N = CNV_N;
+    this.cs = new Float64Array(N / 2); this.sn = new Float64Array(N / 2);
+    for (let i = 0; i < N / 2; i++) { this.cs[i] = Math.cos(2 * Math.PI * i / N); this.sn[i] = Math.sin(2 * Math.PI * i / N); }
+    this.hr = new Float32Array(P * N); this.hi = new Float32Array(P * N);
+    this.xr = new Float32Array(P * N); this.xi = new Float32Array(P * N);
+    this.ar = new Float64Array(N); this.ai = new Float64Array(N); this.fr = new Float64Array(N); this.fi = new Float64Array(N);
+    this.inb = new Float64Array(N); this.outL = new Float64Array(CNV_B); this.outR = new Float64Array(CNV_B);
+    this.pre = new Float64Array(Math.ceil(0.25 * this.fs) + 2);
+    this.ready = true; this.reset();
+  }
+  reset() {
+    if (!this.ready) return;
+    this.xr.fill(0); this.xi.fill(0); this.ar.fill(0); this.ai.fill(0); this.inb.fill(0); this.outL.fill(0); this.outR.fill(0); this.pre.fill(0);
+    this.i = 0; this.slot = 0; this.next = 1; this.nAct = 0; this.pw = 0; this.hp = 0; this.hpIn = 0; this.lpL = this.lpR = 0; this.L = this.R = 0;
+  }
+  // start a new impulse response; it is built a few partitions per block (see _buildSome)
+  _startIR() {
+    this.dirty = false; this.built = 0; this.seed = [0x9e3779b9 + this.prog * 7919, 0x85ebca6b + this.prog * 104729];
+    this.gs = [[0, 0], [0, 0]]; // per channel: two one-pole states for the band split
+    const fs = this.fs, P = CNV_PROGRAMS[this.prog];
+    this.g0 = Math.sqrt(13.8 * 3 / (fs * 1.5)); // unit energy at 1.5 s
+    this.aLo = onePoleA(400, fs); this.aHi = onePoleA(3500, fs);
+    this.hfK = 3.4539 * (1 / P.hf - 1); // the highs die faster: extra decay per second, relative to 2 s
+    this.erT = P.er.map(e => [Math.round(e[0] * 0.001 * fs), e[1] * 18 * this.g0, e[2]]);
+  }
+  _rand(c) { // mulberry32 per channel, -1..1
+    let t = this.seed[c] = (this.seed[c] + 0x6D2B79F5) >>> 0;
+    t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+  }
+  _buildSome() {
+    const N = CNV_N, B = CNV_B, fs = this.fs, P = CNV_PROGRAMS[this.prog], fr = this.fr, fi = this.fi;
+    for (let c = 0; c < CNV_BUILD && this.built < this.P; c++) {
+      const p = this.built;
+      for (let n = 0; n < B; n++) {
+        const s = p * B + n, t = s / fs;
+        const env = this.g0 * (1 - Math.exp(-t / P.build)), eh = Math.exp(-this.hfK * t);
+        for (let ch = 0; ch < 2; ch++) {
+          const u = this._rand(ch), g = this.gs[ch];
+          g[0] = u + this.aLo * (g[0] - u); g[1] = u + this.aHi * (g[1] - u);
+          let h = env * (g[1] + eh * (u - g[1]));
+          for (const e of this.erT) if (e[0] === s) h += e[1] * (ch ? 1 + e[2] : 1 - e[2]);
+          if (ch) fi[n] = h; else fr[n] = h;
+        }
+      }
+      for (let n = B; n < N; n++) { fr[n] = 0; fi[n] = 0; }
+      cnvFFT(fr, fi, false, this.cs, this.sn);
+      this.hr.set(fr, p * N); this.hi.set(fi, p * N);
+      this.built++;
+    }
+  }
+  _mac(p, s) { // acc += X(slot s) * H(p) * gain(p)
+    const N = CNV_N, P = this.P, g = this.pg[p];
+    if (s < 0) s += P;
+    const xo = s * N, ho = p * N, xr = this.xr, xi = this.xi, hr = this.hr, hi = this.hi, ar = this.ar, ai = this.ai;
+    for (let k = 0; k < N; k++) {
+      const a = xr[xo + k], b = xi[xo + k], c = hr[ho + k], d = hi[ho + k];
+      ar[k] += g * (a * c - b * d); ai[k] += g * (a * d + b * c);
+    }
+  }
+  run(x) {
+    if (!this.ready) this._alloc();
+    if (this.dirty) { this._startIR(); this.reset(); }
+    const B = CNV_B, N = CNV_N;
+    this.hp = this.hpA * (this.hp + x - this.hpIn); this.hpIn = x;
+    const pl = this.pre.length; this.pw = this.pw + 1 === pl ? 0 : this.pw + 1; this.pre[this.pw] = this.hp;
+    let ri = this.pw - this.preD; if (ri < 0) ri += pl;
+    const i = this.i;
+    this.inb[B + i] = this.pre[ri];
+    // the older partitions, a share each sample, for the output due at the end of this block
+    const target = 1 + Math.floor((i + 1) * (this.nAct - 1) / B);
+    while (this.next < target) { this._mac(this.next, this.slot + 1 - this.next); this.next++; }
+    let yl = this.outL[i], yr = this.outR[i];
+    if (++this.i === B) {
+      this.i = 0;
+      // new input spectrum from [last block, this block]
+      const fr = this.fr, fi = this.fi, inb = this.inb;
+      for (let n = 0; n < N; n++) { fr[n] = inb[n]; fi[n] = 0; }
+      for (let n = 0; n < B; n++) inb[n] = inb[B + n];
+      cnvFFT(fr, fi, false, this.cs, this.sn);
+      this.slot = this.slot + 1 === this.P ? 0 : this.slot + 1;
+      this.xr.set(fr, this.slot * N); this.xi.set(fi, this.slot * N);
+      if (this.nAct > 0) this._mac(0, this.slot);
+      const ar = this.ar, ai = this.ai;
+      for (let n = 0; n < N; n++) { fr[n] = ar[n]; fi[n] = ai[n]; ar[n] = 0; ai[n] = 0; }
+      cnvFFT(fr, fi, true, this.cs, this.sn);
+      for (let n = 0; n < B; n++) { this.outL[n] = fr[B + n] / N; this.outR[n] = fi[B + n] / N; }
+      if (this.built < this.P) this._buildSome();
+      this.nAct = Math.min(this.built, this.nG); this.next = 1;
+    }
+    // tone, then width (mid/side)
+    this.lpL = yl + this.lpA * (this.lpL - yl); this.lpR = yr + this.lpA * (this.lpR - yr);
+    const m = 0.5 * (this.lpL + this.lpR), sd = 0.5 * (this.lpL - this.lpR) * this.width;
+    this.L = m + sd; this.R = m - sd;
+  }
+}
+
 // zero subnormal-bound numbers in an object's own state (plain numbers, small arrays, nested state objects)
-const FLUSH_SKIP = new Set(['c', 'knobs', 'fx', 'lex', 'mem', 'C']);
+const FLUSH_SKIP = new Set(['c', 'knobs', 'fx', 'lex', 'plate', 'spring', 'conv', 'mem', 'C']);
 function flushTiny(o, depth) {
   if (Array.isArray(o) || ArrayBuffer.isView(o)) {
     if (o.length > 64) return;
@@ -553,11 +877,15 @@ class TB303Voice {
     // front panel (0..1)
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
+      revtype: 0, plateprog: 0.5, platepre: 0.2, platedecay: 0.45, platedamp: 0.6, platebw: 0.75, platelo: 0.35, platediff: 0.88, platemod: 0.5, platemix: 0.5,
+      sprprog: 2 / 3, sprdwell: 0.4, sprdecay: 0.5, sprtension: 0.5, sprtone: 0.5, sprlo: 0.4, sprmix: 0.5,
+      cnvprog: 0.6, cnvpre: 0.2, cnvdecay: 0.7, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
       cmpamt: 0.5, cmprel: 0.4,
       dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
     this.fx = { rat: false, lex: false, dly: false };
     this.bpm = 128;
     this.lex = new Lexicon224(sampleRate);
+    this.plate = new DattorroPlate(sampleRate); this.spring = new SpringReverb(sampleRate); this.conv = new ConvReverb(sampleRate); this.revT = 0;
     this.dly = new DigitalDelay(sampleRate);
     this.cmp = new Compactor(sampleRate);
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
@@ -681,8 +1009,12 @@ class TB303Voice {
     this.ratIs = 1e-3 / Math.exp(c.RAT_VF / this.ratN);
     this.ratFltA = e((c.RAT_RF + 100e3 * k.filter) * c.RAT_CFLT);
     this.ratLevel = audioTaper(k.ratvol) * 6;
-    this.lex.derive(c, k);
+    this.lex.derive(c, k); this.plate.derive(k); this.spring.derive(k); this.conv.derive(k);
+    const t = revType(k);
+    if (t !== this.revT) { this.revT = t; this.rev.reset?.(); }
   }
+  // the unit on the reverb slot (fx.lex switches it on)
+  get rev() { return this.revT === 1 ? this.plate : this.revT === 2 ? this.spring : this.revT === 3 ? this.conv : this.lex; }
 
   _rat(x) {
     const s = this.rt, x0 = s.xp; s.xp = x;
@@ -897,7 +1229,7 @@ class TB303Voice {
   // the effects after the dry signal y: the 224 and the delay are parallel returns, both ducked by the
   // Compactor keyed from y, summed with y, then the output soft clip
   _fxOut(y, out, outR, n) {
-    const lex = this.fx.lex ? this.lex : null, dly = this.fx.dly ? this.dly : null;
+    const lex = this.fx.lex ? this.rev : null, dly = this.fx.dly ? this.dly : null;
     let wl = 0, wr = 0;
     if (lex) { lex.run(y); wl += lex.wet * lex.L; wr += lex.wet * lex.R; }
     if (dly) { dly.run(y); wl += dly.l; wr += dly.r; }
@@ -917,7 +1249,7 @@ class TB303Voice {
   // Decaying filter and envelope states eventually reach subnormal floats, which run many times
   // slower on most CPUs (CPU climbed 3x over 15 s of silence). Snap anything that small to zero once
   // per block. 1e-150 is far below any audible level and far below every component value.
-  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.dly, 0); flushTiny(this.cmp, 0); }
+  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.plate, 0); flushTiny(this.spring, 0); flushTiny(this.conv, 0); flushTiny(this.dly, 0); flushTiny(this.cmp, 0); }
 
   // out is mono, or the left channel when outR is given
   process(out, start = 0, end = out.length, outR) {
@@ -943,7 +1275,7 @@ class TB303Voice {
 // it only decides what value the voice sees each 32-sample tick. Discrete controls switch at once.
 class ParamSlew {
   constructor(voice, fs, tau = 0.015) { this.v = voice; this.fs = fs; this.tau = tau; this.t = new Map(); }
-  static instant(kind, name) { return name === 'lexprog' || name.startsWith('LEX_'); }
+  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name.startsWith('LEX_'); }
   set(kind, name, value) {
     const v = this.v;
     if (ParamSlew.instant(kind, name) || !isFinite(value)) { this.t.delete(kind + name); kind === 'k' ? v.setKnob(name, value) : v.setComponent(name, value); return; }
@@ -1063,4 +1395,4 @@ class TB303Engine {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams, REV_TYPES, revType, DattorroPlate, PLATE_PROGRAMS, plateParams, SpringReverb, SPRING_PROGRAMS, springParams, ConvReverb, CNV_PROGRAMS, convParams };
