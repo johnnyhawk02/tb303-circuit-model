@@ -71,8 +71,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
         } else if (k == K::dlytime) {
             StringArray names; for (auto* n : DLY_NAMES) names.add(n);
             L.add(std::make_unique<AudioParameterChoice>(ParameterID { id, 1 }, name, names, 7));
-        } else if (k == K::cmpmode) {
-            L.add(std::make_unique<AudioParameterChoice>(ParameterID { id, 1 }, name, StringArray { "Peak", "ISP", "RMS" }, 0));
         } else if (k == K::dlypp) {
             L.add(std::make_unique<AudioParameterBool>(ParameterID { id, 1 }, name, true));
         } else {
@@ -87,10 +85,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
             case K::dlyfb: txt = [](float v, int) { return String(juce::roundToInt(95 * v)) + "%"; }; break;
             case K::dlylo: txt = [](float v, int) { return String(juce::roundToInt(dlyLo(v))) + " Hz"; }; break;
             case K::dlyhi: txt = [](float v, int) { return String(dlyHi(v) / 1000, 1) + " kHz"; }; break;
-            case K::cmpthr: txt = [](float v, int) { return String(cmpThrDb(v), 1) + " dB"; }; break;
-            case K::cmprng: txt = [](float v, int) { return String(juce::roundToInt(200 * v)) + "%"; }; break;
-            case K::cmpatk: txt = [](float v, int) { return String(cmpAtkMs(v), 1) + " ms"; }; break;
-            case K::cmphold: txt = [](float v, int) { return String(juce::roundToInt(cmpHoldMs(v))) + " ms"; }; break;
+            case K::cmpamt: txt = [](float v, int) { return v <= 0 ? String("Off") : String(juce::roundToInt(v * 100)) + "%"; }; break;
             case K::cmprel: txt = [](float v, int) { return String(juce::roundToInt(cmpRelMs(v))) + " ms"; }; break;
             default: break;
             }
@@ -191,7 +186,6 @@ double TB303Processor::knobValue(int k) const {
     const double raw = knobParams[(size_t)k]->load();
     if (k == K::lexprog) return raw / 8.0;
     if (k == K::dlytime) return raw / 10.0;
-    if (k == K::cmpmode) return raw / 2.0;
     return raw;
 }
 tb303::Knobs TB303Processor::allKnobs() const { Knobs k; for (int i = 0; i < K::COUNT; ++i) k[(size_t)i] = knobValue(i); return k; }
@@ -453,14 +447,23 @@ bool TB303Processor::undoTune() { if (tuneUndo.empty()) return false; const auto
 // ---------------------------------------------------------------------------------------------------
 // web-app JSON. Same rules as cleanSettings() / applySound() / applyProject().
 void TB303Processor::applySound(const juce::var& x) {
-    const auto* kn = x.getProperty("knobs", {}).getDynamicObject();
+    auto* kn = x.getProperty("knobs", {}).getDynamicObject();
+    // sounds saved with the old six-control Compactor: map them onto Amount and Release (cleanSettings in state.js)
+    juce::DynamicObject::Ptr knMig;
+    if (kn && !kn->hasProperty("cmpamt")) {
+        bool old = false; for (auto* id : { "cmpthr", "cmprng", "cmpatk", "cmphold", "cmpmix", "cmpmode" }) old = old || kn->hasProperty(id);
+        if (old) {
+            const auto num = [kn](const char* id, double d) { const auto j = kn->getProperty(id); return (j.isDouble() || j.isInt() || j.isInt64()) ? (double)j : d; };
+            const auto [amt, rel] = cmpFromOld(num("cmpthr", 0.5), num("cmpmix", 0.7), num("cmprel", 0.4), num("cmphold", 0));
+            knMig = kn->clone(); knMig->setProperty("cmpamt", amt); knMig->setProperty("cmprel", rel); kn = knMig.get();
+        }
+    }
     for (int k = 0; k < K::COUNT; ++k) {
         double v = knobs()[k].def;
         if (kn) { const auto j = kn->getProperty(knobs()[k].id); if ((j.isDouble() || j.isInt() || j.isInt64()) && (double)j >= 0 && (double)j <= 1) v = j; }
         float plain = (float)v;
         if (k == K::lexprog) plain = (float)jsRound(v * 8);
         else if (k == K::dlytime) plain = (float)dlyDivIndex(v);
-        else if (k == K::cmpmode) plain = (float)jsRound(v * 2);
         else if (k == K::dlypp) plain = v >= 0.5 ? 1.0f : 0.0f;
         setParam(apvts, knobs()[k].id, plain);
     }
@@ -712,6 +715,15 @@ void TB303Processor::setStateInformation(const void* data, int size) {
     auto state = juce::ValueTree::fromXml(*xml);
     if (!state.hasType(apvts.state.getType())) return;
     const auto extra = state.getChildWithName("Extra");
+    { // sessions saved with the old six-control Compactor: map its parameters onto Amount and Release
+        auto param = [&state](const char* id) { return state.getChildWithProperty("id", id); };
+        if (!param("cmpamt").isValid() && param("cmpthr").isValid()) {
+            const auto val = [&](const char* id, double d) { const auto p = param(id); return p.isValid() ? (double)p.getProperty("value") : d; };
+            const auto [amt, rel] = cmpFromOld(val("cmpthr", 0.5), val("cmpmix", 0.7), val("cmprel", 0.4), val("cmphold", 0));
+            juce::ValueTree a("PARAM"); a.setProperty("id", "cmpamt", nullptr).setProperty("value", amt, nullptr); state.appendChild(a, nullptr);
+            auto r = param("cmprel"); if (r.isValid()) r.setProperty("value", rel, nullptr);
+        }
+    }
     apvts.replaceState(state);
     if (!extra.isValid()) return;
     const auto j = juce::JSON::parse(extra.getProperty("seq").toString());

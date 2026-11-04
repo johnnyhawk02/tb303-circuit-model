@@ -270,7 +270,7 @@ private:
     // mods + fx
     juce::Component modsPage, fxPage;
     ui::Section mods { "Mods" }, rat { "ProCo RAT" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Lexicon 224" };
-    juce::TextButton dlyMode[2], cmpMode[3], lexProg[9];
+    juce::TextButton dlyMode[2], lexProg[9];
     juce::Label lexLcd, lexNote;
     std::vector<ui::Knob*> lexKnobs;
     // options pages

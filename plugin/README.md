@@ -11,7 +11,7 @@ The web app's TB-303 model as a VST3 / AU instrument (and a standalone app), bui
 - **Everything the web app has, laid out the same way.** Voice knobs with the web page's readouts, the
   TM3 filter trim, and *New unit* / *Messed up* / *Undo* for the components. Tabs for the Sequencer, the
   twelve Mods (E24 / E12 steps, Shift for in-between), FX (RAT, Delay with Ping-pong / Mono, Compactor with
-  Peak / ISP / RMS, the 224 with its program buttons, LCD and memory note), Circuit (every part by block),
+  Amount and Release, the 224 with its program buttons, LCD and memory note), Circuit (every part by block),
   Board (the stylised PCB), Monitor (de-click, scope, readouts), MIDI (the CC map) and About.
 - **Sequencer.** Banks A-D x slots 1-12, chains (Cmd-click or right-click a slot), Copy / Paste / Clear /
   Refill, patterns up to 64 steps (the grid shows at least 32; clicking past the end extends), Length,

@@ -880,9 +880,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     onBtn(dly, "fx_dly"); dly.sub = "tempo synced, tone on the repeats"; addKnobs(dly, { "dlytime", "dlyfb", "dlylo", "dlyhi", "dlymix" }, 70);
     const char* dm[2] = { "Ping-pong", "Mono" };
     for (int i = 0; i < 2; ++i) { dlyMode[i].setButtonText(dm[i]); dlyMode[i].onClick = [setParam, i] { setParam("dlypp", i == 0 ? 1.0f : 0.0f); }; dly.addHeaderItem(&dlyMode[1 - i], 74); }
-    cmp.sub = "ducks the returns, keyed by the synth"; addKnobs(cmp, { "cmpthr", "cmprng", "cmpatk", "cmphold", "cmprel", "cmpmix" }, 70);
-    const char* cm[3] = { "Peak", "ISP", "RMS" };
-    for (int i = 0; i < 3; ++i) { cmpMode[i].setButtonText(cm[i]); cmpMode[i].onClick = [setParam, i] { setParam("cmpmode", (float)i); }; cmp.addHeaderItem(&cmpMode[2 - i], 50); }
+    cmp.sub = "ducks the returns, keyed by the synth"; addKnobs(cmp, { "cmpamt", "cmprel" }, 70);
     onBtn(lex, "fx_lex");
     lex.bodyTop = 62;
     addKnobs(lex, { "lexbass", "lexmid", "lexxover", "lextreble", "lexdepth", "lexdiff", "lexpre", "lexme", "lexpitch", "lexmix" }, 74, &lexKnobs);
@@ -1188,7 +1186,6 @@ void TB303Editor::timerCallback() {
         lexNote.setText(note, juce::dontSendNotification);
         const int pp = Kn[K::dlypp] >= 0.5 ? 0 : 1;
         for (int i = 0; i < 2; ++i) dlyMode[i].setToggleState(i == pp, juce::dontSendNotification);
-        for (int i = 0; i < 3; ++i) cmpMode[i].setToggleState(i == (int)jsRound(Kn[K::cmpmode] * 2), juce::dontSendNotification);
         // Monitor readouts (knobs.js readouts())
         const double vb = preview.cutoffBase(), envTop = preview.envTopBase();
         const double rd = P[P::R138] + P[P::VR6] * std::pow(Kn[K::decay], 2.74);

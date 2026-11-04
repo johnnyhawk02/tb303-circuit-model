@@ -110,7 +110,7 @@ namespace K {
 enum : int {
     tuning, cutoff, resonance, envmod, decay, accent, volume, dist, filter, ratvol,
     lexprog, lexbass, lexmid, lexxover, lextreble, lexdepth, lexdiff, lexpre, lexme, lexpitch, lexmix,
-    cmpthr, cmprng, cmpatk, cmphold, cmprel, cmpmix, cmpmode,
+    cmpamt, cmprel,
     dlypp, dlytime, dlyfb, dlylo, dlyhi, dlymix,
     COUNT
 };
@@ -126,9 +126,7 @@ inline const std::array<KnobInfo, K::COUNT>& knobs() {
         { "lexxover", "Crossover", 0.443, "lex" }, { "lextreble", "Treble", 0.834, "lex" }, { "lexdepth", "Depth", 0.5, "lex" },
         { "lexdiff", "Diffusion", 0.55, "lex" }, { "lexpre", "Predelay", 0.2, "lex" }, { "lexme", "Mode enh", 0.5, "lex" },
         { "lexpitch", "Pitch", 0.2, "lex" }, { "lexmix", "Return", 0.5, "lex" },
-        { "cmpthr", "Threshold", 0.5, "cmp" }, { "cmprng", "Range", 0.5, "cmp" }, { "cmpatk", "Attack", 0.3, "cmp" },
-        { "cmphold", "Hold", 0, "cmp" }, { "cmprel", "Release", 0.4, "cmp" }, { "cmpmix", "Mix", 0.7, "cmp" },
-        { "cmpmode", "Mode", 0, "cmp" },
+        { "cmpamt", "Amount", 0.5, "cmp" }, { "cmprel", "Release", 0.4, "cmp" },
         { "dlypp", "Ping-pong", 1, "dly" }, { "dlytime", "Time", 0.7, "dly" }, { "dlyfb", "Feedback", 0.35, "dly" },
         { "dlylo", "Low cut", 0.3, "dly" }, { "dlyhi", "High cut", 0.55, "dly" }, { "dlymix", "Return", 0.35, "dly" },
     }};
@@ -513,57 +511,48 @@ private:
 
 // ---------------------------------------------------------------------------------------------------
 // Sidechain ducker on the effect returns, after the Kilohearts Compactor (our reading of its controls).
-static const char* const CMP_MODES[3] = { "Peak", "ISP", "RMS" };
-inline double cmpThrDb(double p) { return -40 + 40 * p; }
-inline double cmpAtkMs(double p) { return 10 * p; }
-inline double cmpHoldMs(double p) { return 500 * p * p; }
+// Two controls: Amount (duck depth and the key level that ducks fully) and Release. Lookahead 3 ms,
+// linear key law, no hold, peak detector are fixed. Same as Compactor in tb303-model.js.
+inline double cmpThrDb(double a) { return -10 - 20 * a; }
+inline double cmpMix(double a) { return std::min(1.0, 1.4 * a); }
 inline double cmpRelMs(double p) { return 1000 * p * p; }
+constexpr double CMP_ATK_MS = 3;
+// sounds saved with the old Threshold/Range/Attack/Hold/Release/Mix/Mode controls -> Amount, Release
+// (cmpFromOld in tb303-model.js). Arguments are the old 0..1 knob values.
+inline std::pair<double, double> cmpFromOld(double thr, double mix, double rel, double hold) {
+    const auto cl = [](double x) { return std::min(1.0, std::max(0.0, x)); };
+    const double aT = cl((-10 - (-40 + 40 * thr)) / 20), aM = cl(mix / 1.4);
+    const double amt = mix <= 0 ? 0 : mix >= 1 ? std::max(aT, aM) : (aT + aM) / 2;
+    const double relMs = std::min(1000.0, 1000 * rel * rel + 500 * hold * hold);
+    return { jsRound(cl(amt) * 1000) / 1000, jsRound(std::sqrt(relMs / 1000) * 1000) / 1000 };
+}
 
 class Compactor {
 public:
     explicit Compactor(double fs) : fs(fs) { L.assign((size_t)std::ceil(fs * 0.011), 0.0f); R.assign(L.size(), 0.0f); }
     double l = 0, r = 0, g = 1;
     void derive(const Knobs& k) {
-        thr = std::pow(10.0, cmpThrDb(k[K::cmpthr]) / 20);
-        rng = 2 * k[K::cmprng];
-        D = (int)std::min((double)L.size() - 1, jsRound(cmpAtkMs(k[K::cmpatk]) * 1e-3 * fs));
-        atkA = D > 0 ? 1 - std::exp(-3.0 / D) : 1;
-        holdN = (int)jsRound(cmpHoldMs(k[K::cmphold]) * 1e-3 * fs);
+        inv = std::pow(10.0, -cmpThrDb(k[K::cmpamt]) / 20);
+        D = (int)std::min((double)L.size() - 1, jsRound(CMP_ATK_MS * 1e-3 * fs));
+        atkA = 1 - std::exp(-3.0 / D);
         const double rel = cmpRelMs(k[K::cmprel]) * 1e-3 * fs;
         relA = rel > 0.5 ? std::exp(-1 / rel) : 0;
-        mode = (int)jsRound(k[K::cmpmode] * 2);
-        rmsA = std::exp(-1 / (0.01 * fs));
-        mix = k[K::cmpmix];
+        mix = cmpMix(k[K::cmpamt]);
     }
     double run(double y, double wl, double wr) {
-        double det;
-        if (mode == 2) { ms = y * y + rmsA * (ms - y * y); det = std::sqrt(ms * 2); }
-        else {
-            det = std::fabs(y);
-            if (mode == 1) { const double m = (-k3 + 9 * k2 + 9 * k1 - y) / 16; if (std::fabs(m) > det) det = std::fabs(m); }
-            k3 = k2; k2 = k1; k1 = y;
-        }
-        const double a = amount(det);
-        if (a >= env) { env += (a - env) * atkA; hold = holdN; }
-        else if (hold > 0) hold--;
+        double a = std::fabs(y) * inv; if (a > 1) a = 1;
+        if (a >= env) env += (a - env) * atkA;
         else env = a + (env - a) * relA;
         const int N = (int)L.size(); int ri = w - D; if (ri < 0) ri += N;
         L[(size_t)w] = (float)wl; R[(size_t)w] = (float)wr; l = L[(size_t)ri]; r = R[(size_t)ri]; w = w + 1 == N ? 0 : w + 1;
         g = 1 - mix * env;
         return g;
     }
-    void flush() { auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; f(env); f(ms); f(k1); f(k2); f(k3); f(l); f(r); }
+    void flush() { auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; f(env); f(l); f(r); }
 private:
-    double amount(double det) const {
-        const double x = det / thr, Rr = rng;
-        double a;
-        if (Rr <= 1) a = Rr > 0 ? (x - (1 - Rr)) / Rr : 0;
-        else { const double s = Rr - 1; a = (1 - s) * x + s * std::tanh(3 * x) / 0.99505; }
-        return a <= 0 ? 0 : a >= 1 ? 1 : a;
-    }
     double fs; std::vector<float> L, R; int w = 0;
-    double env = 0; int hold = 0; double ms = 0, k1 = 0, k2 = 0, k3 = 0;
-    double thr = 0.1, rng = 1; int D = 0; double atkA = 1; int holdN = 0; double relA = 0; int mode = 0; double rmsA = 0, mix = 0.7;
+    double env = 0;
+    double inv = 10; int D = 1; double atkA = 1, relA = 0, mix = 0.7;
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -577,7 +566,7 @@ public:
         // the JS voice's own constructor defaults; the app (and the plugin) then sends the panel values
         const double kd[K::COUNT] = { 0.5, 0.35, 0.7, 0.6, 0.3, 0.7, 0.8, 0.5, 0.4, 0.5,
             0.125, 0.3, 0.27, 0.443, 0.834, 0.5, 0.55, 0.2, 0.5, 0.2, 0.5,
-            0.5, 0.5, 0.3, 0, 0.4, 0.7, 0,
+            0.5, 0.4,
             1, 0.7, 0.35, 0.3, 0.55, 0.35 };
         for (int i = 0; i < K::COUNT; ++i) knobs[i] = kd[i];
         rng = noiseSeed;

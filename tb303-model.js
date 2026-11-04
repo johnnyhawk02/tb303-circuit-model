@@ -504,59 +504,44 @@ class DigitalDelay {
 }
 
 // Sidechain on the effect returns, after the Kilohearts Compactor (a limiter/ducker that works at sample
-// level). The key is the dry synth. Threshold is the key level that ducks the returns to silence;
-// Range shapes how the key maps onto that (below 100% quieter key levels are ignored, above 100% they
-// duck harder, like a soft clipper on the key). Attack is lookahead: the returns are delayed by it and the
-// ducking ramps in ahead of the transient. Hold keeps full ducking after the key drops, Release brings it
-// back. Mode picks the detector: per-sample Peak, inter-sample peaks (ISP), or RMS. Mix blends in the
-// unducked returns. With Attack and Release at 0 the gain follows the key waveform: ring-mod sidechaining.
+// level). The key is the dry synth. Two controls: Amount and Release. Amount sets both how deep the duck
+// goes (0 = off, about 70% = full duck) and how sensitive it is (the key level that ducks fully goes from
+// -10 dB to -30 dB). The rest is fixed: a linear key law, 3 ms lookahead (the returns are delayed by it
+// so the ramp lands ahead of the transient), no hold, and a per-sample peak detector.
+// Release brings the returns back (0 to 1 s); at 0 the gain follows the key waveform (ring-mod sidechaining).
 // Our reading of the published control descriptions; Kilohearts does not publish its gain law.
-const CMP_MODES = ['Peak', 'ISP', 'RMS'];
-const cmpThrDb = (p) => -40 + 40 * p;
-const cmpAtkMs = (p) => 10 * p;
-const cmpHoldMs = (p) => 500 * p * p;
+const cmpThrDb = (a) => -10 - 20 * a;       // key level that gives a full duck
+const cmpMix = (a) => Math.min(1, 1.4 * a); // duck depth
 const cmpRelMs = (p) => 1000 * p * p;
+const CMP_ATK_MS = 3;
+// presets from before the two-knob Compactor (2026-11-04): Threshold, Range, Attack, Hold, Release, Mix, Mode -> Amount, Release
+function cmpFromOld(k) {
+  const thr = typeof k.cmpthr === 'number' ? k.cmpthr : 0.5, mix = typeof k.cmpmix === 'number' ? k.cmpmix : 0.7;
+  const rel = typeof k.cmprel === 'number' ? k.cmprel : 0.4, hold = typeof k.cmphold === 'number' ? k.cmphold : 0;
+  const cl = (x) => Math.min(1, Math.max(0, x));
+  const aT = cl((-10 - (-40 + 40 * thr)) / 20), aM = cl(mix / 1.4);
+  const amt = mix <= 0 ? 0 : mix >= 1 ? Math.max(aT, aM) : (aT + aM) / 2;
+  const relMs = Math.min(1000, 1000 * rel * rel + 500 * hold * hold); // hold folds into the release
+  return { cmpamt: Math.round(cl(amt) * 1000) / 1000, cmprel: Math.round(Math.sqrt(relMs / 1000) * 1000) / 1000 };
+}
 class Compactor {
   constructor(fs) {
     this.fs = fs; this.L = new Float32Array(Math.ceil(fs * 0.011)); this.R = new Float32Array(this.L.length); this.w = 0;
-    this.env = 0; this.hold = 0; this.ms = 0; this.k1 = 0; this.k2 = 0; this.k3 = 0; this.l = 0; this.r = 0; this.g = 1;
+    this.env = 0; this.l = 0; this.r = 0; this.g = 1;
   }
   derive(k) {
     const fs = this.fs;
-    this.thr = Math.pow(10, cmpThrDb(k.cmpthr) / 20);
-    this.rng = 2 * k.cmprng;
-    this.D = Math.min(this.L.length - 1, Math.round(cmpAtkMs(k.cmpatk) * 1e-3 * fs));
-    this.atkA = this.D > 0 ? 1 - Math.exp(-3 / this.D) : 1;
-    this.holdN = Math.round(cmpHoldMs(k.cmphold) * 1e-3 * fs);
+    this.inv = Math.pow(10, -cmpThrDb(k.cmpamt) / 20);
+    this.D = Math.min(this.L.length - 1, Math.round(CMP_ATK_MS * 1e-3 * fs));
+    this.atkA = 1 - Math.exp(-3 / this.D);
     const rel = cmpRelMs(k.cmprel) * 1e-3 * fs;
     this.relA = rel > 0.5 ? Math.exp(-1 / rel) : 0;
-    this.mode = Math.round(k.cmpmode * 2);
-    this.rmsA = Math.exp(-1 / (0.01 * fs));
-    this.mix = k.cmpmix;
-  }
-  // key -> duck amount 0..1 (1 = silence at threshold)
-  _amount(det) {
-    const x = det / this.thr, R = this.rng;
-    let a;
-    if (R <= 1) a = R > 0 ? (x - (1 - R)) / R : 0;
-    else { const s = R - 1; a = (1 - s) * x + s * Math.tanh(3 * x) / 0.99505; }
-    return a <= 0 ? 0 : a >= 1 ? 1 : a;
+    this.mix = cmpMix(k.cmpamt);
   }
   // key y, returns wl/wr: stores the delayed returns in l/r and gives the gain for them
   run(y, wl, wr) {
-    let det;
-    if (this.mode === 2) { this.ms = y * y + this.rmsA * (this.ms - y * y); det = Math.sqrt(this.ms * 2); } // sine peak = rms * sqrt 2
-    else {
-      det = Math.abs(y);
-      if (this.mode === 1) { // inter-sample peak: Catmull-Rom midpoint between the last two samples
-        const m = (-this.k3 + 9 * this.k2 + 9 * this.k1 - y) / 16; // Catmull-Rom midpoint of the previous two samples
-        if (Math.abs(m) > det) det = Math.abs(m);
-      }
-      this.k3 = this.k2; this.k2 = this.k1; this.k1 = y;
-    }
-    const a = this._amount(det);
-    if (a >= this.env) { this.env += (a - this.env) * this.atkA; this.hold = this.holdN; }
-    else if (this.hold > 0) this.hold--;
+    let a = Math.abs(y) * this.inv; if (a > 1) a = 1; // duck amount, 1 = silence at the threshold
+    if (a >= this.env) this.env += (a - this.env) * this.atkA;
     else this.env = a + (this.env - a) * this.relA;
     // lookahead: the returns come out D samples late, so the ramp lands on time
     const N = this.L.length; let ri = this.w - this.D; if (ri < 0) ri += N;
@@ -578,7 +563,7 @@ class TB303Voice {
     // front panel (0..1)
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
-      cmpthr: 0.5, cmprng: 0.5, cmpatk: 0.3, cmphold: 0, cmprel: 0.4, cmpmix: 0.7, cmpmode: 0,
+      cmpamt: 0.5, cmprel: 0.4,
       dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
     this.fx = { rat: false, lex: false, dly: false };
     this.bpm = 128;
@@ -1088,4 +1073,4 @@ class TB303Engine {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, CMP_MODES, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpAtkMs, cmpHoldMs, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
+if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, cmpFromOld, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams };
