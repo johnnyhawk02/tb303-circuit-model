@@ -448,16 +448,9 @@ bool TB303Processor::undoTune() { if (tuneUndo.empty()) return false; const auto
 // web-app JSON. Same rules as cleanSettings() / applySound() / applyProject().
 void TB303Processor::applySound(const juce::var& x) {
     auto* kn = x.getProperty("knobs", {}).getDynamicObject();
-    // sounds saved with the old six-control Compactor: map them onto Amount and Release (cleanSettings in state.js)
+    // sounds saved before the two-dial Compactor (no Amount) load with it off (cleanSettings in state.js)
     juce::DynamicObject::Ptr knMig;
-    if (kn && !kn->hasProperty("cmpamt")) {
-        bool old = false; for (auto* id : { "cmpthr", "cmprng", "cmpatk", "cmphold", "cmpmix", "cmpmode" }) old = old || kn->hasProperty(id);
-        if (old) {
-            const auto num = [kn](const char* id, double d) { const auto j = kn->getProperty(id); return (j.isDouble() || j.isInt() || j.isInt64()) ? (double)j : d; };
-            const auto [amt, rel] = cmpFromOld(num("cmpthr", 0.5), num("cmpmix", 0.7), num("cmprel", 0.4), num("cmphold", 0));
-            knMig = kn->clone().release(); knMig->setProperty("cmpamt", amt); knMig->setProperty("cmprel", rel); kn = knMig.get();
-        }
-    }
+    if (kn && !kn->hasProperty("cmpamt")) { knMig = kn->clone().release(); knMig->setProperty("cmpamt", 0.0); kn = knMig.get(); }
     for (int k = 0; k < K::COUNT; ++k) {
         double v = knobs()[k].def;
         if (kn) { const auto j = kn->getProperty(knobs()[k].id); if ((j.isDouble() || j.isInt() || j.isInt64()) && (double)j >= 0 && (double)j <= 1) v = j; }
@@ -715,14 +708,8 @@ void TB303Processor::setStateInformation(const void* data, int size) {
     auto state = juce::ValueTree::fromXml(*xml);
     if (!state.hasType(apvts.state.getType())) return;
     const auto extra = state.getChildWithName("Extra");
-    { // sessions saved with the old six-control Compactor: map its parameters onto Amount and Release
-        auto param = [&state](const char* id) { return state.getChildWithProperty("id", id); };
-        if (!param("cmpamt").isValid() && param("cmpthr").isValid()) {
-            const auto val = [&](const char* id, double d) { const auto p = param(id); return p.isValid() ? (double)p.getProperty("value") : d; };
-            const auto [amt, rel] = cmpFromOld(val("cmpthr", 0.5), val("cmpmix", 0.7), val("cmprel", 0.4), val("cmphold", 0));
-            juce::ValueTree a("PARAM"); a.setProperty("id", "cmpamt", nullptr).setProperty("value", amt, nullptr); state.appendChild(a, nullptr);
-            auto r = param("cmprel"); if (r.isValid()) r.setProperty("value", rel, nullptr);
-        }
+    if (!state.getChildWithProperty("id", "cmpamt").isValid()) { // sessions saved before the two-dial Compactor load with it off
+        juce::ValueTree a("PARAM"); a.setProperty("id", "cmpamt", nullptr).setProperty("value", 0.0, nullptr); state.appendChild(a, nullptr);
     }
     apvts.replaceState(state);
     if (!extra.isValid()) return;

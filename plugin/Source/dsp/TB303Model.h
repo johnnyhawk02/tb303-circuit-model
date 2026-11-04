@@ -517,16 +517,6 @@ inline double cmpThrDb(double a) { return -10 - 20 * a; }
 inline double cmpMix(double a) { return std::min(1.0, 1.4 * a); }
 inline double cmpRelMs(double p) { return 1000 * p * p; }
 constexpr double CMP_ATK_MS = 3;
-// sounds saved with the old Threshold/Range/Attack/Hold/Release/Mix/Mode controls -> Amount, Release
-// (cmpFromOld in tb303-model.js). Arguments are the old 0..1 knob values.
-inline std::pair<double, double> cmpFromOld(double thr, double mix, double rel, double hold) {
-    const auto cl = [](double x) { return std::min(1.0, std::max(0.0, x)); };
-    const double aT = cl((-10 - (-40 + 40 * thr)) / 20), aM = cl(mix / 1.4);
-    const double amt = mix <= 0 ? 0 : mix >= 1 ? std::max(aT, aM) : (aT + aM) / 2;
-    const double relMs = std::min(1000.0, 1000 * rel * rel + 500 * hold * hold);
-    return { jsRound(cl(amt) * 1000) / 1000, jsRound(std::sqrt(relMs / 1000) * 1000) / 1000 };
-}
-
 class Compactor {
 public:
     explicit Compactor(double fs) : fs(fs) { L.assign((size_t)std::ceil(fs * 0.011), 0.0f); R.assign(L.size(), 0.0f); }
