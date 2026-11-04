@@ -325,70 +325,123 @@ void SeqModel::fromVar(const juce::var& banks, const juce::var& sel, const juce:
 }
 
 // ---------- auto-namer (namer.js) ----------
+// Two or three real words, or one made-up alien/spice word. Same pools and odds as src/js/app/namer.js.
 juce::String autoName(const juce::StringArray& taken) {
     juce::Random& R = juce::Random::getSystemRandom();
-    auto pickA = [&](std::initializer_list<const char*> l) { auto it = l.begin(); std::advance(it, R.nextInt((int)l.size())); return juce::String::fromUTF8(*it); };
+    const juce::StringArray ADJ {
+        "acid", "burnt", "melted", "sideways", "haunted", "soggy", "inverted", "radioactive", "fermented", "exploded", "backwards", "feral",
+        "damp", "cursed", "rusty", "velvet", "liquid", "molten", "frozen", "hollow", "crooked", "electric", "magnetic", "toxic", "lunar", "solar",
+        "nocturnal", "sticky", "greasy", "fuzzy", "jagged", "wobbly", "squelchy", "rubber", "chrome", "plastic", "neon", "infrared", "ultraviolet",
+        "subsonic", "sunken", "drowned", "feverish", "lazy", "nervous", "angry", "polite", "sleepy", "restless", "forbidden", "secret", "lost",
+        "forgotten", "ancient", "broken", "bent", "twisted", "spiral", "crystal", "golden", "silver", "copper", "cobalt", "crimson", "violet",
+        "amber", "emerald", "obsidian", "ivory", "scarlet", "ochre", "indigo", "saffron", "turquoise", "bitter", "sour", "salty", "spicy", "smoky",
+        "pickled", "candied", "toasted", "roasted", "sugared", "slippery", "dusty", "muddy", "misty", "stormy", "humid", "arctic", "tropical",
+        "volcanic", "tidal", "orbital", "quantum", "cosmic", "astral", "mutant", "synthetic", "analog", "digital", "resonant", "detuned",
+        "overdriven", "squashed", "stretched", "reversed", "mirrored", "phantom", "ghostly", "savage", "gentle", "humble", "royal", "imperial",
+        "rogue", "stolen", "borrowed", "blessed", "unholy", "sacred", "pagan", "midnight", "dawn", "dusk", "eternal", "hungry", "thirsty", "dizzy",
+        "giddy", "grumpy", "brave", "clumsy", "tiny", "giant", "infinite", "hyper", "mega", "micro", "proto", "turbo", "deep", "shallow", "wet",
+        "dry", "hot", "cold", "loose", "tight", "bouncy", "elastic", "warped", "glitched", "static", "dynamic", "hypnotic", "psychic", "strange" };
+    const juce::StringArray NOUN {
+        "squelch", "resonance", "filter", "cutoff", "envelope", "accent", "slide", "glide", "diode", "ladder", "voltage", "circuit", "transistor",
+        "capacitor", "oscillator", "sawtooth", "pulse", "sequencer", "pattern", "step", "tempo", "groove", "bassline", "feedback", "overdrive",
+        "fuzz", "reverb", "echo", "delay", "phaser", "flanger", "sidechain", "warehouse", "rave", "strobe", "smiley", "acid", "loop", "signal",
+        "static", "thunder", "lightning", "monsoon", "hailstorm", "drizzle", "fog", "tornado", "avalanche", "glacier", "canyon", "swamp", "marsh",
+        "bog", "lagoon", "reef", "tide", "riptide", "whirlpool", "geyser", "volcano", "lava", "magma", "basalt", "granite", "quartz", "obsidian",
+        "pumice", "sulphur", "mercury", "cobalt", "bismuth", "graphite", "ember", "cinder", "ash", "moss", "lichen", "fungus", "spore", "mycelium",
+        "thorn", "bramble", "cactus", "orchid", "lotus", "mangrove", "tundra", "dune", "oasis", "mirage", "eclipse", "aurora", "mollusc",
+        "octopus", "squid", "jellyfish", "eel", "lobster", "barnacle", "axolotl", "newt", "salamander", "gecko", "iguana", "chameleon", "toad",
+        "beetle", "mantis", "hornet", "moth", "cicada", "scorpion", "tarantula", "leech", "slug", "snail", "worm", "badger", "otter", "weasel",
+        "ferret", "wombat", "platypus", "armadillo", "sloth", "lemur", "baboon", "hyena", "jackal", "vulture", "raven", "heron", "pelican",
+        "flamingo", "penguin", "walrus", "narwhal", "kraken", "leviathan", "basilisk", "griffin", "chimera", "wyvern", "goblin", "gremlin", "imp",
+        "lantern", "saxophone", "trombone", "accordion", "kazoo", "theremin", "bagpipe", "harmonica", "teapot", "kettle", "spoon", "ladle",
+        "colander", "umbrella", "bicycle", "tractor", "submarine", "zeppelin", "rocket", "satellite", "robot", "android", "cyborg", "reactor",
+        "turbine", "furnace", "boiler", "engine", "piston", "gearbox", "antenna", "radar", "sonar", "laser", "hologram", "mirror", "prism", "lens",
+        "compass", "labyrinth", "temple", "pyramid", "ziggurat", "monolith", "obelisk", "cathedral", "bunker", "lighthouse", "harbour", "carnival",
+        "circus", "casino", "disco", "basement", "attic", "cellar", "garage", "motorway", "tunnel", "bridge", "factory", "refinery", "laboratory",
+        "asylum", "whisper", "murmur", "rumble", "gurgle", "wobble", "bubble", "sludge", "goo", "slime", "jelly", "custard", "gravy", "syrup",
+        "treacle", "marmalade", "pickle", "noodle", "dumpling", "waffle", "pancake", "crumpet", "biscuit", "pretzel", "doughnut", "fudge",
+        "toffee", "nougat", "tiramisu", "pavlova", "eclair", "baklava", "profiterole", "trifle", "cheesecake", "sorbet", "macaron", "strudel",
+        "meringue", "parfait", "clafoutis", "cannoli", "gelato", "souffle", "banoffee", "brulee", "cobbler", "crumble", "flapjack", "brownie",
+        "sundae", "mousse", "redshift", "blueshift", "horizon", "quasar", "pulsar", "magnetar", "baryon", "neutrino", "singularity", "nebula",
+        "perihelion", "aphelion", "parsec", "supernova", "wormhole", "cepheid", "comet", "asteroid", "meteor", "galaxy", "cosmos", "void", "orbit",
+        "equinox", "solstice", "zenith", "nadir", "photon", "graviton", "muon", "gluon", "quark", "boson", "plasma", "fractal", "vortex",
+        "tesseract", "paradox", "entropy", "aether", "logos", "kairos", "chronos", "pneuma", "eidolon", "hubris", "nous", "telos", "apeiron",
+        "kosmos", "eros", "thanatos", "hypnos", "agora", "oracle", "amphora", "odyssey", "hydra", "gorgon", "elysion", "tartaros", "delphi",
+        "ithaka", "cyclops", "minotaur", "siren", "titan", "nemesis", "medusa", "icarus", "prometheus", "pandora", "charon", "styx", "olympus",
+        "acropolis" };
+    const juce::StringArray SPICE {
+        "cinnamon", "cardamom", "turmeric", "saffron", "nutmeg", "clove", "cumin", "coriander", "fenugreek", "paprika", "cayenne", "chilli",
+        "pepper", "ginger", "galangal", "sumac", "zaatar", "harissa", "asafoetida", "tamarind", "anise", "fennel", "caraway", "mace", "allspice",
+        "juniper", "vanilla", "wasabi", "mustard", "nigella", "ajwain", "mahleb", "grains of paradise", "lemongrass", "kaffir", "sansho",
+        "sichuan", "garam masala", "ras el hanout", "berbere", "baharat", "dukkah", "chipotle", "ancho", "habanero", "jalapeno", "oregano",
+        "thyme", "rosemary", "tarragon", "sage", "marjoram", "dill", "lovage", "liquorice", "myrrh", "frankincense", "mastic", "pandan", "curry" };
+    const juce::StringArray A_PRE {
+        "zor", "qua", "vex", "thra", "xil", "oom", "kry", "bla", "nyx", "gor", "fen", "plu", "yth", "ska", "zub", "mor", "quee", "drax", "chth",
+        "xan", "vor", "glo", "zha", "kth", "ul", "yog", "shub", "nar", "az", "ix", "thul", "krel", "vrr", "oog", "zee", "phla", "gri", "ssk",
+        "tzo", "ka", "xo", "ny", "quo", "zim", "bru", "dzo", "wub", "ruu", "tlo", "mnok", "eek", "ozz", "fth", "gla", "pt", "hra", "jhe", "lyx" };
+    const juce::StringArray A_MID {
+        "la", "ri", "on", "ex", "ub", "ae", "ix", "ol", "ee", "aa", "u", "yo", "oz", "ath", "ul", "ik", "or", "ei", "uu", "yr", "ag", "esh" };
+    const juce::StringArray A_END {
+        "th", "x", "nok", "ar", "ium", "ozz", "eep", "ul", "orb", "ak", "ish", "oid", "onoz", "ix", "ux", "yth", "aal", "orr", "ek", "oth", "ulon",
+        "ax", "iq", "zz", "oon", "ra", "ka", "ii", "ogg", "esk", "alq", "umph", "izz", "ond", "ath", "yx" };
     auto pickS = [&](const juce::StringArray& a) { return a[R.nextInt(a.size())]; };
+    auto pickA = [&](std::initializer_list<const char*> l) { auto it = l.begin(); std::advance(it, R.nextInt((int)l.size())); return juce::String::fromUTF8(*it); };
     auto cap = [](const juce::String& w) { return w.substring(0, 1).toUpperCase() + w.substring(1); };
     auto chance = [&](double p) { return R.nextDouble() < p; };
     auto vowel = [](juce::juce_wchar c) { return juce::String("aeiouy").containsChar(c); };
-    const juce::StringArray WORDS { "squelch", "acid", "resonance", "filter", "bubble", "sludge", "wobble", "circuit", "diode", "ladder", "voltage", "quantum",
-        "thunder", "velvet", "crystal", "murmur", "fractal", "glimmer", "plasma", "mollusc", "saxophone", "lantern", "whisper", "cobalt" };
-    const juce::StringArray DESSERTS { "Tiramisu", "Pavlova", "Eclair", "Creme Brulee", "Baklava", "Panna Cotta", "Profiterole", "Trifle", "Cheesecake", "Sorbet",
-        "Macaron", "Strudel", "Meringue", "Parfait", "Clafoutis", "Mille-feuille", "Cannoli", "Gelato", "Souffle", "Sticky Toffee", "Banoffee", "Tarte Tatin", "Spotted Dick", "Jelly" };
-    const juce::StringArray COSMOS { "Redshift", "Event Horizon", "Dark Matter", "Inflaton", "Quasar", "Pulsar", "Magnetar", "Cosmic Web", "Baryon", "Hubble Flow",
-        "Accretion Disk", "Neutrino", "Singularity", "Nebula", "Perihelion", "Aphelion", "Parsec", "Lagrange Point", "Oort Cloud", "Lensing",
-        "Big Crunch", "Supernova", "Blueshift", "Dyson Sphere", "Wormhole", "Planck Epoch", "Cepheid", "Kuiper Belt", "Dark Energy", "Spaghettification" };
-    const juce::StringArray GREEK { "Aether", "Logos", "Kairos", "Chronos", "Pneuma", "Eidolon", "Arete", "Hubris", "Nous", "Telos", "Apeiron", "Kosmos", "Chthonia",
-        "Eros", "Thanatos", "Hypnos", "Mneme", "Agora", "Oracle", "Labyrinth", "Amphora", "Odyssey", "Hydra", "Gorgon", "Elysion", "Tartaros", "Delphi", "Ithaka" };
+    juce::StringArray SPICE1; for (auto& s : SPICE) if (!s.containsChar(' ')) SPICE1.add(s);
     auto splice = [&](const juce::String& a, const juce::String& b) {
         juce::Array<int> cuts, tails;
         for (int i = 1; i < a.length() - 1; ++i) if (vowel(a[i])) cuts.add(i + 1);
         for (int i = 1; i < b.length(); ++i) if (!vowel(b[i]) && i >= b.length() / 3.0) tails.add(i);
         return a.substring(0, cuts.isEmpty() ? 2 : cuts[R.nextInt(cuts.size())]) + b.substring(tails.isEmpty() ? b.length() / 2 : tails[R.nextInt(tails.size())]);
     };
-    auto alien = [&]() -> juce::String {
-        if (chance(0.5)) return cap(splice(pickS(WORDS), pickS(WORDS)));
-        juce::String w = pickA({ "zor", "qua", "vex", "thra", "xil", "oom", "kry", "bla", "nyx", "gor", "fen", "plu", "yth", "ska", "zub", "mor", "quee", "drax" });
-        if (chance(0.7)) w += pickA({ "la", "ri", "on", "ex", "ub", "ae", "ix", "ol", "ee", "aa", "u", "yo" });
-        w += pickA({ "th", "x", "nok", "ar", "ium", "ozz", "eep", "ul", "orb", "ak", "ish", "oid" });
-        return cap(w) + (chance(0.25) ? "-" + cap(pickA({ "zor", "qua", "vex", "xil", "nyx", "gor", "drax" }) + pickA({ "th", "x", "nok", "ar", "ium", "oid" })) : juce::String());
-    };
-    auto firstWord = [](const juce::String& s) { return s.upToFirstOccurrenceOf(" ", false, false); };
-    auto lastWord = [](const juce::String& s) { return s.fromLastOccurrenceOf(" ", false, false); };
-    auto dessert = [&]() -> juce::String {
-        const auto d = pickS(DESSERTS); const double r = R.nextDouble();
-        if (r < 0.3) return pickA({ "Burnt", "Melted", "Sideways", "Haunted", "Soggy", "Inverted", "Radioactive", "Fermented", "Exploded", "Backwards", "Feral", "Damp", "Cursed", "Upside-down" }) + " " + d;
-        if (r < 0.55) return splice(firstWord(d), firstWord(pickS(DESSERTS)).toLowerCase());
-        if (r < 0.75) { juce::String o; for (auto c : d) { const int i = juce::String("aeiou").indexOfChar(c); o += (i >= 0 && chance(0.5)) ? juce::String::charToString(juce::String("ouaei")[i]) : juce::String::charToString(c); } return o; }
-        if (r < 0.9) { auto w = juce::StringArray::fromTokens(d, " ", ""); juce::String f; for (int i = w[0].length() - 1; i >= 0; --i) f += juce::String::charToString(w[0][i]); w.set(0, cap(f.toLowerCase())); return w.joinIntoString(" "); }
-        return d + " " + pickA({ "Incident", "Collapse", "Mishap", "Disaster", "Situation" });
-    };
-    auto cosmos = [&]() { return pickS(COSMOS) + (chance(0.2) ? " " + pickA({ "Prime", "Remnant", "Drift", "Echo", "Zero" }) : juce::String()); };
-    auto greekify = [&](juce::String w) {
-        while (w.isNotEmpty() && !juce::CharacterFunctions::isLetter(w.getLastCharacter())) w = w.dropLastCharacters(1);
-        while (w.isNotEmpty() && vowel(juce::CharacterFunctions::toLowerCase(w.getLastCharacter()))) w = w.dropLastCharacters(1);
-        return (chance(0.3) ? pickA({ "Proto", "Hyper", "Neo", "Pan", "Archi", "Meta" }) : juce::String()) + cap(w.toLowerCase()) + pickA({ "os", "ia", "eion", "ikon", "ides", "ax" });
-    };
-    auto greek = [&]() {
-        juce::StringArray both = WORDS; both.addArray(GREEK);
-        return (chance(0.55) ? pickS(GREEK) : greekify(pickS(both))) + (chance(0.15) ? " " + pickA({ "of Delphi", "the Elder", "Ascending", "Rex" }) : juce::String());
-    };
-    auto style = [&](int i) -> juce::String { switch (i) { case 0: return alien(); case 1: return dessert(); case 2: return cosmos(); default: return greek(); } };
-    auto mix = [&]() -> juce::String {
+    auto syll = [&]() { return pickS(A_PRE) + (chance(0.6) ? pickS(A_MID) : juce::String()) + pickS(A_END); };
+    auto spice = [&]() { return pickS(SPICE).removeCharacters(" "); };
+    auto alienSpice = [&]() {
         const double r = R.nextDouble();
-        if (r < 0.4) { const int a = R.nextInt(3); return (a == 0 ? cosmos() : a == 1 ? greek() : alien()) + " " + lastWord(R.nextBool() ? dessert() : cosmos()); }
-        if (r < 0.7) { juce::StringArray b = DESSERTS; b.addArray(COSMOS); return greekify(firstWord(pickS(b))); }
-        return style(R.nextInt(4)) + " " + firstWord(style(R.nextInt(4)));
+        juce::String w;
+        if (r < 0.3) w = splice(spice(), syll());
+        else if (r < 0.55) w = splice(syll(), spice());
+        else if (r < 0.75) w = pickS(A_PRE) + spice();
+        else if (r < 0.9) w = spice().substring(0, 3 + R.nextInt(3)) + pickS(A_MID) + pickS(A_END);
+        else w = syll();
+        w = cap(w);
+        if (chance(0.3)) w += "-" + cap(chance(0.5) ? syll() : splice(syll(), spice()));
+        return w;
     };
-    for (int i = 0; i < 20; i++) {
-        juce::String n = chance(0.4) ? mix() : style(R.nextInt(4));
-        auto w = juce::StringArray::fromTokens(n, " ", ""); w.removeEmptyStrings(); w.removeDuplicates(false);
-        while (w.size() > 3) w.remove(w.size() - 1);
+    auto greekify = [&](juce::String w) {
+        while (w.isNotEmpty() && vowel(w.getLastCharacter())) w = w.dropLastCharacters(1);
+        return (chance(0.3) ? pickA({ "proto", "hyper", "neo", "pan", "archi", "meta" }) : juce::String()) + w + pickA({ "os", "ia", "eion", "ikon", "ides", "ax" });
+    };
+    auto noun = [&]() { return chance(0.12) ? pickS(SPICE1) : chance(0.06) ? greekify(pickS(NOUN)) : pickS(NOUN); };
+    auto firstHalf = [](const juce::String& s) { return s.upToFirstOccurrenceOf("-", false, false); };
+    const juce::StringArray LINKS { "of", "in", "on", "for", "and", "from", "versus" };
+    auto phrase = [&]() -> juce::StringArray {
+        const double r = R.nextDouble();
+        if (r < 0.25) return { pickS(ADJ), noun() };
+        if (r < 0.42) return { noun(), noun() };
+        if (r < 0.54) return { pickS(ADJ), noun(), noun() };
+        if (r < 0.64) return { pickS(ADJ), pickS(ADJ), noun() };
+        if (r < 0.74) return { noun(), pickS(LINKS), noun() };
+        if (r < 0.82) return { pickS(SPICE1), noun() };
+        if (r < 0.9) return { firstHalf(alienSpice()), noun() };
+        if (r < 0.95) return { pickS(ADJ), firstHalf(alienSpice()) };
+        return { "the", pickS(ADJ), noun() };
+    };
+    for (int i = 0; i < 30; i++) {
+        juce::String n;
+        if (chance(0.3)) n = alienSpice();
+        else {
+            auto w = phrase();
+            juce::StringArray u = w; u.removeDuplicates(false);
+            if (u.size() < w.size()) continue;
+            for (int j = 0; j < w.size(); ++j) if (!(j && LINKS.contains(w[j]))) w.set(j, cap(w[j]));
+            n = w.joinIntoString(" ");
+        }
         juce::String z;
-        for (auto c : w.joinIntoString(" ")) z += juce::String::charToString(c == 's' && chance(0.6) ? (juce::juce_wchar)'z' : c == 'S' && chance(0.6) ? (juce::juce_wchar)'Z' : c);
-        z = z.substring(0, 40);
-        if (z.isNotEmpty() && !taken.contains(z)) return z;
+        for (auto c : n) z += juce::String::charToString(c == 's' && chance(0.6) ? (juce::juce_wchar)'z' : c == 'S' && chance(0.6) ? (juce::juce_wchar)'Z' : c);
+        if (z.length() <= 32 && !taken.contains(z)) return z;
     }
     return "Preset " + juce::String(taken.size() + 1);
 }
