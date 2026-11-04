@@ -3,7 +3,7 @@
 .rotate { display: none; }
 @media (orientation: portrait) and (pointer: coarse) {
   .rotate { position: fixed; left: 0; right: 0; bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 1; display: flex; justify-content: center; align-items: center; gap: 8px;
-    pointer-events: none; color: rgb(247 150 47 / .55); font: 16px var(--font-body); text-shadow: none; background: none; border: 0; }
+    pointer-events: none; color: rgb(var(--panel-rgb) / .55); font: 16px var(--font-body); text-shadow: none; background: none; border: 0; }
   .rotate svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
   .rotate p { margin: 0; }
   .rotate small { display: none; }

@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+<script>try { const t = JSON.parse(localStorage.getItem('tb303.lcdTheme')); if (typeof t === 'string') document.documentElement.dataset.lcd = t; } catch {}</script>
 <style>
 /*@css*/
 </style>
@@ -181,13 +182,16 @@
 <dialog id="options" aria-labelledby="opt-title">
   <div class="opt-head">
     <h2 id="opt-title">Options</h2>
-    <div class="tabs otabs" id="otabs" role="tablist" aria-label="Options sections"><button type="button" role="tab" data-sec="midi" aria-selected="true">MIDI</button><button type="button" role="tab" data-sec="about" aria-selected="false">About</button></div>
+    <div class="tabs otabs" id="otabs" role="tablist" aria-label="Options sections"><button type="button" role="tab" data-sec="midi" aria-selected="true">MIDI</button><button type="button" role="tab" data-sec="colours" aria-selected="false">Colours</button><button type="button" role="tab" data-sec="about" aria-selected="false">About</button></div>
     <button type="button" class="icon xbtn" id="close-options" aria-label="Close options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" fill="none"/></svg></button>
   </div>
   <div class="opt-body">
     <section class="osec" id="osec-midi" role="tabpanel" aria-label="MIDI">
       <p class="hint" id="midi-status">Front-panel dials follow MIDI CC from any input, on any channel.</p>
       <dl class="readouts" id="midi-map"></dl>
+    </section>
+    <section class="osec" id="osec-colours" role="tabpanel" aria-label="Colours" hidden>
+      <div class="lcd-swatches" id="lcd-swatches" role="radiogroup" aria-label="Screen colour"></div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
       <div class="notes">
