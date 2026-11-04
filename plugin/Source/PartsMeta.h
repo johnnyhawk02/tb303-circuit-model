@@ -82,7 +82,7 @@ static const PartMeta PARTS_META[] = {
     { "EN_VCF", "Noise", "estimate", "ladder input noise: R98 2.2K thermal plus Q12 pair shot noise, referred to the Q12 base. Resonance rings it, but it sits far below the OTA hiss", "", false },
     { "EN_OTA", "Noise", "estimate", "BA662 OTA input noise with R101 2.2K: the main hiss, which opens and closes with the VCA", "", false },
     { "EN_OUT", "Noise", "estimate", "output stage floor (IC15 buffer, mixer): a constant hiss under everything, after the volume pot", "", false },
-    { "NOISE", "Noise", "estimate", "scales every noise source together (0 = silent background)", "Circuit noise. The hiss of the old transistors, OTA and output stage; 0.15 is a light hiss, 0 is studio-clean.", false },
+    { "NOISE", "Noise", "estimate", "scales every noise source together (0 = silent background)", "Circuit noise. The hiss of the old transistors, OTA and output stage; 0.15 is a light hiss, 1 is a loud worn-out unit, 0 is studio-clean.", false },
     { "RAT_CIN", "RAT", "rat", "input coupling into 1M", "", false },
     { "RAT_RD", "RAT", "rat", "DISTORTION pot 100k(A) in the LM308 feedback", "", false },
     { "RAT_CF", "RAT", "rat", "cap across the distortion pot", "Raising it smooths the fizz at high gain.", false },
