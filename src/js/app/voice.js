@@ -6,7 +6,7 @@ panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="nam
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
 // Key track: the KT part (a TD-3-MO / Devil Fish style mod), as a full front-panel dial after Reso
-document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: higher notes open the filter. About 66% is exact 1 V/oct; 0 is the stock 303. Double-click to reset.">
+document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: higher notes open the filter. About a third is exact 1 V/oct; full is about 300%, so low notes almost vanish. 0 is the stock 303. Double-click to reset.">
   <div class="knob" data-k="KT" tabindex="0" role="slider" aria-label="Key track" aria-valuemin="0" aria-valuemax="100" id="knob-kt">${knobSVG()}</div>
   <div class="name">Key track</div><div class="ref">KT 100K(B)</div><div class="val" id="kt-val"></div></div>`);
 const ktEl = document.getElementById('knob-kt');

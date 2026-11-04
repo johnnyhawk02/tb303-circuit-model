@@ -954,9 +954,9 @@ const COMPONENTS = {
   R63:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'accent to Q10 base' },
   R71:    { v: 2.2e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'Q10 base to ground' },
   V_CUT:  { v: 3.3,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span (R47 10K end stop)', range: [0.5, 6, 'lin'], mod: 'Cutoff knob range. Cutoff range mods (common on TD-3s) let the knob go lower and higher.' },
-  KT:     { v: 0,       unit: '%', block: 'VCF',   source: 'estimate',  note: 'KEY TRACK pot (100K B) with click-off switch: buffered pitch CV minus V_KT, through R_KT into Q10 base. Not on a stock 303', range: [0, 1, 'lin'], mod: 'Filter key tracking, as on the TD-3-MO and Devil Fish. Feeds the pitch CV into the cutoff so higher notes open the filter. With the 75K R_KT about 66% is exact 1 V/oct tracking, full is about 150%. 0 switches it out, which is the stock 303.' },
-  R_KT:   { v: 75e3,    unit: 'Ω', block: 'VCF',   source: 'estimate',  note: 'key track pot wiper to Q10 base (114K = 100% at full pot)', range: [30e3, 300e3, 'log'], mod: 'Key track range. Lower values let the Key track pot go further past 1 V/oct.' },
-  V_KT:   { v: 2.75,    unit: 'V', block: 'VCF',   source: 'estimate',  note: 'key track buffer reference: the note whose cutoff does not move (2.75 V = A, the TM4 tuning note)', range: [1, 4, 'lin'] },
+  KT:     { v: 0,       unit: '%', block: 'VCF',   source: 'estimate',  note: 'KEY TRACK pot (100K B) with click-off switch: buffered pitch CV minus V_KT, through R_KT into Q10 base. Not on a stock 303', range: [0, 1, 'lin'], mod: 'Filter key tracking, as on the TD-3-MO and Devil Fish. Feeds the pitch CV into the cutoff so higher notes open the filter. With the 36K R_KT about a third of the pot is exact 1 V/oct and full is about 300%, so low notes almost vanish, like a TD-3-MO turned up. 0 switches it out, which is the stock 303.' },
+  R_KT:   { v: 36e3,    unit: 'Ω', block: 'VCF',   source: 'estimate',  note: 'key track pot wiper to Q10 base (114K = 100% at full pot, 36K about 300%)', range: [18e3, 300e3, 'log'], mod: 'Key track range. Lower values let the Key track pot go further past 1 V/oct.' },
+  V_KT:   { v: 3.0,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'key track buffer reference: the note whose cutoff does not move (3 V = the C above the A tuning note); notes below it get darker', range: [1, 4, 'lin'] },
   I_REF:  { v: 3.1e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'TM3 FREQ trim: ladder current at 0 V', range: [1.55e-6, 6.2e-6, 'log'], mod: 'Filter frequency trimmer (TM3). Sets where the cutoff sits for a given knob position, about one octave either way.' },
 
   // --- VCF envelope (Q38/Q40/Q39 2SK30)
@@ -3772,7 +3772,7 @@ panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="nam
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
 // Key track: the KT part (a TD-3-MO / Devil Fish style mod), as a full front-panel dial after Reso
-document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: higher notes open the filter. About 66% is exact 1 V/oct; 0 is the stock 303. Double-click to reset.">
+document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: higher notes open the filter. About a third is exact 1 V/oct; full is about 300%, so low notes almost vanish. 0 is the stock 303. Double-click to reset.">
   <div class="knob" data-k="KT" tabindex="0" role="slider" aria-label="Key track" aria-valuemin="0" aria-valuemax="100" id="knob-kt">${knobSVG()}</div>
   <div class="name">Key track</div><div class="ref">KT 100K(B)</div><div class="val" id="kt-val"></div></div>`);
 const ktEl = document.getElementById('knob-kt');
