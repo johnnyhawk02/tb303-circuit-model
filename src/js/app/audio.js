@@ -73,7 +73,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault(); document.getElementById('p-copy').click(); sqSay(`Copied ${sel.g}${sel.n + 1}.`);
   } else if (k === 'v') {
     if (!clip) return;
-    e.preventDefault(); pushUndo(); document.getElementById('p-paste').click(); sqSay(`Pasted into ${sel.g}${sel.n + 1}. Functions › Undo puts it back.`);
+    e.preventDefault(); document.getElementById('p-paste').click(); sqSay(`Pasted into ${sel.g}${sel.n + 1}. Functions › Undo puts it back.`);
   }
 });
 const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById('bpm-val');
