@@ -393,3 +393,7 @@ html.fit .fxpane .fxb.blk-route { padding: 10px 0 0; gap: 0; }
 .blk-route > .fxname { width: 72px; flex: none; align-self: flex-start; margin-top: 15px; line-height: 20px; }
 html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
 .route-ctl { gap: 8px; }
+
+/* Sequencer foot (Johnny): no row labels; a long Length slider on its own line, then Step len, Shift and Transpose */
+html.fit .sq-row.sq-side { flex-wrap: wrap; row-gap: 6px; }
+html.fit .sq-foot .sld.len { flex: 1 0 100%; grid-template-columns: 64px minmax(0, 1fr) 36px; margin-right: 0; }

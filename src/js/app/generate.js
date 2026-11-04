@@ -48,10 +48,4 @@ function generatePattern(len, dens = null) {
   if (!out.some(st => st.gate)) out[0].gate = true;
   return { pattern: out, src: src.name, did };
 }
-const GEN_DENS = [null, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
-const gen = { dens: 0, bars: 1, ...store.get('gen', {}) };
-function drawGen() {
-  document.getElementById('o-dens').textContent = GEN_DENS[gen.dens] == null ? 'any' : Math.round(GEN_DENS[gen.dens] * 100) + '%';
-  document.getElementById('o-bars').textContent = gen.bars;
-  document.querySelector('input[data-g=dens]').value = gen.dens; document.querySelector('input[data-g=bars]').value = gen.bars;
-}
+

@@ -243,19 +243,12 @@ function shuffleSteps() {
   tail = []; renderSeq(); pushPattern();
   sqSay(`Shuffled ${P.length} steps. Again for another order; Undo puts it back.`);
 }
-drawGen();
-document.querySelector('.sq-gen').addEventListener('input', (e) => {
-  const el = e.target.closest('input[data-g]'); if (!el) return;
-  if (el.dataset.g === 'dens') gen.dens = Math.min(GEN_DENS.length - 1, Math.max(0, +el.value)); else gen.bars = Math.min(4, Math.max(1, +el.value));
-  store.set('gen', gen); drawGen();
-});
 document.getElementById('rand').onclick = () => {
   pushUndo();
-  // Generate keeps the pattern's length (Johnny) but writes all 64 steps: a phrase of Bars bars, repeated out to 64,
-  // so lengthening the pattern afterwards brings in more of the generated riff instead of rests
-  const g = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]), n = state.pattern.length;
-  const full = Array.from({ length: 64 }, (_, i) => ({ ...g.pattern[i % g.pattern.length] }));
-  state.pattern = full.slice(0, n); tail = full.slice(n); renderSeq(); pushPattern();
+  // Generate keeps the pattern's length (Johnny) but writes all 64 steps (a bar and three variations of it, at the
+  // source's own density), so lengthening the pattern afterwards brings in more of the generated riff instead of rests
+  const g = generatePattern(64), n = state.pattern.length;
+  state.pattern = g.pattern.slice(0, n); tail = g.pattern.slice(n); renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
   sqSay(`From ${g.src}: ${d}. Undo puts the old one back.`);
 };
