@@ -105,7 +105,7 @@ inline const std::array<PartInfo, P::COUNT>& parts() {
         { "EN_VCF", 1.5e-8, "V/√Hz", 0, 1.5e-7, 1 },
         { "EN_OTA", 4e-8, "V/√Hz", 0, 4e-7, 1 },
         { "EN_OUT", 3.5e-7, "V/√Hz", 0, 0.0000035, 1 },
-        { "NOISE", 0.15, "×", 0, 0.15, 1 },
+        { "NOISE", 0.15, "×", 0, 1, 1 },
         { "RAT_CIN", 2.2e-8, "F" },
         { "RAT_RD", 100000, "Ω" },
         { "RAT_CF", 1e-10, "F" },

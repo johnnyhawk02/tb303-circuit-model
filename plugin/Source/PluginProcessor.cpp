@@ -549,7 +549,7 @@ void TB303Processor::applySound(const juce::var& x) {
         if (pa && !isFixedPart(p)) {
             const auto j = pa->getProperty(parts()[p].id);
             if ((j.isDouble() || j.isInt() || j.isInt64()) && std::isfinite((double)j) && (double)j >= 0) v = j;
-            if (p == P::NOISE) v = std::min(v, 0.15);
+            if (p == P::NOISE) v = std::min(v, 1.0);
         }
         setPart(p, v);
     }
