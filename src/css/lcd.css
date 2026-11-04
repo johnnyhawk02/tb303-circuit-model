@@ -320,5 +320,5 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
 /* the randomise row went into the menu, so the roll takes its height; the generate row is just its two sliders now */
 #pane-seq { --row-h: 14.5px; }
 
-/* ---- a lighter glass (Johnny, Nov 2026): the same look as before, just a paler orange backlight ---- */
-:root { --glass: #fcab55; --panel-rgb: 252 171 85; }
+/* ---- a lighter glass (Johnny, Nov 2026): the same look as before, just a paler orange backlight, halfway between the original #f7962f and #fcab55 ---- */
+:root { --glass: #faa142; --panel-rgb: 250 161 66; }
