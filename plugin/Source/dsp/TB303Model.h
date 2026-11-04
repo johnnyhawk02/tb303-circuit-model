@@ -1122,7 +1122,11 @@ protected:
     double aIn = 0, aLeg = 0, rf = 0, gF = 0, cdt = 0, nVt = 0, level = 0, tb[3] = {}, ta[2] = {};
 };
 
-// Buchla 259 timbre circuit: five folding cells and a direct path (Eq. 18), RF2*C output pole, first-order ADAA
+// Buchla 259 timbre circuit: five folding cells and a direct path (Eq. 18), RF2*C output pole, first-order ADAA.
+// Around it, outside the circuit (as tb303-model.js): a peak follower (instant attack, 200 ms release) scales the input so
+// every note reaches the cells at Timbre's level and puts the note's envelope back on the output, and the output is scaled
+// by the folding curve's swing at this Timbre and Symmetry, so Timbre changes the tone, not the level.
+constexpr double B259_REL = 0.2, B259_FLOOR = 0.005;
 class Buchla259 : public OsUnit {
 public:
     explicit Buchla259(double fs_) : OsUnit(fs_) {
@@ -1133,29 +1137,36 @@ public:
             const double D = R1 * R3 + R2 * R3 + R1 * R2, a = R2 * R3 / D, b = R1 * R3 * Vs / D, T = R1 / R2 * Vs, w = B259_W[i];
             cells[i] = { T, w * a, w * b, w * (a * T * T / 2 - b * T) };
         }
+        relA = e(B259_REL);
     }
-    struct S { double xa = 0, Fa = 0, y = 0; } s;
+    struct S { double xa = 0, Fa = 0, y = 0, env = 0; } s;
     void derive(const Knobs& k) {
         using namespace PP;
         gain = 0.5 + 9.5 * k[K::fldtimbre] * k[K::fldtimbre];
         off = (k[K::fldsym] - 0.5) * 4;
         aOut = e(B259_RF2 * B259_C);
-        level = audioTaper(k[K::fldlevel]) * 1.7;
+        f0 = f(off);
+        double pk = 1e-9;
+        for (int i = 0; i <= 256; i++) { const double y = f(off + gain * ((double)i / 128 - 1)) - f0; const double m = y < 0 ? -y : y; if (m > pk) pk = m; }
+        norm = audioTaper(k[K::fldlevel]) * 6.7 / (std::pow(B259_WIN * gain, 0.3) * std::pow(pk, 0.7));
     }
-    void flush() { auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; f(s.xa); f(s.Fa); f(s.y); }
+    void flush() { auto fl = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; fl(s.xa); fl(s.Fa); fl(s.y); fl(s.env); }
 protected:
     double f(double v) const { double y = PP::B259_WIN * v; for (const auto& q : cells) { const double m = v < 0 ? -v : v; if (m > q.T) y += q.a * v - (v < 0 ? -q.b : q.b); } return y; }
     double F(double v) const { double y = 0.5 * PP::B259_WIN * v * v; for (const auto& q : cells) { const double m = v < 0 ? -v : v; if (m > q.T) y += q.a * v * v / 2 - q.b * m - q.C; } return y; }
     double core(double x) override {
-        const double v = x * gain + off, Fv = F(v), d = v - s.xa;
+        const double ax = x < 0 ? -x : x;
+        s.env = ax > s.env ? ax : s.env * relA;
+        const double en = s.env > B259_FLOOR ? s.env : B259_FLOOR;
+        const double v = x / en * gain + off, Fv = F(v), d = v - s.xa;
         const double y = (d > 1e-6 || d < -1e-6) ? (Fv - s.Fa) / d : f(0.5 * (v + s.xa));
         s.xa = v; s.Fa = Fv;
         s.y = y + aOut * (s.y - y);
-        return s.y * level;
+        return (s.y - f0) * en * norm;
     }
     struct Cell { double T, a, b, C; };
     std::array<Cell, 5> cells {};
-    double gain = 0, off = 0, aOut = 0, level = 0;
+    double gain = 0, off = 0, aOut = 0, f0 = 0, norm = 0, relA = 0;
 };
 
 // ---------------------------------------------------------------------------------------------------

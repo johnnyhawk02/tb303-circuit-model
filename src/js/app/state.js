@@ -18,7 +18,7 @@ const KNOBS = [
   { id: 'tstone',    name: 'Tone',      ref: '20k(B)',     def: 0.5,  fx: 'rat', drv: 'ts' },
   { id: 'tslevel',   name: 'Level',     ref: '100k(A)',    def: 0.5,  fx: 'rat', drv: 'ts' },
   // Buchla 259 timbre folder, ahead of the drive slot
-  { id: 'fldtimbre', name: 'Timbre',    ref: '×0.5–10',    def: 0.5,  fx: 'fold' },
+  { id: 'fldtimbre', name: 'Timbre',    ref: '0.5–10 V',    def: 0.5,  fx: 'fold' },
   { id: 'fldsym',    name: 'Symmetry',  ref: '±2 V',       def: 0.5,  fx: 'fold' },
   { id: 'fldlevel',  name: 'Level',     ref: 'output',     def: 0.5,  fx: 'fold' },
   { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex' },

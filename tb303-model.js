@@ -958,31 +958,46 @@ class TubeScreamer extends OsUnit {
 // Buchla 259 timbre circuit: five CA3160 folding cells and a direct path summed (Eq. 18), then RF2·C (1.33 kHz).
 // Timbre is the input gain into the cells (the paper sweeps 0..10 V peak); Symmetry adds a DC offset ahead of them,
 // as the 259's own Symmetry control does. First-order antiderivative anti-aliasing on top of the 4x oversampling.
+// Around it, outside the circuit (Johnny found the straight port loud and subtle on the 303, whose notes peak near 0.6 V
+// and decay fast): a peak follower (instant attack, 200 ms release) scales the input so every note reaches the cells
+// at Timbre's level, and puts the note's envelope back on the output; the output is then scaled by the folding curve's
+// swing at this Timbre and Symmetry, so turning Timbre up changes the tone, not the level.
+const B259_REL = 0.2, B259_FLOOR = 0.005; // follower release (s) and floor (V)
 class Buchla259 extends OsUnit {
   constructor(fs) {
-    super(fs); this.s = { xa: 0, Fa: 0, y: 0 };
+    super(fs); this.s = { xa: 0, Fa: 0, y: 0, env: 0 };
     const c = PEDAL_PARTS, Vs = c.B259_VS;
     // cell k: 0 inside |v| <= T, else a v - b sgn(v) (continuous, a T = b); weights folded in, plus the direct path
     this.cells = c.B259_CELLS.map(([R1, R2, R3], i) => {
       const D = R1 * R3 + R2 * R3 + R1 * R2, a = R2 * R3 / D, b = R1 * R3 * Vs / D, T = R1 / R2 * Vs, w = c.B259_W[i];
       return { T, a: w * a, b: w * b, C: w * (a * T * T / 2 - b * T) };
     });
+    this.relA = this.e(B259_REL);
   }
   f(v) { let y = PEDAL_PARTS.B259_WIN * v; for (const q of this.cells) { const m = v < 0 ? -v : v; if (m > q.T) y += q.a * v - (v < 0 ? -q.b : q.b); } return y; }
   F(v) { let y = 0.5 * PEDAL_PARTS.B259_WIN * v * v; for (const q of this.cells) { const m = v < 0 ? -v : v; if (m > q.T) y += q.a * v * v / 2 - q.b * m - q.C; } return y; }
   derive(k) {
     const c = PEDAL_PARTS;
-    this.gain = 0.5 + 9.5 * k.fldtimbre * k.fldtimbre;  // 0.5 .. 10 V per volt in
+    this.gain = 0.5 + 9.5 * k.fldtimbre * k.fldtimbre;  // 0.5 .. 10 V at the cells for a full-level note
     this.off = (k.fldsym - 0.5) * 4;                     // ±2 V
     this.aOut = this.e(c.B259_RF2 * c.B259_C);
-    this.level = audioTaper(k.fldlevel) * 1.7;          // the folder holds its own output near 1.5 V, so no gain tracking needed
+    // the curve's offset at rest (taken off so Symmetry leaves no DC to thump with the envelope) and its largest swing
+    this.f0 = this.f(this.off);
+    let pk = 1e-9;
+    for (let i = 0; i <= 256; i++) { const y = this.f(this.off + this.gain * (i / 128 - 1)) - this.f0; const m = y < 0 ? -y : y; if (m > pk) pk = m; }
+    // level: between the curve's peak (pk) and its small-signal gain (WIN x gain), weighted against the 303 so the
+    // level stays within about 3 dB across Timbre; Level at noon matches the dry synth at Timbre 0
+    this.norm = audioTaper(k.fldlevel) * 6.7 / (Math.pow(c.B259_WIN * this.gain, 0.3) * Math.pow(pk, 0.7));
   }
   core(x) {
-    const s = this.s, v = x * this.gain + this.off, Fv = this.F(v), d = v - s.xa;
+    const s = this.s, ax = x < 0 ? -x : x;
+    s.env = ax > s.env ? ax : s.env * this.relA;                   // peak follower
+    const en = s.env > B259_FLOOR ? s.env : B259_FLOOR;
+    const v = x / en * this.gain + this.off, Fv = this.F(v), d = v - s.xa;
     const y = (d > 1e-6 || d < -1e-6) ? (Fv - s.Fa) / d : this.f(0.5 * (v + s.xa));
     s.xa = v; s.Fa = Fv;
     s.y = y + this.aOut * (s.y - y);                               // RF2 with C, 1.33 kHz
-    return s.y * this.level;
+    return (s.y - this.f0) * en * this.norm;
   }
 }
 
