@@ -383,3 +383,15 @@ html.fit .pm .pm-del { height: var(--menu-h); }
 .route-ctl { display: grid; gap: 6px; justify-items: start; margin-left: auto; }
 html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 6px); padding: 0 10px; font-size: var(--fs-m); white-space: nowrap; }
 .route-ctl .seg { width: 100%; } .route-ctl .seg button { flex: 1; }
+
+/* FX page tidy (Johnny): one dial pitch on every unit (58px dial + 6px gap), so the top row fills the width and the
+   reverb dials sit on the same spacing; the routing strip starts at the left edge like the On buttons above it, and
+   its switches are the same height as every other control */
+html.fit .fxpane { --kn-w: 58px; gap: 12px 0; }
+html.fit .fxpane .fxb:not(.blk-lex):not(.blk-route) { --kn-w: 58px; }
+html.fit .blk-lex { --kn-w: 58px; padding-top: 10px; }
+html.fit .fxknobs { gap: 6px; }
+html.fit .fxpane .fxb.blk-route { padding: 10px 0 0; gap: 0; }
+.blk-route > .fxname { width: 72px; flex: none; align-self: flex-start; margin-top: 15px; line-height: 20px; }
+html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
+.route-ctl { gap: 8px; }
