@@ -142,7 +142,7 @@ enum : int {
     plateprog, platepre, platedecay, platedamp, platebw, platelo, platediff, platemod, platemix, sprprog,
     sprdwell, sprdecay, sprtension, sprtone, sprlo, sprmix, cnvprog, cnvpre, cnvdecay, cnvtone,
     cnvlo, cnvwidth, cnvmix, drvtype, dsdist, dstone, dslevel, tsdrive, tstone, tslevel,
-    fldtimbre, fldsym, fldlevel,
+    fldtimbre, fldsym, fldlevel, fxorder, fxret,
     COUNT
 };
 }
@@ -213,6 +213,8 @@ inline const std::array<KnobInfo, K::COUNT>& knobs() {
         { "fldtimbre", "Timbre", 0.5, "fold" },
         { "fldsym", "Symmetry", 0.5, "fold" },
         { "fldlevel", "Level", 0.5, "fold" },
+        { "fxorder", "Order", 0, "route" },
+        { "fxret", "Returns", 0, "route" },
     }};
     return t;
 }

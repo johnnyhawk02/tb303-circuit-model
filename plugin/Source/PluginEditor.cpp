@@ -163,6 +163,76 @@ void Section::resized() {
     for (auto& it : items) if (it.c->isVisible()) it.c->setBounds(r.removeFromLeft(it.w).reduced(2, 0)); // hidden items take no room
 }
 
+// ---------- FX routing diagram ----------
+// The same drawing as drawRoute() in the web app's fx.js, in its 560 x 60 box, scaled to fit.
+void RouteView::paint(juce::Graphics& g) {
+    hits.clear();
+    if (!get) return;
+    const float s = juce::jmin(getWidth() / 560.0f, getHeight() / 60.0f);
+    tf = juce::AffineTransform::scale(s).translated((getWidth() - 560 * s) / 2, (getHeight() - 60 * s) / 2);
+    juce::Graphics::ScopedSaveState ss(g);
+    g.addTransform(tf);
+    const bool swap = get("fxorder") >= 0.5f, fold = get("fx_fold") >= 0.5f, rat = get("fx_rat") >= 0.5f, dly = get("fx_dly") >= 0.5f, lex = get("fx_lex") >= 0.5f;
+    const int ret = juce::jlimit(0, 2, (int)std::lround(get("fxret")));
+    static const char* dn[3] = { "rat", "ds-1", "ts808" }, *rn[4] = { "224", "plate", "spring", "conv" };
+    const juce::String drv = dn[juce::jlimit(0, 2, (int)std::lround(get("drvtype")))], rev = rn[juce::jlimit(0, 3, (int)std::lround(get("revtype")))];
+    const float W = 70, H = 18, Y = 24;
+    g.setColour(ink);
+    auto ln = [&](std::initializer_list<juce::Point<float>> pts) {
+        juce::Path p; bool first = true;
+        for (auto q : pts) { if (first) p.startNewSubPath(q); else p.lineTo(q); first = false; }
+        g.strokePath(p, juce::PathStrokeType(1.5f));
+    };
+    auto arr = [&](float x, float y) { juce::Path p; p.addTriangle(x - 5, y - 3.5f, x, y, x - 5, y + 3.5f); g.fillPath(p); };
+    auto txt = [&](const juce::String& t, float x, float y, float w, juce::Justification j, juce::Colour c, float sz) {
+        g.setFont(lcd(sz)); g.setColour(c); g.drawText(t, juce::Rectangle<float>(x, y - 9, w, 18), j, false); g.setColour(ink);
+    };
+    auto blk = [&](const char* id, const juce::String& label, float x, float y, bool on) {
+        const juce::Rectangle<float> r(x, y - H / 2, W, H);
+        if (on) { g.fillRoundedRectangle(r, 2); txt(label, x, y, W, juce::Justification::centred, glass, 15); }
+        else {
+            juce::Path p; p.addRoundedRectangle(r, 2); juce::Path d; const float dash[] = { 3, 2 };
+            juce::PathStrokeType(1.5f).createDashedStroke(d, p, dash, 2); g.fillPath(d);
+            txt(label, x, y, W, juce::Justification::centred, dim, 15);
+        }
+        if (id) hits.push_back({ r, id });
+    };
+    txt("303", 0, Y, 30, juce::Justification::centredLeft, ink, 15);
+    ln({ { 28, Y }, { 40, Y } }); arr(40, Y);
+    const char* p0 = swap ? "fx_rat" : "fx_fold", *p1 = swap ? "fx_fold" : "fx_rat";
+    blk(p0, swap ? drv : "folder", 40, Y, swap ? rat : fold); ln({ { 110, Y }, { 124, Y } }); arr(124, Y);
+    blk(p1, swap ? "folder" : drv, 124, Y, swap ? fold : rat);
+    const float sx = 214, mx = 404, cx = 412, ox = 500;
+    ln({ { 194, Y }, { sx, Y } }); g.fillEllipse(sx - 2.5f, Y - 2.5f, 5, 5);
+    if (ret == 0) {
+        const float yt = 12, yb = 46, x = 270;
+        ln({ { sx, Y }, { sx + 18, Y }, { sx + 18, yt }, { x, yt } }); arr(x, yt); ln({ { sx + 18, Y }, { sx + 18, yb }, { x, yb } }); arr(x, yb);
+        blk("fx_dly", "delay", x, yt, dly); blk("fx_lex", rev, x, yb, lex);
+        ln({ { x + W, yt }, { mx - 14, yt }, { mx - 14, Y }, { cx, Y } }); ln({ { x + W, yb }, { mx - 14, yb }, { mx - 14, Y } }); arr(cx, Y);
+    } else {
+        const bool d1 = ret == 1;
+        ln({ { sx, Y }, { 236, Y } }); arr(236, Y);
+        blk(d1 ? "fx_dly" : "fx_lex", d1 ? juce::String("delay") : rev, 236, Y, d1 ? dly : lex);
+        ln({ { 306, Y }, { 324, Y } }); arr(324, Y);
+        blk(d1 ? "fx_lex" : "fx_dly", d1 ? rev : juce::String("delay"), 324, Y, d1 ? lex : dly);
+        ln({ { 394, Y }, { cx, Y } }); arr(cx, Y);
+    }
+    blk(nullptr, "cmp", cx, Y, dly || lex);
+    ln({ { cx + W, Y }, { ox - 7, Y } }); arr(ox - 7, Y);
+    const float dy = ret == 0 ? 58.0f : 50.0f;
+    ln({ { sx, Y }, { sx, dy }, { ox, dy }, { ox, Y + 7 } });
+    { juce::Path p; p.addTriangle(ox - 3.5f, Y + 12, ox, Y + 7, ox + 3.5f, Y + 12); g.fillPath(p); }
+    txt("dry", ox - 45, dy - 7, 30, juce::Justification::centred, dim, 13);
+    g.drawEllipse(ox - 7, Y - 7, 14, 14, 1.5f);
+    ln({ { ox - 4, Y }, { ox + 4, Y } }); ln({ { ox, Y - 4 }, { ox, Y + 4 } });
+    ln({ { ox + 7, Y }, { ox + 20, Y } }); arr(ox + 20, Y);
+    txt("out", ox + 24, Y, 40, juce::Justification::centredLeft, ink, 15);
+}
+void RouteView::mouseUp(const juce::MouseEvent& e) {
+    const auto p = e.position.transformedBy(tf.inverted());
+    for (auto& h : hits) if (h.r.contains(p)) { if (toggle) toggle(h.id); repaint(); return; }
+}
+
 // ---------- sequencer grid ----------
 static const int OCT_ROWS[4] = { 2, 1, -1, -2 };
 static const char* const NOTE[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
@@ -921,7 +991,17 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     lex.addHeaderItem(&progMenuBtn, 260);
     lexNote.setColour(juce::Label::textColourId, ui::dim); lexNote.setFont(ui::lcd(11.0f)); lexNote.setJustificationType(juce::Justification::topLeft);
     fxPage.addAndMakeVisible(lexNote);
-    for (auto* c : { &fold, &rat, &dly, &cmp, &lex }) fxPage.addAndMakeVisible(c);
+    // routing: folder/drive order and how the delay and reverb returns connect, over a small block diagram
+    route.sub = "click a block to switch it";
+    orderMenuBtn.setTooltip("Folder and drive order");
+    orderMenuBtn.onClick = [this, kv] { showTypeMenu(orderMenuBtn, "fxorder", { "Folder > Drive", "Drive > Folder" }, kv("fxorder") >= 0.5f ? 1 : 0); };
+    retMenuBtn.setTooltip("Delay and reverb: side by side, or one feeding the other");
+    retMenuBtn.onClick = [this, kv] { showTypeMenu(retMenuBtn, "fxret", { "Parallel", "Delay > Reverb", "Reverb > Delay" }, (int)kv("fxret")); };
+    route.addHeaderItem(&retMenuBtn, 150); route.addHeaderItem(&orderMenuBtn, 150);
+    routeView.get = [kv](const char* id) { return kv(id); };
+    routeView.toggle = [setParam, kv](const char* id) { setParam(id, kv(id) >= 0.5f ? 0.0f : 1.0f); };
+    route.add(&routeView, 520);
+    for (auto* c : { &fold, &rat, &dly, &cmp, &lex, &route }) fxPage.addAndMakeVisible(c);
     addChildComponent(fxPage);
 
     // ---- circuit, board ----
@@ -1209,7 +1289,12 @@ void TB303Editor::timerCallback() {
         for (auto& k : knobs) k->refresh();
         partsUndo.setEnabled(proc.canUndoParts());
         if (tab == 1) for (auto& c : mods.getChildren()) c->repaint();
-        if (tab == 2) for (auto* c : { &fold, &rat, &dly, &cmp, &lex }) for (auto* ch : c->getChildren()) ch->repaint();
+        if (tab == 2) for (auto* c : { &fold, &rat, &dly, &cmp, &lex, &route }) for (auto* ch : c->getChildren()) ch->repaint();
+        {
+            static const char* on[2] = { "Folder > Drive", "Drive > Folder" }, *rn[3] = { "Parallel", "Delay > Reverb", "Reverb > Delay" };
+            orderMenuBtn.setButtonText(juce::String(on[Kn[K::fxorder] >= 0.5 ? 1 : 0]) + U("  ▾"));
+            retMenuBtn.setButtonText(juce::String(rn[(int)juce::jlimit(0.0, 2.0, jsRound(Kn[K::fxret] * 2))]) + U("  ▾"));
+        }
         if (tab == 4) circuit.refresh();
         if (tab == 5) board.repaint();
         // drive slot: which pedal's dials show
@@ -1404,6 +1489,7 @@ void TB303Editor::resized() {
         auto r1 = pg.removeFromTop(100);
         // signal order: Folder, Drive, then the delay and the Compactor that ducks the returns
         fold.setBounds(r1.removeFromLeft(240)); r1.removeFromLeft(8); rat.setBounds(r1.removeFromLeft(320));
+        r1.removeFromLeft(8); route.setBounds(r1); // routing in the room at the right of the first row
         pg.removeFromTop(8);
         auto r2 = pg.removeFromTop(100);
         dly.setBounds(r2.removeFromLeft(560)); r2.removeFromLeft(8); cmp.setBounds(r2.removeFromLeft(240));

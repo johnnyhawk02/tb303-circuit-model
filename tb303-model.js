@@ -1123,7 +1123,7 @@ class TB303Voice {
       sprprog: 2 / 3, sprdwell: 0.4, sprdecay: 0.5, sprtension: 0.5, sprtone: 0.5, sprlo: 0.4, sprmix: 0.5,
       cnvprog: 0, cnvpre: 0.2, cnvdecay: 1, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
       cmpamt: 0.4, cmprel: 0.14142,
-      dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
+      dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35, fxorder: 0, fxret: 0 };
     this.fx = { rat: false, lex: false, dly: false, fold: false }; // rat switches the drive slot (RAT, DS-1 or TS808)
     this.bpm = 128;
     this.ds = new BossDS1(this.fs); this.ts = new TubeScreamer(this.fs); this.b259 = new Buchla259(this.fs); this.drvT = 0;
@@ -1256,6 +1256,10 @@ class TB303Voice {
     this.ratLevel = audioTaper(k.ratvol) * 6;
     this.ds.derive(k); this.ts.derive(k); this.b259.derive(k);
     this.drvT = Math.max(0, Math.min(2, Math.round((k.drvtype || 0) * 2))); // drive slot: 0 = RAT, 1 = DS-1, 2 = TS808
+    // FX routing: fxorder swaps the folder and the drive slot; fxret is how the delay and reverb returns connect
+    // (0 = parallel, 1 = delay into reverb, 2 = reverb into delay)
+    this.fxSwap = (k.fxorder || 0) >= 0.5;
+    this.retMode = Math.max(0, Math.min(2, Math.round((k.fxret || 0) * 2)));
     this.lex.derive(c, k); this.plate.derive(k); this.spring.derive(k); this.conv.derive(k);
     const t = revType(k);
     if (t !== this.revT) { this.revT = t; this.rev.reset?.(); }
@@ -1523,18 +1527,32 @@ class TB303Voice {
     const vout = iout * c.R_OTA;
     this.hp38 = this.hp38A * (this.hp38 + vout - this.hp38In); this.hp38In = vout;
     let o = this.hp38 * this.vol * OUT_TRIM + nX * 4.0; // the output floor hiss keeps its level
-    if (this.fx.fold) o = this.b259.run(o);                       // Buchla 259 folder, ahead of the drive slot
-    if (this.fx.rat) o = this.drvT === 1 ? this.ds.run(o) : this.drvT === 2 ? this.ts.run(o) : this._rat(o);
+    if (this.fxSwap) { // routing: drive slot first, then the folder
+      if (this.fx.rat) o = this.drvT === 1 ? this.ds.run(o) : this.drvT === 2 ? this.ts.run(o) : this._rat(o);
+      if (this.fx.fold) o = this.b259.run(o);
+    } else {
+      if (this.fx.fold) o = this.b259.run(o);                     // Buchla 259 folder, ahead of the drive slot
+      if (this.fx.rat) o = this.drvT === 1 ? this.ds.run(o) : this.drvT === 2 ? this.ts.run(o) : this._rat(o);
+    }
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }
 
-  // the effects after the dry signal y: the 224 and the delay are parallel returns, both ducked by the
-  // Compactor keyed from y, summed with y, then the output soft clip
+  // the effects after the dry signal y: the reverb and the delay are returns, both ducked by the Compactor keyed
+  // from y, summed with y, then the output soft clip. Routed in parallel (both fed from y), or in series: the second
+  // one is fed y plus the first one's return (in mono), and both returns are heard.
   _fxOut(y, out, outR, n) {
     const lex = this.fx.lex ? this.rev : null, dly = this.fx.dly ? this.dly : null;
     let wl = 0, wr = 0;
-    if (lex) { lex.run(y); wl += lex.wet * lex.L; wr += lex.wet * lex.R; }
-    if (dly) { dly.run(y); wl += dly.l; wr += dly.r; }
+    if (lex && dly && this.retMode === 1) { // delay into reverb
+      dly.run(y); wl += dly.l; wr += dly.r;
+      lex.run(y + 0.5 * (dly.l + dly.r)); wl += lex.wet * lex.L; wr += lex.wet * lex.R;
+    } else if (lex && dly && this.retMode === 2) { // reverb into delay
+      lex.run(y); const rl = lex.wet * lex.L, rr = lex.wet * lex.R; wl += rl; wr += rr;
+      dly.run(y + 0.5 * (rl + rr)); wl += dly.l; wr += dly.r;
+    } else {
+      if (lex) { lex.run(y); wl += lex.wet * lex.L; wr += lex.wet * lex.R; }
+      if (dly) { dly.run(y); wl += dly.l; wr += dly.r; }
+    }
     const g = this.cmp.run(y, wl, wr);
     out[n] = 0.98 * Math.tanh((y + this.cmp.l * g) / 0.98);
     if (outR) outR[n] = 0.98 * Math.tanh((y + this.cmp.r * g) / 0.98);
@@ -1577,7 +1595,7 @@ class TB303Voice {
 // it only decides what value the voice sees each 32-sample tick. Discrete controls switch at once.
 class ParamSlew {
   constructor(voice, fs, tau = 0.015) { this.v = voice; this.fs = fs; this.tau = tau; this.t = new Map(); }
-  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name === 'drvtype' || name.startsWith('LEX_'); }
+  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name === 'drvtype' || name === 'fxorder' || name === 'fxret' || name.startsWith('LEX_'); }
   set(kind, name, value) {
     const v = this.v;
     if (ParamSlew.instant(kind, name) || !isFinite(value)) { this.t.delete(kind + name); kind === 'k' ? v.setKnob(name, value) : v.setComponent(name, value); return; }

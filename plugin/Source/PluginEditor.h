@@ -202,6 +202,19 @@ private:
     void undoPoint(bool force);
 };
 
+// the FX routing block diagram (the web app's FX page routing strip): blocks filled when the unit is on; click one to switch it
+class RouteView : public juce::Component {
+public:
+    std::function<float(const char*)> get;      // a parameter's plain value
+    std::function<void(const char*)> toggle;    // switch an fx_* parameter
+    void paint(juce::Graphics&) override;
+    void mouseUp(const juce::MouseEvent&) override;
+private:
+    struct Hit { juce::Rectangle<float> r; const char* id; };
+    std::vector<Hit> hits;
+    juce::AffineTransform tf;
+};
+
 class Scope : public juce::Component {
 public:
     explicit Scope(TB303Processor& p) : proc(p) {}
@@ -269,7 +282,8 @@ private:
     juce::Label syncLabel;
     // mods + fx
     juce::Component modsPage, fxPage;
-    ui::Section mods { "Mods" }, fold { "Folder" }, rat { "Drive" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" };
+    ui::Section mods { "Mods" }, fold { "Folder" }, rat { "Drive" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" }, route { "Routing" };
+    ui::RouteView routeView; juce::TextButton orderMenuBtn, retMenuBtn;
     juce::TextButton dlyMode[2];
     // the reverb unit's program (224 P1-P9, plate sizes, spring tanks, Conv IRs), also a dropdown
     juce::TextButton progMenuBtn; juce::StringArray progNames; int progSel = 0;

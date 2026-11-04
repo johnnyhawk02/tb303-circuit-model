@@ -19,6 +19,7 @@ const KNOB_ORDER = [
   'sprprog', 'sprdwell', 'sprdecay', 'sprtension', 'sprtone', 'sprlo', 'sprmix',
   'cnvprog', 'cnvpre', 'cnvdecay', 'cnvtone', 'cnvlo', 'cnvwidth', 'cnvmix',
   'drvtype', 'dsdist', 'dstone', 'dslevel', 'tsdrive', 'tstone', 'tslevel', 'fldtimbre', 'fldsym', 'fldlevel',
+  'fxorder', 'fxret',
 ];
 const byId = Object.fromEntries(KNOBS.map(k => [k.id, k]));
 const missing = KNOBS.filter(k => !KNOB_ORDER.includes(k.id)).map(k => k.id), gone = KNOB_ORDER.filter(id => !byId[id]);

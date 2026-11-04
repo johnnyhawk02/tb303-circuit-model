@@ -159,7 +159,7 @@ function renderFx() {
     document.getElementById('fx-' + n).classList.toggle('on', !!state.fx[n]);
   }
   document.getElementById('fx-cmp').classList.toggle('on', !!(state.fx.lex || state.fx.dly)); // the Compactor acts on the returns
-  drawDlyMode(); drawDrv();
+  drawDlyMode(); drawDrv(); drawRoute();
 }
 // Delay mode: ping-pong or mono (stored as the dlypp knob)
 const dlyModeEl = document.getElementById('dly-mode');
@@ -172,3 +172,55 @@ for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = (
   renderFx(); saveSession();
 };
 
+
+// ---------- routing: a small block diagram of the signal path (Johnny) ----------
+// fxorder swaps the folder and the drive slot; fxret sets how the delay and reverb returns connect (parallel, or one
+// into the other). The dry signal always passes by the returns; the Compactor ducks the returns. Click a block to switch
+// that unit on or off. A function declaration with no top-level consts, so drawKnob can call it before this file has run.
+function drawRoute() {
+  const svg = document.getElementById('route-dia'); if (!svg) return;
+  const k = state.knobs, fx = state.fx, swap = k.fxorder >= 0.5, ret = Math.max(0, Math.min(2, Math.round((k.fxret || 0) * 2)));
+  for (const [id, v] of [['route-order', swap ? 1 : 0], ['route-ret', ret]])
+    for (const b of document.getElementById(id).children) b.setAttribute('aria-checked', Math.round(+b.dataset.v * (id === 'route-ret' ? 2 : 1)) === v);
+  const drv = ['rat', 'ds-1', 'ts808'][Math.max(0, Math.min(2, Math.round((k.drvtype || 0) * 2)))];
+  const rev = REV_TYPES[revType(k)].short.toLowerCase();
+  const W = 70, H = 18, Y = 24; // block size, main row centre
+  const blk = (unit, label, x, y, on, tip) => `<g class="rb${on ? ' on' : ''}" data-tip="${tip}"${unit ? ` data-u="${unit}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${label}"` : ''}>` +
+    `<rect x="${x}" y="${y - H / 2}" width="${W}" height="${H}" rx="2"/><text x="${x + W / 2}" y="${y + 5}">${label}</text></g>`;
+  const ln = (pts) => `<polyline class="rw" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+  const arr = (x, y) => `<path class="ra" d="M${x - 5} ${y - 3.5} L${x} ${y} L${x - 5} ${y + 3.5}Z"/>`;
+  const pre = swap ? [['rat', drv, fx.rat, 'Drive'], ['fold', 'folder', fx.fold, 'Folder']] : [['fold', 'folder', fx.fold, 'Folder'], ['rat', drv, fx.rat, 'Drive']];
+  let h = `<text class="rt" x="0" y="${Y + 5}">303</text>` + ln([[28, Y], [40, Y]]) + arr(40, Y);
+  h += blk(pre[0][0], pre[0][1], 40, Y, pre[0][2], pre[0][3] + ': click to switch on or off') + ln([[110, Y], [124, Y]]) + arr(124, Y);
+  h += blk(pre[1][0], pre[1][1], 124, Y, pre[1][2], pre[1][3] + ': click to switch on or off');
+  const sx = 214, mx = 404, cx = 412, ox = 500; // split, merge, Compactor, sum
+  h += ln([[194, Y], [sx, Y]]) + `<circle class="rn" cx="${sx}" cy="${Y}" r="2.5"/>`;
+  const dlyB = (x, y) => blk('dly', 'delay', x, y, fx.dly, 'Delay: click to switch on or off'), revB = (x, y) => blk('lex', rev, x, y, fx.lex, 'Reverb: click to switch on or off');
+  if (ret === 0) { // side by side
+    const yt = 12, yb = 46, x = 270;
+    h += ln([[sx, Y], [sx + 18, Y], [sx + 18, yt], [x, yt]]) + arr(x, yt) + ln([[sx + 18, Y], [sx + 18, yb], [x, yb]]) + arr(x, yb);
+    h += dlyB(x, yt) + revB(x, yb);
+    h += ln([[x + W, yt], [mx - 14, yt], [mx - 14, Y], [cx, Y]]) + ln([[x + W, yb], [mx - 14, yb], [mx - 14, Y]]) + arr(cx, Y);
+  } else { // one into the other
+    const [a, b] = ret === 1 ? [dlyB, revB] : [revB, dlyB];
+    h += ln([[sx, Y], [236, Y]]) + arr(236, Y) + a(236, Y) + ln([[306, Y], [324, Y]]) + arr(324, Y) + b(324, Y) + ln([[394, Y], [cx, Y]]) + arr(cx, Y);
+  }
+  h += blk('', 'cmp', cx, Y, fx.lex || fx.dly, 'Compactor: ducks the delay and reverb returns under the synth');
+  h += ln([[cx + W, Y], [ox - 7, Y]]) + arr(ox - 7, Y);
+  // the dry signal, under the returns
+  const dy = ret === 0 ? 58 : 50;
+  h += ln([[sx, Y], [sx, dy], [ox, dy], [ox, Y + 7]]) + `<path class="ra" d="M${ox - 3.5} ${Y + 12} L${ox} ${Y + 7} L${ox + 3.5} ${Y + 12}Z"/>`;
+  h += `<text class="rt rs" x="${ox - 30}" y="${dy - 3}">dry</text>`;
+  h += `<circle class="rs-sum" cx="${ox}" cy="${Y}" r="7"/><path class="rw" d="M${ox - 4} ${Y} H${ox + 4} M${ox} ${Y - 4} V${Y + 4}"/>`;
+  h += ln([[ox + 7, Y], [ox + 20, Y]]) + arr(ox + 20, Y) + `<text class="rt" x="${ox + 24}" y="${Y + 5}">out</text>`;
+  svg.innerHTML = h;
+}
+{
+  const pick = (id, knob) => document.getElementById(id).addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) setKnob(knob, +b.dataset.v); });
+  pick('route-order', 'fxorder'); pick('route-ret', 'fxret');
+  const svg = document.getElementById('route-dia');
+  const hit = (e) => { const g = e.target.closest('[data-u]'); if (g) document.getElementById('fx-' + g.dataset.u + '-on').click(); };
+  svg.addEventListener('click', hit);
+  svg.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hit(e); } });
+  drawRoute();
+}

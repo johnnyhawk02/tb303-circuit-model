@@ -362,3 +362,24 @@ html.fit .pm .pm-del { height: var(--menu-h); }
 .pm .pm-del[aria-pressed=true] { opacity: 1; background: var(--ink); color: var(--glass); font-size: var(--fs-s); text-transform: lowercase; }
 .pm .pm-restore { display: block; width: 100%; border: 0; background: transparent; text-align: left; padding: 0 12px; padding-left: calc(12px + var(--d, 0) * 14px); height: var(--menu-h, 22px); font-size: var(--fs-s); color: var(--mute); text-transform: lowercase; box-shadow: none !important; }
 .pm .pm-restore:hover { color: var(--ink); background: var(--tint); }
+
+/* FX routing (Johnny): a small block diagram under the reverb, the order switches at its right. Blocks are ink outlines,
+   filled when the unit is on; click one to switch it */
+.blk-route { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 8px 0 0; border-left: 0; border-top: 1px solid var(--rulec); }
+.route-dia { width: 560px; height: 60px; flex: none; overflow: visible; font-family: var(--font-body); }
+.route-dia .rw { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.route-dia .ra, .route-dia .rn { fill: var(--ink); stroke: none; }
+.route-dia .rs-sum { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.route-dia .rt { fill: var(--ink); font-size: 15px; }
+.route-dia .rs { fill: var(--mute); font-size: 13px; text-anchor: middle; }
+.route-dia .rb rect { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.route-dia .rb text { fill: var(--mute); font-size: 15px; text-anchor: middle; }
+.route-dia .rb.on rect { fill: var(--ink); stroke-dasharray: none; }
+.route-dia .rb.on text { fill: var(--glass); }
+.route-dia [data-u] { cursor: pointer; }
+.route-dia [data-u]:hover rect { stroke-width: 2.5; }
+.route-dia [data-u]:focus-visible { outline: none; }
+.route-dia [data-u]:focus-visible rect { stroke-width: 2.5; stroke-dasharray: none; }
+.route-ctl { display: grid; gap: 6px; justify-items: start; margin-left: auto; }
+html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 6px); padding: 0 10px; font-size: var(--fs-m); white-space: nowrap; }
+.route-ctl .seg { width: 100%; } .route-ctl .seg button { flex: 1; }
