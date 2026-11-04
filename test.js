@@ -44,3 +44,9 @@ fs.writeFileSync('demo.wav',pcm);
     console.log('224', LEX_PROGRAMS[pr].short.padEnd(13), 'Mid', lexParams(k).mid.toFixed(2), 's  measured RT60', (3 * (at(-25) - at(-5))).toFixed(2), 's  memory', m.words, '/', m.of, bad ? 'NaN!' : '');
   }
 }
+// 7. key track: KT 0 switches R_KT out (stock weights); 66% of the pot is 1 V/oct with the 75K R_KT
+{
+  const a = new TB303Voice(SR), b = new TB303Voice(SR); b.setComponent('KT', 0.662);
+  const track = b.wKt / (VT * Math.LN2);
+  console.log('key track: KT 0 wKt', a.wKt, 'stock wCut', a.wCut === new TB303Voice(SR).wCut, ' KT 0.662 tracking', (track * 100).toFixed(1) + '% of 1 V/oct', Math.abs(track - 1) < 0.01 ? 'ok' : 'FAIL');
+}

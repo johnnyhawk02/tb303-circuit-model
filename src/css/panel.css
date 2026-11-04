@@ -5,7 +5,7 @@
 .dev::after, .main > .pane::after { content: ""; position: absolute; left: 9px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--on); }
 
 /* TB-303 voice: waveform switch, the front dials, then components (filter trim, randomise, undo) */
-.panel { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(132px, 1.3fr); gap: 10px; align-items: start; }
+.panel { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)) minmax(132px, 1.3fr); gap: 10px; align-items: start; }
 .wave-kn { align-content: start; }
 .wave-kn .switch { align-self: center; margin: 14px 0 12px; }
 .parts-kn { align-content: start; grid-template-columns: auto 1fr; align-items: center; }
