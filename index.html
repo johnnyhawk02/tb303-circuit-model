@@ -708,13 +708,18 @@ html.fit .fxpane .fxb:not(.blk-lex):not(.blk-route) { --kn-w: 58px; }
 html.fit .blk-lex { --kn-w: 58px; padding-top: 10px; }
 html.fit .fxknobs { gap: 6px; }
 html.fit .fxpane .fxb.blk-route { padding: 10px 0 0; gap: 0; }
-.blk-route > .fxname { width: 72px; flex: none; align-self: flex-start; margin-top: 15px; line-height: 20px; }
 html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
 .route-ctl { gap: 8px; }
 
 /* Sequencer foot (Johnny): no row labels; a long Length slider on its own line, then Step len, Shift and Transpose */
 html.fit .sq-row.sq-side { flex-wrap: wrap; row-gap: 6px; }
 html.fit .sq-foot .sld.len { flex: 1 0 100%; grid-template-columns: 64px minmax(0, 1fr) 36px; margin-right: 0; }
+
+/* FX page, second pass (Johnny): no "routing" label, the diagram starts at the page edge; the rows share the spare
+   height so the page does not end in a gap */
+html.fit .fxpane { gap: 26px 0; }
+html.fit .fxpane .fxb.blk-route { padding-top: 14px; }
+html.fit .blk-lex { padding-top: 14px; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -834,7 +839,6 @@ html.fit .sq-foot .sld.len { flex: 1 0 100%; grid-template-columns: 64px minmax(
     <div class="sq-row tu-foot">
       <span class="rlab">root</span>
       <div class="seg slots" id="tu-root" role="group" aria-label="Root of the temperament"><button type="button" data-r="0" aria-pressed="false">c</button><button type="button" data-r="1" aria-pressed="false">c♯</button><button type="button" data-r="2" aria-pressed="false">d</button><button type="button" data-r="3" aria-pressed="false">d♯</button><button type="button" data-r="4" aria-pressed="false">e</button><button type="button" data-r="5" aria-pressed="false">f</button><button type="button" data-r="6" aria-pressed="false">f♯</button><button type="button" data-r="7" aria-pressed="false">g</button><button type="button" data-r="8" aria-pressed="false">g♯</button><button type="button" data-r="9" aria-pressed="false">a</button><button type="button" data-r="10" aria-pressed="false">a♯</button><button type="button" data-r="11" aria-pressed="false">b</button></div>
-      <span class="hint tu-note">±100 cents a note, every octave · shift for fine · double-click for 0</span>
     </div>
   </div>
 
@@ -865,10 +869,8 @@ html.fit .sq-foot .sld.len { flex: 1 0 100%; grid-template-columns: 64px minmax(
         <div class="fn rmenu tmenu" id="rev-prog" data-label="Program"></div>
       </div>
       <div class="fxknobs" id="fx-lex-knobs"></div>
-      <p class="hint lex-note" id="lex-note"></p>
     </section>
     <section class="fxb blk-route" id="fx-route" aria-label="FX routing">
-      <span class="fxname">routing</span>
       <svg class="route-dia" id="route-dia" viewBox="0 0 560 60" role="group" aria-label="Signal path through the effects. Click a block to switch it on or off."></svg>
       <div class="route-ctl">
         <div class="seg" id="route-order" role="radiogroup" aria-label="Folder and drive order"><button type="button" role="radio" data-v="0" title="The folder first, then the drive pedal (the stock order)">fold → drive</button><button type="button" role="radio" data-v="1" title="The drive pedal first, then the folder: folds the clipped wave">drive → fold</button></div>
@@ -4579,18 +4581,6 @@ const REV_PROGS = {
   spring: ['sprprog', SPRING_PROGRAMS.map((P, i) => [i + 1, P.short, P.name])],
   conv: ['cnvprog', CNV_PROGRAMS.map((P, i) => [i + 1, P.short, P.name])],
 };
-const REV_NOTES = {
-  plate: (q) => `Jon Dattorro's published plate (JAES 1997): four input diffusers into a figure-eight tank with modulated allpasses. ${q.P.name}: every delay scaled ×${q.P.size}. Damping is the high cut inside the tank, Bandwidth the one before it.`,
-  spring: (q) => `A dispersive spring model after Välimäki, Parker and Abel (JAES 2010): each spring is a delay loop through ${SPRING_STAGES} stretched allpasses, so every echo smears into the falling drip. ${q.P.name}, transit ${q.P.ms.join(' / ')} ms. Dwell drives the tank, Tension lengthens the chirp.`,
-  conv: (q) => {
-    if (q.P.ir) {
-      const m = irMeta?.irs.find(x => x.id === q.P.ir);
-      return (m ? `${m.character} ${m.credit}, ${m.licence}. ` : irFailed ? 'The impulse responses could not be loaded. ' : 'Recorded impulse response; it loads when audio starts. ') +
-        'Length trims the response (full at the top). Partitioned FFT convolution, one 512-sample block late, which is the shortest predelay.';
-    }
-    return `Partitioned FFT convolution with a generated impulse response: seeded noise with the highs dying first${q.P.er.length ? ', a build-up and early reflections' : ''}. ${q.P.gate ? 'Decay sets the gate length. ' : ''}The wet signal is one 512-sample block late, which is the shortest predelay.`;
-  },
-};
 // ---------- type menus: the drive pedal, the reverb unit and its program, picked from dropdowns (Johnny), styled like Randomise ▾ ----------
 // el: an empty .tmenu div; items: [{ name, tip }]; pick(i) runs when one is chosen. setTypeItems swaps the list (the
 // program menu changes with the unit); drawTypeMenu ticks the current one and shows it on the button.
@@ -4656,7 +4646,6 @@ function drawLex() {
   }
   const sel = revProg(state.knobs[pk], list.length);
   drawTypeMenu(progs, sel);
-  const note = document.getElementById('lex-note');
   if (T.id === 'conv') { loadIRMeta(); loadIRs(); }
   if (T.id !== 'lex') {
     const q = { plate: plateParams, spring: springParams, conv: convParams }[T.id](state.knobs);
@@ -4664,18 +4653,10 @@ function drawLex() {
       knobEls[k.id].name.textContent = k.id === 'cnvdecay' ? (q.P.gate ? 'Gate' : q.P.ir ? 'Length' : 'Decay') : k.name;
       knobEls[k.id].val.textContent = knobText(k.id, state.knobs[k.id]);
     }
-    note.textContent = REV_NOTES[T.id](q);
     return;
   }
   const q = lexParams(state.knobs), chorus = q.P.alg === 'chorus';
   for (const k of KNOBS) if (k.fx === 'lex' && !k.rev && knobEls[k.id]) { const e = knobEls[k.id]; e.name.textContent = (chorus && LEX_CHORUS_NAMES[k.id]) || k.name; e.val.textContent = knobText(k.id, state.knobs[k.id]); }
-  const m = preview.lex.memoryUse(), c = state.parts;
-  const shrunk = !chorus && m.scale < q.P.size - 1e-3 ? ` Shrunk to ${Math.round(m.scale / q.P.size * 100)}% to fit.` : '';
-  note.textContent = (chorus
-    ? 'Eight voices, four a side, each delay wandering at random. The first four knobs are the voice-pair levels; Diffusion acts on pairs 3 and 4.'
-    : `Predelay ${q.P.pre[0]}–${q.P.pre[1]} ms on this program.`) +
-    ` ${(c.LEX_FS / 1000).toFixed(1)} kHz, ${Math.round(c.LEX_BITS)}-bit converters, ${m.words.toLocaleString()} of ${m.of.toLocaleString()} words.${shrunk}` +
-    ' Program names, control ranges and converter specs follow Lexicon; the algorithms are estimates built on Dattorro\'s Griesinger-style plate. Parts are in Options under 224.';
 }
 
 // ---------- drive slot: ProCo RAT, Boss DS-1, Ibanez TS808 (fx.rat switches it on, drvtype picks the pedal) ----------
