@@ -216,3 +216,21 @@ document.querySelector('.nudge').addEventListener('click', (e) => {
   for (const st of P) st.code = clampCode(st.code + d);
   renderSeq(); pushPattern();
 });
+
+// Alter accents, slides or octaves: a variation rather than a new roll. About a quarter of the notes (at least one) get
+// the change: an accent or slide flipped on or off, or an octave jump up or down within range. Undo puts it back.
+function alterLane(kind) {
+  const notes = state.pattern.filter(st => st.gate); if (!notes.length) { sqSay('No notes to vary: put some notes in first.'); return; }
+  pushUndo();
+  const pick = [...notes].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(notes.length / 4)));
+  for (const st of pick) {
+    if (kind === 'octave') { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; }
+    else st[kind] = !st[kind];
+  }
+  renderSeq(); pushPattern();
+  const n = pick.length, w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
+  sqSay(`Altered ${n} ${w[n > 1 ? 1 : 0]}. Tap again for more; Undo puts it back.`);
+}
+document.getElementById('a-acc').onclick = () => alterLane('accent');
+document.getElementById('a-sld').onclick = () => alterLane('slide');
+document.getElementById('a-oct').onclick = () => alterLane('octave');

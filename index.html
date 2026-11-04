@@ -713,20 +713,26 @@ html.fit .main { grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
         <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
         <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
-      </div>
-      <div class="sq-row sq-edit">
-        <span class="rlab">edit</span>
+        <span class="rlab rlab-in">edit</span>
         <div class="acts">
           <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
           <button type="button" id="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle</button>
           <button type="button" id="p-clear">Clear</button>
           <button type="button" id="p-undo" disabled>Undo</button>
         </div>
-        <span class="rlab rlab-in">randomise</span>
+      </div>
+      <div class="sq-row sq-edit">
+        <span class="rlab">randomise</span>
         <div class="acts">
           <button type="button" id="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
           <button type="button" id="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Slides</button>
           <button type="button" id="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Octaves</button>
+        </div>
+        <span class="rlab rlab-in">alter</span>
+        <div class="acts">
+          <button type="button" id="a-acc" title="Vary the accents: about a quarter of the notes gain or lose an accent; tap again for more">Accents</button>
+          <button type="button" id="a-sld" title="Vary the slides: about a quarter of the notes gain or lose a slide; tap again for more">Slides</button>
+          <button type="button" id="a-oct" title="Vary the octaves: about a quarter of the notes jump an octave up or down; tap again for more">Octaves</button>
         </div>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div>
@@ -3240,6 +3246,24 @@ document.querySelector('.nudge').addEventListener('click', (e) => {
   for (const st of P) st.code = clampCode(st.code + d);
   renderSeq(); pushPattern();
 });
+
+// Alter accents, slides or octaves: a variation rather than a new roll. About a quarter of the notes (at least one) get
+// the change: an accent or slide flipped on or off, or an octave jump up or down within range. Undo puts it back.
+function alterLane(kind) {
+  const notes = state.pattern.filter(st => st.gate); if (!notes.length) { sqSay('No notes to vary: put some notes in first.'); return; }
+  pushUndo();
+  const pick = [...notes].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(notes.length / 4)));
+  for (const st of pick) {
+    if (kind === 'octave') { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; }
+    else st[kind] = !st[kind];
+  }
+  renderSeq(); pushPattern();
+  const n = pick.length, w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
+  sqSay(`Altered ${n} ${w[n > 1 ? 1 : 0]}. Tap again for more; Undo puts it back.`);
+}
+document.getElementById('a-acc').onclick = () => alterLane('accent');
+document.getElementById('a-sld').onclick = () => alterLane('slide');
+document.getElementById('a-oct').onclick = () => alterLane('octave');
 
 // ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
 const banks = store.get('banks', null) || {};
