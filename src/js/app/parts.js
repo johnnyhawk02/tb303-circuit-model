@@ -113,6 +113,7 @@ const FRONT_MODS = [
   ['C_ACC', 'Accent sweep', 'how accents build up'],
   ['R72', 'Env depth', 'size of the filter sweep'],
   ['V_CUT', 'Cutoff range', 'how far the cutoff reaches'],
+  ['KT', 'Key track', 'higher notes open the filter'],
   ['A_Q21', 'Reso limit', 'up to self-oscillation'],
   ['R_IN', 'Drive', 'push the filter harder'],
   ['C18', 'Ladder cap', 'resonance character'],

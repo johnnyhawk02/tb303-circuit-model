@@ -208,7 +208,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .pane[hidden] { display: none !important; }
 
 /* front-page mods */
-.mods { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px 10px; padding-top: 8px; }
+.mods { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 18px 10px; padding-top: 8px; }
 .md .mname { margin-top: 2px; }
 .md .mdesc { order: 2; font-size: 14.5px; line-height: 1.3; color: var(--mute); max-width: 14ch; }
 
@@ -950,6 +950,9 @@ const COMPONENTS = {
   R63:    { v: 100e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'accent to Q10 base' },
   R71:    { v: 2.2e3,   unit: 'Ω', block: 'VCF',   source: 'schematic', note: 'Q10 base to ground' },
   V_CUT:  { v: 3.3,     unit: 'V', block: 'VCF',   source: 'estimate',  note: 'VR3 wiper span (R47 10K end stop)', range: [0.5, 6, 'lin'], mod: 'Cutoff knob range. Cutoff range mods (common on TD-3s) let the knob go lower and higher.' },
+  KT:     { v: 0,       unit: '%', block: 'VCF',   source: 'estimate',  note: 'KEY TRACK pot (100K B) with click-off switch: buffered pitch CV minus V_KT, through R_KT into Q10 base. Not on a stock 303', range: [0, 1, 'lin'], mod: 'Filter key tracking, as on the TD-3-MO and Devil Fish. Feeds the pitch CV into the cutoff so higher notes open the filter. With the 75K R_KT about 66% is exact 1 V/oct tracking, full is about 150%. 0 switches it out, which is the stock 303.' },
+  R_KT:   { v: 75e3,    unit: 'Ω', block: 'VCF',   source: 'estimate',  note: 'key track pot wiper to Q10 base (114K = 100% at full pot)', range: [30e3, 300e3, 'log'], mod: 'Key track range. Lower values let the Key track pot go further past 1 V/oct.' },
+  V_KT:   { v: 2.75,    unit: 'V', block: 'VCF',   source: 'estimate',  note: 'key track buffer reference: the note whose cutoff does not move (2.75 V = A, the TM4 tuning note)', range: [1, 4, 'lin'] },
   I_REF:  { v: 3.1e-6, unit: 'A', block: 'VCF',   source: 'estimate',  note: 'TM3 FREQ trim: ladder current at 0 V', range: [1.55e-6, 6.2e-6, 'log'], mod: 'Filter frequency trimmer (TM3). Sets where the cutoff sits for a given knob position, about one octave either way.' },
 
   // --- VCF envelope (Q38/Q40/Q39 2SK30)
@@ -1512,9 +1515,10 @@ class TB303Voice {
     this.kFb = c.A_Q21 * k.resonance; // VR4 linear (B) taper
     this.fbA = Math.exp(-1 / (c.C15 * c.R98 * this.fs)); // feedback HPF corner (~72 Hz)
     // Millman sum at Q10 base: G = 1/R
-    const g73 = 1 / c.R73, g72 = 1 / c.R72, g63 = 1 / c.R63, g71 = 1 / c.R71;
-    const gs = g73 + g72 + g63 + g71;
-    this.wCut = g73 / gs; this.wEnv = g72 / gs; this.wAcc = g63 / gs;
+    // key track (KT > 0 closes the pot's switch): op-amp buffer drives KT * (CV - V_KT) into R_KT
+    const g73 = 1 / c.R73, g72 = 1 / c.R72, g63 = 1 / c.R63, g71 = 1 / c.R71, gKt = c.KT > 0 ? 1 / c.R_KT : 0;
+    const gs = g73 + g72 + g63 + g71 + gKt;
+    this.wCut = g73 / gs; this.wEnv = g72 / gs; this.wAcc = g63 / gs; this.wKt = c.KT * gKt / gs;
     this.vCutPot = c.V_CUT * k.cutoff;
     this.envModFrac = audioTaper(k.envmod);
     // envelopes
@@ -1758,7 +1762,8 @@ class TB303Voice {
 
     // --- VCF control: Millman sum at Q10 base, expo current
     const vEnvMod = this.accentNote ? 0 : this.envVcf * this.envModFrac;
-    const vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * vAccF;
+    let vb = this.wCut * this.vCutPot + this.wEnv * vEnvMod + this.wAcc * vAccF;
+    if (this.wKt > 0) vb += this.wKt * (this.cv - c.V_KT);
     const Il = Math.min(c.I_REF * Math.exp(vb / VT), 2e-3);
 
     // approx. unit gaussian from four uniforms (xorshift32), one per source
@@ -2884,6 +2889,7 @@ function drawGen() {
 const PFX = [[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
 function fmt(v, unit) {
   if (unit === '×' || unit === 'Hz') return +v.toPrecision(4) + ' ' + unit;
+  if (unit === '%') return Math.round(v * 100) + ' %';
   if (unit === 'V') return +v.toPrecision(4) + ' V';
   for (const [m, p] of PFX) if (Math.abs(v) >= m * 0.9999) return +(v / m).toPrecision(3) + ' ' + p + unit;
   return v.toExponential(2) + ' ' + unit;
@@ -3596,6 +3602,7 @@ const FRONT_MODS = [
   ['C_ACC', 'Accent sweep', 'how accents build up'],
   ['R72', 'Env depth', 'size of the filter sweep'],
   ['V_CUT', 'Cutoff range', 'how far the cutoff reaches'],
+  ['KT', 'Key track', 'higher notes open the filter'],
   ['A_Q21', 'Reso limit', 'up to self-oscillation'],
   ['R_IN', 'Drive', 'push the filter harder'],
   ['C18', 'Ladder cap', 'resonance character'],
