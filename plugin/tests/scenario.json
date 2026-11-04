@@ -6,7 +6,7 @@
   "events": [
     { "at": 0, "knobs": { "cutoff": 0.3, "resonance": 0.82, "envmod": 0.62, "decay": 0.3, "accent": 0.75, "volume": 0.85, "lexprog": 0.25, "lexmix": 0.5 } },
     { "at": 0, "fx": { "rat": true, "lex": true, "dly": true } },
-    { "at": 1.5, "knobs": { "cutoff": 0.55, "resonance": 0.95 }, "parts": { "R_SOFT": 1000, "WOW": 0.5 } },
+    { "at": 1.5, "knobs": { "cutoff": 0.55, "resonance": 0.95 }, "parts": { "R_SOFT": 1000, "WOW": 0.5, "KT": 0.8 } },
     { "at": 2.25, "tune": [0, 11.7, 3.9, 15.6, -13.7, -2, -9.8, 2, 13.7, -15.6, 17.6, -11.7] },
     { "at": 3, "wave": "square", "knobs": { "lexprog": 1, "dist": 0.8 } },
     { "at": 4.5, "knobs": { "lexprog": 0.5, "cmpmode": 1 }, "parts": { "LEX_FS": 32000 } }

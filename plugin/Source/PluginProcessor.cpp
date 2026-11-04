@@ -13,6 +13,7 @@ const std::vector<ModInfo>& frontMods() {
         { "C_ACC", "Accent sweep", "how accents build up" },
         { "R72", "Env depth", "size of the filter sweep" },
         { "V_CUT", "Cutoff range", "how far the cutoff reaches" },
+        { "KT", "Key track", "higher notes open the filter" },
         { "A_Q21", "Reso limit", "up to self-oscillation" },
         { "R_IN", "Drive", "push the filter harder" },
         { "C18", "Ladder cap", "resonance character" },
@@ -41,6 +42,7 @@ juce::String TB303Processor::formatPart(double v, const juce::String& unit) {
         if (s.containsChar('.')) { s = s.trimCharactersAtEnd("0"); s = s.trimCharactersAtEnd("."); }
         return s;
     };
+    if (unit == "%") return juce::String((juce::int64)std::llround(v * 100)) + " %";
     if (unit == "×" || unit == "Hz" || unit == "V") return sig(v, 4) + " " + unit;
     static const std::pair<double, const char*> pfx[] = { { 1e6, "M" }, { 1e3, "k" }, { 1, "" }, { 1e-3, "m" }, { 1e-6, "µ" }, { 1e-9, "n" }, { 1e-12, "p" } };
     for (auto& [m, p] : pfx) if (std::fabs(v) >= m * 0.9999) return sig(v / m, 3) + " " + juce::String::fromUTF8(p) + unit;

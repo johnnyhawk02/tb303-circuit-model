@@ -32,7 +32,7 @@ inline double audioTaper(double p) { return p <= 0 ? 0 : std::pow(p, 2.74); } //
 namespace P {
 enum : int {
     VREF, R_DAC, R2_DAC, R93, C35, C33, V_LO, V_HI, F_TUNE, CV_TUNE, VR2, C10, R_SQB, SQ_LO, SQ_HI, R_SQC, R_SQE,
-    C18, C19, C24, C26, R_IN, R98, C15, VR4, A_Q21, R73, R72, R63, R71, V_CUT, I_REF,
+    C18, C19, C24, C26, R_IN, R98, C15, VR4, A_Q21, R73, R72, R63, R71, V_CUT, KT, R_KT, V_KT, I_REF,
     C62, R138, VR6, R152, V_ENV, VR5, VR7, R117, C_ACC, R_ACC, V_D, WOW,
     C67, R49, R_SOFT, R52, R_VREL, V_VCA, R105, R25, R26, A_OUT, C14, R85, C49, R88, C76, R100, R101, R_OTA, C38, R_OUT,
     EN_VCF, EN_OTA, EN_OUT, NOISE,
@@ -58,7 +58,8 @@ inline const std::array<PartInfo, P::COUNT>& parts() {
         { "C18", 0.018e-6, "F" }, { "C19", 0.033e-6, "F" }, { "C24", 0.033e-6, "F" }, { "C26", 0.033e-6, "F" },
         { "R_IN", 100e3, "Ω" }, { "R98", 2.2e3, "Ω" }, { "C15", 1e-6, "F" }, { "VR4", 50e3, "Ω" },
         { "A_Q21", 16.5, "×", 0, 26, 1 }, { "R73", 100e3, "Ω" }, { "R72", 220e3, "Ω" }, { "R63", 100e3, "Ω" },
-        { "R71", 2.2e3, "Ω" }, { "V_CUT", 3.3, "V", 0.5, 6, 1 }, { "I_REF", 3.1e-6, "A", 1.55e-6, 6.2e-6, 2 },
+        { "R71", 2.2e3, "Ω" }, { "V_CUT", 3.3, "V", 0.5, 6, 1 },
+        { "KT", 0, "%", 0, 1, 1 }, { "R_KT", 75e3, "Ω", 30e3, 300e3, 2 }, { "V_KT", 2.75, "V", 1, 4, 1 }, { "I_REF", 3.1e-6, "A", 1.55e-6, 6.2e-6, 2 },
         { "C62", 1e-6, "F" }, { "R138", 68e3, "Ω" }, { "VR6", 1e6, "Ω" }, { "R152", 100, "Ω" }, { "V_ENV", 5.0, "V" },
         { "VR5", 50e3, "Ω" }, { "VR7", 50e3, "Ω" }, { "R117", 22e3, "Ω" }, { "C_ACC", 1e-6, "F" }, { "R_ACC", 47e3, "Ω" },
         { "V_D", 0.55, "V" }, { "WOW", 0, "×", 0, 1, 1 },
@@ -618,9 +619,10 @@ public:
         inAtt = c[P::R98] / (c[P::R_IN] + c[P::R98]);
         kFb = c[P::A_Q21] * k[K::resonance];
         fbA = std::exp(-1 / (c[P::C15] * c[P::R98] * fs));
-        const double g73 = 1 / c[P::R73], g72 = 1 / c[P::R72], g63 = 1 / c[P::R63], g71 = 1 / c[P::R71];
-        const double gs = g73 + g72 + g63 + g71;
-        wCut = g73 / gs; wEnv = g72 / gs; wAcc = g63 / gs;
+        // key track (KT > 0 closes the pot's switch): op-amp buffer drives KT * (CV - V_KT) into R_KT
+        const double g73 = 1 / c[P::R73], g72 = 1 / c[P::R72], g63 = 1 / c[P::R63], g71 = 1 / c[P::R71], gKt = c[P::KT] > 0 ? 1 / c[P::R_KT] : 0;
+        const double gs = g73 + g72 + g63 + g71 + gKt;
+        wCut = g73 / gs; wEnv = g72 / gs; wAcc = g63 / gs; wKt = c[P::KT] * gKt / gs;
         vCutPot = c[P::V_CUT] * k[K::cutoff];
         envModFrac = audioTaper(k[K::envmod]);
         const double rDecay = c[P::R138] + c[P::VR6] * audioTaper(k[K::decay]);
@@ -637,7 +639,7 @@ public:
         {
             const double ra = std::max(c[P::VR4] * k[K::resonance], 1.0), rb = std::max(c[P::VR4] * (1 - k[K::resonance]), 1.0);
             const double rs = c[P::R_ACC] + c[P::VR7] * k[K::accent] * (1 - k[K::accent]);
-            const double gl = 1 / (c[P::R63] + 1 / (g73 + g72 + g71)), gb = 1 / rb, dt = 1 / fs;
+            const double gl = 1 / (c[P::R63] + 1 / (g73 + g72 + g71 + gKt)), gb = 1 / rb, dt = 1 / fs;
             auto tap = [&](double gsrc) { const double sum = gsrc + gb + gl; return WowTap { gsrc / sum, gb / sum, gsrc / (gsrc + gl), std::exp(-dt * gb * (gsrc + gl) / sum / c[P::C_ACC]) }; };
             wowOn = tap(1 / (rs + ra)); wowOff = tap(0);
         }
@@ -716,7 +718,7 @@ private:
     // derived
     double nVcf = 0, nOta = 0, nOut = 0; bool noiseOn = false;
     double swing = 0, iVcoRef = 0, tuneOct = 0, sqA = 0, sqGain = 0, sqLpA = 0, slideA = 0;
-    double C[4] = {}; double inAtt = 0, kFb = 0, fbA = 0, wCut = 0, wEnv = 0, wAcc = 0, vCutPot = 0, envModFrac = 0;
+    double C[4] = {}; double inAtt = 0, kFb = 0, fbA = 0, wCut = 0, wEnv = 0, wAcc = 0, wKt = 0, vCutPot = 0, envModFrac = 0;
     double envDecA = 0, envDecAccA = 0, envAtkA = 0, vcaAtkA = 0, vcaSoftA = 0, vcaDecA = 0, vcaRelA = 0;
     double accFrac = 0, accChgK = 0, accDisA = 0; WowTap wowOn {}, wowOff {};
     double hp14A = 0, hp49A = 0, hp76A = 0, hp38A = 0, vinDen = 0, vol = 0;
@@ -898,7 +900,8 @@ private:
         const double vAccF = c[P::WOW] > 0 ? vAcc + c[P::WOW] * (vWow - vAcc) : vAcc;
 
         const double vEnvMod = accentNote ? 0 : envVcf * envModFrac;
-        const double vb = wCut * vCutPot + wEnv * vEnvMod + wAcc * vAccF;
+        double vb = wCut * vCutPot + wEnv * vEnvMod + wAcc * vAccF;
+        if (wKt > 0) vb += wKt * (cv - c[P::V_KT]);
         const double Il = std::min(c[P::I_REF] * std::exp(vb / VT), 2e-3);
 
         double nV = 0, nO = 0, nX = 0;
