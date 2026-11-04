@@ -202,17 +202,27 @@ document.getElementById('rand').onclick = () => {
 };
 
 
-// Arrows on the right of the roll: move every note up or down a semitone (the note rows) or an octave (the octave rows).
-// A real transpose, so B up a semitone becomes C in the next octave lane. If any note would go past the top or bottom
-// of the range nothing moves (so the riff keeps its shape) and a message says so; rests just follow, clamped.
-document.querySelector('.nudge').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-nudge]'); if (!b) return;
-  const d = +b.dataset.nudge, P = state.pattern, notes = P.filter(st => st.gate);
+// The cross under the roll (Johnny): up and down move every note a semitone (Shift-click for an octave), left and right
+// rotate the pattern a step. Moving notes is a real transpose, so B up a semitone becomes C in the next octave lane. If
+// any note would go past the top or bottom of the range nothing moves (so the riff keeps its shape) and a message says so.
+function nudgeNotes(d) {
+  const P = state.pattern, notes = P.filter(st => st.gate);
   if (!notes.length) { sqSay('No notes to move: put some notes in first.'); return; }
   if (notes.some(st => st.code + d < 0 || st.code + d > 59)) { sqSay(`Already at the ${d > 0 ? 'top' : 'bottom'} of the range.`); return; }
   pushUndo();
   for (const st of P) st.code = clampCode(st.code + d);
   renderSeq(); pushPattern();
+}
+function rotateSteps(k) {
+  const P = state.pattern, n = P.length; if (n < 2) return;
+  pushUndo();
+  state.pattern = P.map((_, i) => P[(i - k + n) % n]);
+  renderSeq(); pushPattern();
+}
+document.querySelector('.dpad').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.nudge) nudgeNotes(+b.dataset.nudge * (e.shiftKey ? 12 : 1));
+  else if (b.dataset.rot) rotateSteps(+b.dataset.rot);
 });
 
 // Alter accents, slides or octaves: a variation rather than a new roll. About a quarter of the notes (at least one) get

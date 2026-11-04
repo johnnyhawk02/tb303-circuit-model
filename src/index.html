@@ -91,17 +91,14 @@
           <button type="button" role="menuitem" data-rm="nu-dn" title="Every note down a semitone">Down a semitone</button>
           <button type="button" role="menuitem" data-rm="nu-oup" title="Every note up an octave">Up an octave</button>
           <button type="button" role="menuitem" data-rm="nu-odn" title="Every note down an octave">Down an octave</button>
+          <button type="button" role="menuitem" data-rm="rot-l" title="Shift the pattern a step left (the first step goes to the end)">Shift a step left</button>
+          <button type="button" role="menuitem" data-rm="rot-r" title="Shift the pattern a step right (the last step comes to the front)">Shift a step right</button>
           <span class="mh">chain</span>
           <button type="button" role="menuitem" data-rm="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button>
         </div></div>
       </div>
-      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div>
-        <div class="nudge" role="group" aria-label="Shift the notes">
-          <button type="button" class="nu-oct-up" data-nudge="12" title="Every note up an octave" aria-label="Octaves up">▲</button>
-          <button type="button" class="nu-oct-dn" data-nudge="-12" title="Every note down an octave" aria-label="Octaves down">▼</button>
-          <button type="button" class="nu-key-up" data-nudge="1" title="Every note up a semitone" aria-label="Notes up a semitone">▲</button>
-          <button type="button" class="nu-key-dn" data-nudge="-1" title="Every note down a semitone" aria-label="Notes down a semitone">▼</button>
-        </div></div>
+      <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
+      <div class="sq-foot"><div class="sq-foot-rows">
       <div class="sq-row sq-side">
         <span class="rlab">shape</span>
         <label class="sld"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
@@ -113,6 +110,14 @@
         <span class="rlab">generate</span>
         <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
         <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars to generate"><output id="o-bars">1</output></label>
+      </div></div>
+        <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
+        <div class="nudge dpad" role="group" aria-label="Move the notes">
+          <button type="button" class="dp-up" data-nudge="1" title="Every note up a semitone, Shift-click for an octave" aria-label="Notes up">▲</button>
+          <button type="button" class="dp-lt" data-rot="-1" title="Shift the pattern a step left (the first step goes to the end)" aria-label="Shift the pattern left">◀</button>
+          <button type="button" class="dp-rt" data-rot="1" title="Shift the pattern a step right (the last step comes to the front)" aria-label="Shift the pattern right">▶</button>
+          <button type="button" class="dp-dn" data-nudge="-1" title="Every note down a semitone, Shift-click for an octave" aria-label="Notes down">▼</button>
+        </div>
       </div>
     </div>
   </section>

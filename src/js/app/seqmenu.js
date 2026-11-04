@@ -32,10 +32,12 @@
     'p-dup': { run: click('#p-dup'), code: 'KeyD' },
     'p-clear': { run: click('#p-clear'), code: 'Backspace', shift: true, label: '⌫' },
     'p-undo': { run: click('#p-undo'), code: 'KeyZ', cmd: true },
-    'nu-up': { run: click('.nudge [data-nudge="1"]'), code: 'BracketRight', label: ']' },
-    'nu-dn': { run: click('.nudge [data-nudge="-1"]'), code: 'BracketLeft', label: '[' },
-    'nu-oup': { run: click('.nudge [data-nudge="12"]'), code: 'BracketRight', shift: true, label: ']' },
-    'nu-odn': { run: click('.nudge [data-nudge="-12"]'), code: 'BracketLeft', shift: true, label: '[' },
+    'nu-up': { run: () => nudgeNotes(1), code: 'BracketRight', label: ']' },
+    'nu-dn': { run: () => nudgeNotes(-1), code: 'BracketLeft', label: '[' },
+    'nu-oup': { run: () => nudgeNotes(12), code: 'BracketRight', shift: true, label: ']' },
+    'nu-odn': { run: () => nudgeNotes(-12), code: 'BracketLeft', shift: true, label: '[' },
+    'rot-l': { run: () => rotateSteps(-1), code: 'Comma', label: ',' },
+    'rot-r': { run: () => rotateSteps(1), code: 'Period', label: '.' },
     'join': { run: () => FUNCTIONS.join(), code: 'KeyJ' },
     'rm-btn': { run: toggle(0), code: 'KeyR' },
     'tm-btn': { run: toggle(1), code: 'KeyT' },
@@ -52,9 +54,9 @@
     const el = document.querySelector(sel); if (!el) continue;
     const k = keyName(ACTS[id]); el.title = `${el.title} (key ${k})`; el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
   }
-  // the nudge arrows beside the roll show their keys too
-  for (const [d, id] of [['1', 'nu-up'], ['-1', 'nu-dn'], ['12', 'nu-oup'], ['-12', 'nu-odn']]) {
-    const b = document.querySelector(`.nudge [data-nudge="${d}"]`); if (b) b.title = `${b.title} (key ${keyName(ACTS[id])})`;
+  // the cross under the roll shows its keys too
+  for (const [sel, ids] of [['.dp-up', ['nu-up', 'nu-oup']], ['.dp-dn', ['nu-dn', 'nu-odn']], ['.dp-lt', ['rot-l']], ['.dp-rt', ['rot-r']]]) {
+    const b = document.querySelector(sel); if (b) b.title = `${b.title} (key ${ids.map(id => keyName(ACTS[id])).join(', ')})`;
   }
   MENUS.forEach((M, i) => {
     M.btn.onclick = toggle(i);
