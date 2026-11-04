@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
-<script>try { const t = JSON.parse(localStorage.getItem('tb303.lcdTheme')); if (typeof t === 'string') document.documentElement.dataset.lcd = t; } catch {}</script>
+<script>try { const r = document.documentElement, t = JSON.parse(localStorage.getItem('tb303.lcdTheme')), v = JSON.parse(localStorage.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
 <style>
 /* Layout: one quiet instrument page (knobs, transport, steps); everything else lives in the Options sheet.
    Look (v45, from Johnny's SH-101 project): one pane of backlit orange LCD glass in a black bezel on a dark case.
@@ -313,6 +313,12 @@ dialog#options #osec-colours .lcd-swatches button.sw[data-lcd] { display: grid; 
 .lcd-swatches .bars { width: 100%; height: 12px; background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / 64% 100% no-repeat,
   repeating-linear-gradient(90deg, rgb(var(--ink-rgb) / .13) 0 5px, transparent 5px 8px); }
 dialog#options #osec-colours .lcd-swatches button.sw[aria-checked=true] { outline: 3px solid var(--fg); outline-offset: 3px; }
+/* the glass itself: brightness and saturation move the theme's glass colour (the ink stays), dirt scales the faded patches,
+   the dark top edge and the vignette, grain the pixel grid, glow the soft halo round every lit segment. 100% is the stock look */
+.lcd-look { display: grid; grid-template-columns: repeat(2, max-content); gap: 10px 48px; align-items: center; justify-content: start; margin-top: 18px; }
+html.fit dialog#options .lcd-look .sld { grid-template-columns: 96px 220px 48px; margin: 0; font-size: var(--fs-m); }
+html.fit dialog#options .lcd-look .sld output { font-size: var(--fs-m); }
+#lcd-look-reset { justify-self: start; }
 
 /* Every device gets the desktop screen: the fixed 1000 x 647 pane scaled to fit (fit.js), letterboxed on the dark case.
    No separate phone layout (Johnny, Nov 2026). In portrait on a touch screen it is small, so a quiet hint says to turn it. */
@@ -331,12 +337,12 @@ dialog#options #osec-colours .lcd-swatches button.sw[aria-checked=true] { outlin
 .main { position: relative; color: var(--ink); text-shadow: var(--shadow); border: 0; border-radius: 0; padding: 0 16px 16px;
   background-color: var(--glass);
   background-image: linear-gradient(170deg, rgb(255 255 255 / .14), rgb(255 255 255 / 0) 38%, rgb(0 0 0 / .05)),
-    repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px),
     radial-gradient(60% 30% at 10% 100%, rgb(var(--hl1-rgb) / .55), rgb(var(--hl1-rgb) / 0) 70%),
     radial-gradient(50% 28% at 90% 102%, rgb(var(--hl2-rgb) / .4), rgb(var(--hl2-rgb) / 0) 70%),
-    radial-gradient(38% 20% at 70% 30%, rgb(var(--dk1-rgb) / .14), rgb(var(--dk1-rgb) / 0) 70%),
-    linear-gradient(180deg, rgb(var(--dk2-rgb) / .2) 0%, rgb(var(--dk2-rgb) / 0) 22%),
-    radial-gradient(130% 100% at 50% 60%, rgb(0 0 0 / 0) 60%, rgb(var(--dk3-rgb) / .28) 100%);
+    radial-gradient(38% 20% at 70% 30%, rgb(var(--dk1-rgb) / calc(.14 * var(--dirt))), rgb(var(--dk1-rgb) / 0) 70%),
+    linear-gradient(180deg, rgb(var(--dk2-rgb) / calc(.2 * var(--dirt))) 0%, rgb(var(--dk2-rgb) / 0) 22%),
+    radial-gradient(130% 100% at 50% 60%, rgb(0 0 0 / 0) 60%, rgb(var(--dk3-rgb) / calc(.28 * var(--dirt))) 100%);
   box-shadow: inset 0 6px 14px rgb(0 0 0 / .35), inset -4px 0 10px rgb(0 0 0 / .15), 0 18px 40px rgb(0 0 0 / .5); }
 body { padding-block: 20px 40px; font-size: 17px; line-height: 1.2; }
 :focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
@@ -453,17 +459,17 @@ input[type=checkbox] { accent-color: var(--ink); }
 
 /* ---- v63: the Elixir Synth screen treatment, in orange: black bezel on the dark case, a faded-patch veil over the glass,
    a soft glow round every lit pixel, a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
-:root { --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
+:root { --dirt: 1; --grain: 1; --glow: 1; --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
   --hl1-rgb: 255 228 175; --hl2-rgb: 255 222 170; --dk1-rgb: 70 28 5; --dk2-rgb: 60 22 4; --dk3-rgb: 45 15 0; }
 html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815) fixed; }
 .main { border: 5px solid #0b0c0a; border-radius: 10px;
   box-shadow: inset 0 6px 16px rgb(0 0 0 / .36), inset -8px 8px 18px rgb(0 0 0 / .2), inset 0 0 0 1px rgb(255 255 255 / .1), 0 1px 0 rgb(255 255 255 / .07), 0 18px 40px rgb(0 0 0 / .5); }
 .main::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 5;
-  background: radial-gradient(34% 17% at 76% 24%, rgb(var(--panel-rgb) / .42), rgb(var(--panel-rgb) / 0) 100%),
-    radial-gradient(22% 12% at 16% 66%, rgb(var(--panel-rgb) / .38), rgb(var(--panel-rgb) / 0) 100%),
-    radial-gradient(14% 9% at 58% 83%, rgb(var(--panel-rgb) / .3), rgb(var(--panel-rgb) / 0) 100%),
-    linear-gradient(90deg, rgb(var(--panel-rgb) / 0) 88%, rgb(var(--panel-rgb) / .22) 97%, rgb(var(--panel-rgb) / .1)); }
-.main, .main button, .main .label, .main output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+  background: radial-gradient(34% 17% at 76% 24%, rgb(var(--panel-rgb) / calc(.42 * var(--dirt))), rgb(var(--panel-rgb) / 0) 100%),
+    radial-gradient(22% 12% at 16% 66%, rgb(var(--panel-rgb) / calc(.38 * var(--dirt))), rgb(var(--panel-rgb) / 0) 100%),
+    radial-gradient(14% 9% at 58% 83%, rgb(var(--panel-rgb) / calc(.3 * var(--dirt))), rgb(var(--panel-rgb) / 0) 100%),
+    linear-gradient(90deg, rgb(var(--panel-rgb) / 0) 88%, rgb(var(--panel-rgb) / calc(.22 * var(--dirt))) 97%, rgb(var(--panel-rgb) / calc(.1 * var(--dirt)))); }
+.main, .main button, .main .label, .main output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / calc(.42 * var(--glow))); }
 .main button:not(.seg button):not(.tabs button), .main .seg { box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
 .main button:not(.mtabs button) { text-transform: uppercase; letter-spacing: .06em; }
 .main .seq .cell.on, .main input[type=range]::-webkit-slider-thumb { filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
@@ -558,7 +564,7 @@ html.fit .mods { gap: 16px 10px; padding-top: 4px; }
 
 /* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
 html.fit dialog#options { width: 960px; height: 600px; max-width: none; max-height: none; inset: auto; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
-dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / calc(.42 * var(--glow))); }
 dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
 dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
 dialog#options .opt-head h2 { font-size: var(--fs-l); }
@@ -594,7 +600,7 @@ html.fit .panel { row-gap: 0; }
 /* mods: the two rows of dials share the page's height, rather than leaving a gap at the bottom */
 html.fit .mods { gap: 30px 10px; padding-top: 10px; }
 /* the Options sheet: the screen's fine pixel grid too, and a lowercase title like every other heading */
-dialog#options { background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px); }
+dialog#options { background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px); }
 dialog#options .opt-head h2 { text-transform: lowercase; }
 /* touch: no pinch-zoom or page scroll (the screen already fills the window); scroll areas inside still scroll */
 html.fit { touch-action: pan-x pan-y; overscroll-behavior: none; }
@@ -918,6 +924,14 @@ html.fit .sq-foot .sld.len { flex: 1 0 100%; grid-template-columns: 64px minmax(
     </section>
     <section class="osec" id="osec-colours" role="tabpanel" aria-label="Colours" hidden>
       <div class="lcd-swatches" id="lcd-swatches" role="radiogroup" aria-label="Screen colour"></div>
+      <div class="lcd-look" id="lcd-look">
+        <label class="sld"><span>Brightness</span><input type="range" data-look="bright" min="-50" max="50" step="1" value="0" aria-label="Screen brightness"><output>0</output></label>
+        <label class="sld"><span>Saturation</span><input type="range" data-look="sat" min="0" max="200" step="1" value="100" aria-label="Screen saturation"><output>100%</output></label>
+        <label class="sld"><span>Dirt</span><input type="range" data-look="dirt" min="0" max="200" step="1" value="100" aria-label="Dirt on the glass"><output>100%</output></label>
+        <label class="sld"><span>Grain</span><input type="range" data-look="grain" min="0" max="250" step="1" value="100" aria-label="Pixel grain"><output>100%</output></label>
+        <label class="sld"><span>Glow</span><input type="range" data-look="glow" min="0" max="200" step="1" value="100" aria-label="Glow round the segments"><output>100%</output></label>
+        <button type="button" id="lcd-look-reset">Reset</button>
+      </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
       <div class="notes">
@@ -4467,8 +4481,45 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
   const mark = () => { for (const b of box.children) { const on = b.dataset.lcd === cur(); b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1; } };
   const pick = (k, focus) => {
     if (k === 'orange') delete root.dataset.lcd; else root.dataset.lcd = k;
-    store.set('lcdTheme', k); mark(); if (focus) box.querySelector(`[data-lcd="${k}"]`).focus();
+    store.set('lcdTheme', k); mark(); applyLook(); if (focus) box.querySelector(`[data-lcd="${k}"]`).focus();
   };
+
+  // Brightness, saturation, dirt, grain, glow: saved as tb303.lcdLook (the slider values) and tb303.lcdVars (the CSS
+  // variables they make, which the page head puts back before the styles load). At the stock values nothing is set at all.
+  const LOOK0 = { bright: 0, sat: 100, dirt: 100, grain: 100, glow: 100 };
+  const look = { ...LOOK0, ...store.get('lcdLook', {}) };
+  const VARS = ['--glass', '--panel-rgb', '--dirt', '--grain', '--glow'];
+  const hex2hsl = (h) => {
+    const n = parseInt(h.replace('#', ''), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    if (!d) return [0, 0, l];
+    const s = d / (1 - Math.abs(2 * l - 1));
+    const hh = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [hh * 60, s, l];
+  };
+  const hsl2rgb = (h, s, l) => {
+    const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return [r, g, b].map(v => Math.round((v + m) * 255));
+  };
+  function applyLook() {
+    for (const v of VARS) root.style.removeProperty(v);
+    const vars = {};
+    if (look.bright !== 0 || look.sat !== 100) {
+      const [h, s0, l0] = hex2hsl(getComputedStyle(root).getPropertyValue('--glass').trim());
+      const b = look.bright / 100, s = Math.min(1, s0 * look.sat / 100), l = b > 0 ? l0 + (1 - l0) * b * .8 : l0 * (1 + b * .8);
+      const rgb = hsl2rgb(h, s, l);
+      vars['--glass'] = '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join(''); vars['--panel-rgb'] = rgb.join(' ');
+    }
+    for (const k of ['dirt', 'grain', 'glow']) if (look[k] !== 100) vars['--' + k] = String(look[k] / 100);
+    for (const k in vars) root.style.setProperty(k, vars[k]);
+    store.set('lcdLook', look); store.set('lcdVars', vars);
+  }
+  const lookBox = document.getElementById('lcd-look');
+  const show = () => { for (const i of lookBox.querySelectorAll('input')) { const k = i.dataset.look; i.value = look[k]; i.nextElementSibling.textContent = k === 'bright' ? (look[k] > 0 ? '+' : '') + look[k] : look[k] + '%'; i.dispatchEvent(new Event('input', { bubbles: true })); } };
+  lookBox.addEventListener('input', (e) => { const i = e.target; if (!i.dataset?.look || !e.isTrusted) return; look[i.dataset.look] = +i.value; applyLook(); show(); });
+  document.getElementById('lcd-look-reset').onclick = () => { Object.assign(look, LOOK0); applyLook(); show(); };
+  show();
   for (const [k, name] of THEMES) {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'sw'; b.dataset.lcd = k; b.setAttribute('role', 'radio');

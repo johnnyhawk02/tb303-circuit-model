@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
-<script>try { const t = JSON.parse(localStorage.getItem('tb303.lcdTheme')); if (typeof t === 'string') document.documentElement.dataset.lcd = t; } catch {}</script>
+<script>try { const r = document.documentElement, t = JSON.parse(localStorage.getItem('tb303.lcdTheme')), v = JSON.parse(localStorage.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
 <style>
 /*@css*/
 </style>
@@ -192,6 +192,14 @@
     </section>
     <section class="osec" id="osec-colours" role="tabpanel" aria-label="Colours" hidden>
       <div class="lcd-swatches" id="lcd-swatches" role="radiogroup" aria-label="Screen colour"></div>
+      <div class="lcd-look" id="lcd-look">
+        <label class="sld"><span>Brightness</span><input type="range" data-look="bright" min="-50" max="50" step="1" value="0" aria-label="Screen brightness"><output>0</output></label>
+        <label class="sld"><span>Saturation</span><input type="range" data-look="sat" min="0" max="200" step="1" value="100" aria-label="Screen saturation"><output>100%</output></label>
+        <label class="sld"><span>Dirt</span><input type="range" data-look="dirt" min="0" max="200" step="1" value="100" aria-label="Dirt on the glass"><output>100%</output></label>
+        <label class="sld"><span>Grain</span><input type="range" data-look="grain" min="0" max="250" step="1" value="100" aria-label="Pixel grain"><output>100%</output></label>
+        <label class="sld"><span>Glow</span><input type="range" data-look="glow" min="0" max="200" step="1" value="100" aria-label="Glow round the segments"><output>100%</output></label>
+        <button type="button" id="lcd-look-reset">Reset</button>
+      </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
       <div class="notes">
