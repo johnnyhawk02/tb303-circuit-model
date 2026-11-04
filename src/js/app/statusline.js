@@ -9,7 +9,7 @@
   const show = () => { const t = msg || (tipsOn ? tip : ''); line.textContent = t; line.classList.toggle('msg', !!msg); };
   const say = (t) => { msg = (t || '').trim(); clearTimeout(msgT); if (msg) msgT = setTimeout(() => { msg = ''; show(); }, 5000); show(); };
   // mirror the old popup message spots into the line
-  for (const id of ['sq-msg', 'prj-msg', 'snd-msg', 'pat-msg']) {
+  for (const id of ['sq-msg', 'prj-msg']) {
     const el = document.getElementById(id); if (!el) continue;
     new MutationObserver(() => { if (el.textContent.trim()) say(el.textContent); }).observe(el, { childList: true, characterData: true, subtree: true });
   }

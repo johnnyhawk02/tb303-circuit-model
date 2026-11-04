@@ -136,13 +136,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
   display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
   background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .pm-pop[hidden] { display: none; }
-#pat-bar .pm-pop { left: auto; right: 0; }
 .pm-head { display: grid; min-width: 0; }
 .pm .pm-qrow { display: flex; gap: 6px; margin: 8px; }
 .pm .pm-q { flex: 1; min-width: 0; font: 17px var(--font-body); padding: 5px 8px; }
-.pm-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-.pm .pm-chip { font: 14.5px var(--font-body); padding: 3px 8px; border-radius: 10px; background: var(--glass); color: var(--mute); border: 1px solid var(--ink); }
-.pm .pm-chip[aria-pressed=true] { background: var(--hi); color: var(--glass); }
 .pm-list { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
 .pm .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid var(--rulec); padding: 6px 10px; padding-left: calc(10px + var(--d, 0) * 14px); background: transparent;
   font: 14.5px var(--font-body); letter-spacing: .03em; text-align: left; }
@@ -176,7 +172,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-vis
 .top .hp[hidden] { display: none; }
 .pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 17px; cursor: pointer; }
 .pm-foot #prj-roll { padding: 5px 8px; }
-.pm-foot .devbtn { border-style: dashed; }
 .pm .pm-favf { padding: 0 10px; font-size: 19.5px; line-height: 1; opacity: .6; }
 .pm .pm-favf[aria-pressed=true] { opacity: 1; }
 .pm .pm-favf[aria-pressed=true] { color: var(--on); border-color: var(--on); }
@@ -373,7 +368,7 @@ select option { background: var(--glass); color: var(--ink); }
 .gear { border-color: transparent; }
 .play[aria-pressed=true], .onoff[aria-pressed=true], .seg button[aria-pressed=true], .seg button[aria-checked=true],
 .mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true],
-.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-chip[aria-pressed=true], .pm .pm-favf[aria-pressed=true] {
+.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-favf[aria-pressed=true] {
   background: var(--ink); color: var(--glass); text-shadow: none; }
 .play[aria-pressed=true] svg { fill: var(--glass); }
 .seg { border: 2px solid var(--ink); border-radius: 3px; }
@@ -666,30 +661,8 @@ html.fit .main { grid-template-columns: minmax(0, 1fr); }
         <button type="button" id="prj-export" title="Saves every preset under My presets to one file. Import file loads them all back in.">Export all</button>
         <button type="button" id="prj-import">Import file</button>
         <label class="pm-opt" title="Loading a preset changes only the sound and effects, and keeps your patterns and tempo"><input type="checkbox" id="prj-sndonly"> Sound only</label>
-        <button type="button" class="devbtn" id="prj-favx" title="Development: export starred presets">Export favourites</button>
-        <button type="button" class="devbtn" id="prj-clear" title="Development: delete every saved preset">Clear all</button>
         <input type="file" id="prj-file" accept=".json,application/json" hidden>
         <span class="hint" id="prj-msg" role="status"></span>
-      </div>
-    </div>
-    <div class="hp presets" id="snd-bar" hidden>
-      <span class="label">Sound</span>
-      <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
-      <div class="pm-foot">
-        <input id="snd-name" type="text" placeholder="Save current sound as…" maxlength="40" aria-label="Sound preset name">
-        <button type="button" id="snd-save">Save</button>
-        <button type="button" id="snd-del">Delete</button>
-        <span class="hint" id="snd-msg" role="status"></span>
-      </div>
-    </div>
-    <div class="hp presets" id="pat-bar" hidden>
-      <span class="label">Pattern</span>
-      <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
-      <div class="pm-foot">
-        <input id="pat-name" type="text" placeholder="Save current pattern as…" maxlength="40" aria-label="Pattern preset name">
-        <button type="button" id="pat-save">Save</button>
-        <button type="button" id="pat-del">Delete</button>
-        <span class="hint" id="pat-msg" role="status"></span>
       </div>
     </div>
     <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
@@ -714,7 +687,6 @@ html.fit .main { grid-template-columns: minmax(0, 1fr); }
            a label column on the left so every row lines up -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
-        <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
         <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
         <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
@@ -862,7 +834,7 @@ html.fit .main { grid-template-columns: minmax(0, 1fr); }
         <button type="button" id="preset-export">Export all</button>
         <button type="button" id="preset-import">Import</button>
         <input type="file" id="preset-file" accept=".json,application/json" hidden>
-        <span class="hint">Your sound and pattern presets, the current sound and pattern, as one JSON file.</span>
+        <span class="hint">Every preset under My presets, as one JSON file (the same as Export all in the Preset menu). Import also takes older settings files.</span>
       </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
@@ -2640,29 +2612,6 @@ const state = {
   parts: {},
   tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
 };
-const SOUND_BUILTIN = {
-  'Stock 303': { knobs: {}, parts: {} },
-  'Devil Fish style': {
-    knobs: { resonance: 0.9, envmod: 0.7, decay: 0.2, accent: 0.9 },
-    parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C_ACC: 0.47e-6, R_IN: 47e3, R72: 120e3, V_CUT: 4.5 },
-  },
-  'Acid in the hall': {
-    knobs: { cutoff: 0.28, resonance: 0.85, envmod: 0.65, decay: 0.25, lexprog: 0.25, lexmid: 0.36, lexbass: 0.4, lexpre: 0.3, lexmix: 0.45 },
-    fx: { rat: true, lex: true }, parts: {},
-  },
-  'Long drone': {
-    knobs: { cutoff: 0.25, resonance: 0.75, envmod: 0.4, decay: 0.9 }, wave: 'square',
-    parts: { C35: 1e-6, R52: 4.7e6, R_SOFT: 22e3 },
-  },
-};
-const P = (rows) => rows.map(([code, accent, slide, gate]) => ({ code, accent: !!accent, slide: !!slide, gate: !!gate }));
-const PATTERN_BUILTIN = {
-  'Example line': { bpm: 128, pattern: EXAMPLE.map(st => ({ ...st })) },
-  'Octave bounce': { bpm: 132, pattern: P([[21,1,0,1],[33,0,0,1],[21,0,0,1],[33,1,0,1],[21,0,0,1],[33,0,1,1],[31,0,0,1],[21,0,0,1],
-    [24,1,0,1],[36,0,0,1],[24,0,0,1],[36,1,0,1],[19,0,0,1],[31,0,1,1],[33,0,0,1],[21,1,0,1]]) },
-  'Slow squelch': { bpm: 108, pattern: P([[21,1,1,1],[28,0,1,1],[33,0,0,1],[21,0,0,0],[21,0,1,1],[24,1,1,1],[26,0,0,1],[21,0,0,0],
-    [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
-};
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
 // a part differs from stock (works for parts whose stock value is 0)
 function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return Math.abs(v - d) > (d ? 1e-6 * Math.abs(d) : 1e-9); }
@@ -3890,10 +3839,11 @@ document.getElementById('a-acc').onclick = () => alterLane('accent');
 document.getElementById('a-sld').onclick = () => alterLane('slide');
 document.getElementById('a-oct').onclick = () => alterLane('octave');
 
-// ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
+// ---------- the 8 pattern slots, A1-A8: edits save to the selected slot ----------
+// (Storage, projects and the plug-in still name a slot by bank and number, { g: 'A', n }, from when there were
+// banks A-D of 12; only bank A is used now, and the other old slots stay in storage but are not shown.)
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
-// eight patterns, 1-8 (Johnny): they live in what was bank A; other old slots stay in storage but are not shown
 if (sel.g !== 'A' || !(sel.n >= 0 && sel.n < 8)) sel = { g: 'A', n: 0 };
 const slotKey = (g, n) => g + (n + 1);
 let clip = store.get('clip', null);
@@ -3907,8 +3857,8 @@ function storeSlot() {
 // slots that are empty, or still hold an untouched random pick, get a random preset
 function fillSlots(force) {
   const cur = slotKey(sel.g, sel.n); let n = 0;
-  for (const g of 'A') for (let i = 0; i < 8; i++) {
-    const k = slotKey(g, i), x = banks[k];
+  for (let i = 0; i < 8; i++) {
+    const k = slotKey('A', i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
     const gp = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
@@ -3917,7 +3867,6 @@ function fillSlots(force) {
   store.set('banks', banks); return n;
 }
 function renderBank() {
-  for (const b of document.querySelectorAll('#bk-g button')) b.setAttribute('aria-pressed', b.dataset.g === sel.g);
   for (const b of document.querySelectorAll('#bk-n button')) {
     const n = +b.dataset.n, x = banks[slotKey(sel.g, n)];
     b.setAttribute('aria-pressed', n === sel.n);
@@ -3933,7 +3882,6 @@ function loadSlot(g, n) {
   state.pattern = c.pattern || blankPattern(); state.shuffle = c.shuffle ?? 0; state.gate = c.gate ?? 0.5;
   tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank();
 }
-document.getElementById('bk-g').onclick = (e) => { const b = e.target.closest('button'); if (b) loadSlot(b.dataset.g, sel.n); };
 document.getElementById('bk-n').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; if (e.metaKey || e.ctrlKey) toggleChain(b); else loadSlot(sel.g, +b.dataset.n); };
 document.getElementById('p-copy').onclick = () => { clip = { shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; store.set('clip', clip); renderBank(); };
 document.getElementById('p-paste').onclick = () => {
@@ -4722,7 +4670,6 @@ const NAMER = (() => {
 
 // ---------- presets ----------
 function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, ...(x.tune && { tune: x.tune }), wave: x.wave, fx: x.fx }; }
-function patternSnap() { return { bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; }
 function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
@@ -4810,11 +4757,9 @@ function presetBar(pre, storeKey, builtins, snap, apply, autoName) {
 // ---------- preset menu: our own picker over the hidden <select>, grouped, searchable, with prev/next ----------
 function presetMenu(host) {
   const sel = document.getElementById(host.dataset.for), pre = host.dataset.for.replace('-preset', '');
-  const isPat = pre === 'pat';
   host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span></button>`
     + `<button type="button" class="pm-step" data-d="-1" aria-label="Previous preset">◀</button><button type="button" class="pm-step" data-d="1" aria-label="Next preset">▶</button>`
     + `<div class="pm-pop" hidden><div class="pm-head"><div class="pm-qrow"><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets"><button type="button" class="pm-favf" aria-pressed="false" title="Show favourites only">★</button></div>`
-    + (isPat ? `<div class="pm-chips" role="group" aria-label="Filter">${PM_TAGS.map(t => `<button type="button" class="pm-chip" data-t="${t.k}" aria-pressed="false" title="${t.tip}">${t.label}</button>`).join('')}</div>` : '')
     + `</div><div class="pm-list" role="listbox" aria-label="${sel.getAttribute('aria-label')}"></div></div>`;
   host.querySelector('.pm-pop').appendChild(host.parentElement.querySelector('.pm-foot'));
   const btn = host.querySelector('.pm-btn'), pop = host.querySelector('.pm-pop'), q = host.querySelector('.pm-q'), list = host.querySelector('.pm-list');
@@ -4822,7 +4767,7 @@ function presetMenu(host) {
   const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   const favKey = 'fav.' + pre, recKey = 'recent.' + pre, openKey = 'pmOpen.' + pre;
   const fav = new Set(store.get(favKey, [])), open = new Set(store.get(openKey, ['fav', 'rec', 'my', 'built']));
-  let recent = store.get(recKey, []), chips = new Set(), act = -1, tree = null, order = [], byV = new Map(), favOnly = !!store.get('favOnly.' + pre, false);
+  let recent = store.get(recKey, []), act = -1, tree = null, order = [], byV = new Map(), favOnly = !!store.get('favOnly.' + pre, false);
 
   // every option becomes an item with a folder path: My presets, Built-in, or source > author > song
   function build() {
@@ -4887,10 +4832,10 @@ function presetMenu(host) {
   }
   function draw() {
     const term = q.value.trim().toLowerCase(); let h = '';
-    if (term || chips.size || favOnly) {
-      const hits = order.filter(it => (!favOnly || fav.has(it.v)) && (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)) && [...chips].every(t => pmTags(it.v).has(t)));
+    if (term || favOnly) {
+      const hits = order.filter(it => (!favOnly || fav.has(it.v)) && (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)));
       h = hits.slice(0, 300).map(it => row(it, 0, byV.size > 14)).join('');
-      h = (hits.length && (term || chips.size) ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
+      h = (hits.length && term ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
     } else {
       if (small()) h = order.map(it => row(it, 0)).join('');
       else for (const t of tree) h += drawNode(t, 0);
@@ -4924,10 +4869,6 @@ function presetMenu(host) {
     if (st) { const v = st.dataset.v; fav.has(v) ? fav.delete(v) : fav.add(v); store.set(favKey, [...fav]); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
     const it = e.target.closest('.pm-i'); if (it) { choose(it.dataset.v, true); hide(true); }
   });
-  host.querySelector('.pm-chips')?.addEventListener('click', (e) => {
-    const c = e.target.closest('.pm-chip'); if (!c) return;
-    chips.has(c.dataset.t) ? chips.delete(c.dataset.t) : chips.add(c.dataset.t); c.setAttribute('aria-pressed', chips.has(c.dataset.t)); draw();
-  });
   q.addEventListener('input', draw);
   const favBtn = host.querySelector('.pm-favf');
   favBtn.setAttribute('aria-pressed', favOnly);
@@ -4944,29 +4885,6 @@ function presetMenu(host) {
   document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !host.contains(e.target)) hide(); });
   sel.addEventListener('sync', () => { build(); sync(); if (!pop.hidden) { const y = list.scrollTop; draw(); list.scrollTop = y; } }); sel.addEventListener('change', sync);
   build(); sync();
-}
-// pattern tags, worked out from the notes themselves
-const PM_TAGS = [
-  { k: 'short', label: 'Short', tip: 'Under 16 steps' }, { k: 'long', label: 'Long', tip: 'Over 16 steps' },
-  { k: 'sparse', label: 'Sparse', tip: 'A quarter or more of the steps are rests' }, { k: 'slidey', label: 'Slidey', tip: 'Slides on 40% or more of the steps' },
-  { k: 'accents', label: 'Accents', tip: 'Accents on 40% or more of the steps' }, { k: 'tempo', label: 'Tempo', tip: 'Comes with its own tempo' },
-];
-const pmTagCache = new Map();
-function pmTags(v) {
-  let p;
-  if (v.startsWith('b:')) p = PATTERN_BUILTIN[v.slice(2)]; else if (v.startsWith('u:')) p = loadStore('patternPresets')[v.slice(2)];
-  if (v.startsWith('b:') && pmTagCache.has(v)) return pmTagCache.get(v);
-  const t = new Set(), P = p && Array.isArray(p.pattern) ? p.pattern : [];
-  if (P.length) {
-    const n = P.length, frac = (f) => P.filter(f).length / n;
-    if (n < 16) t.add('short'); if (n > 16) t.add('long');
-    if (frac(s => !s.gate) >= 0.25) t.add('sparse');
-    if (frac(s => s.slide) >= 0.4) t.add('slidey');
-    if (frac(s => s.accent) >= 0.4) t.add('accents');
-    if (p.bpm) t.add('tempo');
-  }
-  if (v.startsWith('b:')) pmTagCache.set(v, t);
-  return t;
 }
 
 // ---------- projects: everything at once (sound, effects, tempo, the 8 pattern slots, chain) ----------
@@ -5009,22 +4927,21 @@ function applyProject(x) {
 }
 // factory presets: whole projects from factory-presets.json (build.js puts the file here; the old list is in git history before v42)
 const PROJECT_BUILTIN = {"Fenixozz-Blaoid Chthonoz":{"sound":{"knobs":{"tuning":0.30708661417322836,"cutoff":0.015748031496062992,"resonance":1,"envmod":0.6049040118540366,"decay":0.9133858267716536,"accent":0.8188976377952756,"volume":0.85,"dist":0.5181884765625,"filter":0,"ratvol":0.5,"lexprog":1,"lexbass":0.3,"lexmid":0.27,"lexxover":0.443,"lextreble":0.834,"lexdepth":0.5,"lexdiff":0.55,"lexpre":0.2,"lexme":0.5,"lexpitch":0.2,"lexmix":0.7680419921875,"revtype":0,"plateprog":0.5,"platepre":0.2,"platedecay":0.45,"platedamp":0.6,"platebw":0.75,"platelo":0.35,"platediff":0.88,"platemod":0.5,"platemix":0.5,"sprprog":0.6666666666666666,"sprdwell":0.4,"sprdecay":0.5,"sprtension":0.5,"sprtone":0.5,"sprlo":0.4,"sprmix":0.5,"cnvprog":0,"cnvpre":0.2,"cnvdecay":1,"cnvtone":0.7,"cnvlo":0.3,"cnvwidth":0.6666666666666666,"cnvmix":0.5,"dlytime":0.6794597625732421,"dlyfb":0.835004425048828,"dlylo":0.6900634765625,"dlyhi":0.55,"dlymix":0.9834608078002929,"dlypp":1,"cmpamt":0.4,"cmprel":0.14142},"parts":{"VREF":5.336,"R_DAC":100100,"R2_DAC":199400,"R93":275000,"C35":2.2e-06,"C33":3.26e-09,"V_LO":5.54,"V_HI":10.8,"F_TUNE":109.9,"CV_TUNE":2.751,"C10":1.32e-08,"R_SQB":74600,"SQ_LO":5.52,"SQ_HI":4,"R_SQC":14300,"R_SQE":1380,"C18":4.82e-08,"C19":7.94e-08,"C24":3.74e-08,"C26":2.71e-08,"R_IN":37300,"R98":751,"C15":6.33e-07,"A_Q21":22.5,"R73":70400,"R72":229000,"R63":83800,"R71":5410,"V_CUT":3.42,"I_REF":1.55e-06,"C62":6.12e-07,"R138":82900,"VR6":743000,"R152":51.5,"V_ENV":4.88,"R117":50900,"C_ACC":8.26e-06,"R_ACC":37800,"V_D":0.652,"C67":3.54e-07,"R49":829,"R_SOFT":4100,"R52":1320000,"R_VREL":6270,"V_VCA":6.03,"R105":64600,"R25":59200,"R26":100000,"A_OUT":9.76,"C14":1.1e-07,"R85":24400,"C49":1e-07,"R88":240000,"C76":4.9e-09,"R100":454000,"R101":6150,"R_OTA":23700,"C38":1.54e-06,"R_OUT":8130,"EN_VCF":1.74e-08,"EN_OTA":2.62e-07,"EN_OUT":0,"NOISE":0.103,"RAT_CIN":1.9e-08,"RAT_RD":55900,"RAT_CF":9.63e-11,"RAT_RG1":26.3,"RAT_CG1":2.14e-06,"RAT_RG2":103,"RAT_CG2":4.67e-06,"RAT_CC":5.67e-11,"RAT_GBW":1190000,"RAT_SR":2.2,"RAT_RCL":6590,"RAT_VF":0.2,"RAT_RF":2460,"RAT_CFLT":2.17e-09,"RAT_VS":9.11},"tune":[0,0,74,0,0,0,0,0,0,0,0,0],"wave":"saw","fx":{"rat":true,"lex":false,"dly":true}},"bpm":108,"sel":{"g":"A","n":1},"chain":[],"banks":{"A2":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":false},{"code":27,"gate":true,"accent":false,"slide":true},{"code":28,"gate":true,"accent":true,"slide":true},{"code":51,"gate":true,"accent":false,"slide":true},{"code":51,"gate":true,"accent":true,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":18,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":false},{"code":30,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":true,"slide":false},{"code":29,"gate":true,"accent":true,"slide":true},{"code":43,"gate":true,"accent":true,"slide":true},{"code":7,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":55,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":true},{"code":55,"gate":true,"accent":false,"slide":false},{"code":30,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":true,"slide":true},{"code":30,"gate":true,"accent":true,"slide":true},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":true,"slide":true},{"code":41,"gate":true,"accent":true,"slide":false}]},"A1":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":true},{"code":39,"gate":true,"accent":true,"slide":true},{"code":40,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":39,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":true},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":43,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":31,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":55,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":17,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":53,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":true}]},"A3":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":39,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":43,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":31,"gate":true,"accent":true,"slide":false},{"code":19,"gate":true,"accent":true,"slide":true},{"code":55,"gate":true,"accent":false,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":17,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":53,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false}]},"A4":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":true},{"code":39,"gate":true,"accent":true,"slide":true},{"code":40,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":39,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":true},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":43,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":31,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":55,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":17,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":53,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":true}]},"A5":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":true},{"code":39,"gate":true,"accent":true,"slide":true},{"code":40,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":39,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":true},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":43,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":31,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":55,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":17,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":53,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":true}]},"A6":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":true},{"code":39,"gate":true,"accent":true,"slide":true},{"code":40,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":39,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":true},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":43,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":31,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":55,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":17,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":53,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":true}]},"A7":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":true},{"code":39,"gate":true,"accent":true,"slide":true},{"code":40,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":39,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":true},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":43,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":31,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":55,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":17,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":53,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":true}]},"A8":{"shuffle":0,"gate":0.5,"pattern":[{"code":39,"gate":true,"accent":true,"slide":true},{"code":39,"gate":true,"accent":false,"slide":true},{"code":39,"gate":true,"accent":true,"slide":true},{"code":40,"gate":true,"accent":false,"slide":false},{"code":39,"gate":true,"accent":true,"slide":false},{"code":39,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":true},{"code":18,"gate":true,"accent":true,"slide":false},{"code":18,"gate":true,"accent":true,"slide":true},{"code":42,"gate":true,"accent":false,"slide":false},{"code":54,"gate":true,"accent":false,"slide":true},{"code":29,"gate":true,"accent":false,"slide":false},{"code":43,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":31,"gate":true,"accent":false,"slide":false},{"code":31,"gate":true,"accent":true,"slide":true},{"code":19,"gate":true,"accent":true,"slide":false},{"code":55,"gate":true,"accent":false,"slide":false},{"code":42,"gate":true,"accent":false,"slide":false},{"code":17,"gate":true,"accent":true,"slide":false},{"code":42,"gate":true,"accent":true,"slide":false},{"code":40,"gate":true,"accent":true,"slide":false},{"code":28,"gate":true,"accent":false,"slide":false},{"code":53,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":false},{"code":41,"gate":true,"accent":false,"slide":false},{"code":29,"gate":true,"accent":false,"slide":true}]}}}};
-// the old sound and pattern bars stay hidden in the page so Options' Export all / Import keep their lists
-const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
-const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);
 const prjBar = presetBar('prj', 'projectPresets', PROJECT_BUILTIN, projectSnap, applyPreset, (taken) => NAMER(taken));
-// fold saved sound and pattern presets into the one list (once, and again for anything imported later)
-function foldPresets() {
+// sound and pattern presets saved before the one Preset menu (v40) are still in storage: fold them into the one list
+// (once each, by name), and the same for any that an old settings file brings in. Returns how many were added.
+function foldPresets(sounds, patterns) {
   const done = new Set(store.get('folded', [])); let n = 0;
-  const fold = (src, kind) => { for (const [name, x] of Object.entries(src)) {
+  const fold = (src, kind) => { for (const [name, x] of Object.entries(src || {})) {
     const id = kind + ':' + name; if (done.has(id)) continue; done.add(id);
     let nm = name; for (let i = 2; nm in prjBar.user; i++) nm = `${name.slice(0, 34)} (${i})`;
     prjBar.user[nm] = { kind, [kind]: x }; n++;
   } };
-  fold(soundBar.user, 'sound'); fold(patBar.user, 'pattern');
+  fold(sounds, 'sound'); fold(patterns, 'pattern');
   store.set('folded', [...done]); if (n) { prjBar.save(); prjBar.render(''); }
+  return n;
 }
-foldPresets();
+foldPresets(loadStore('soundPresets'), loadStore('patternPresets'));
 const download = (name, obj) => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
@@ -5041,85 +4958,50 @@ document.getElementById('prj-export').onclick = () => {
   download('tb303-presets.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: prjBar.user });
   prjBar.say(`Exported all ${c} preset${c === 1 ? '' : 's'} to tb303-presets.json.`);
 };
-const prjFile = document.getElementById('prj-file');
-document.getElementById('prj-import').onclick = () => prjFile.click();
-prjFile.addEventListener('change', async () => {
-  const f = prjFile.files[0]; prjFile.value = ''; if (!f) return;
-  try {
-    const j = JSON.parse(await f.text()), x = j?.project || j?.current?.project;
-    if (j?.kind === 'presets' && j.projectPresets && typeof j.projectPresets === 'object') { // a favourites file
-      let n = 0; for (const [k, v] of Object.entries(j.projectPresets)) { const nm = k.trim().slice(0, 40); if (nm && v && typeof v === 'object') { prjBar.user[nm] = v; n++; } }
-      prjBar.save(); prjBar.render(''); prjBar.say(`Added ${n} preset${n === 1 ? '' : 's'}.`); return;
-    }
-    if (!x || typeof x !== 'object') throw 0;
-    applyProject(x);
-    const nm = f.name.replace(/\.json$/i, '').trim().slice(0, 40) || 'Imported';
-    prjBar.user[nm] = projectSnap(); prjBar.save(); prjBar.render('u:' + nm);
-    prjBar.say(`Loaded and saved as ${nm}.`);
-  } catch { prjBar.say('That file is not a preset export from this page.'); }
-});
-for (const el of document.querySelectorAll('.pm')) presetMenu(el);
-// ---- dev-only buttons (remove this block and the .dev buttons in index.html when done) ----
-document.getElementById('prj-favx').onclick = () => {
-  const out = {};
-  for (const v of store.get('fav.prj', [])) {
-    const n = v.slice(2), x = v[0] === 'u' ? prjBar.user[n] : PROJECT_BUILTIN[n];
-    if (x) out[v[0] === 'u' ? n : n.split(' / ').pop()] = x;
-  }
-  const c = Object.keys(out).length;
-  if (!c) { prjBar.say('No favourites yet: star some presets first.'); return; }
-  download('tb303-favourites.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: out });
-  prjBar.say(`Exported ${c} favourite${c === 1 ? '' : 's'} to tb303-favourites.json.`);
-};
-{
-  const btn = document.getElementById('prj-clear'); let armed = false;
-  btn.onclick = () => {
-    const c = Object.keys(prjBar.user).length;
-    if (!armed) { armed = true; btn.textContent = `Confirm clear ${c}`; prjBar.say('This deletes every saved preset. Click again to confirm.'); setTimeout(() => { armed = false; btn.textContent = 'Clear all'; }, 4000); return; }
-    armed = false; btn.textContent = 'Clear all';
-    for (const b of [prjBar, soundBar, patBar]) { for (const k of Object.keys(b.user)) delete b.user[k]; b.save(); b.render(''); }
-    store.set('fav.prj', store.get('fav.prj', []).filter(v => v.startsWith('b:'))); store.set('recent.prj', []);
-    prjBar.say(`Cleared ${c} saved preset${c === 1 ? '' : 's'}.`);
-  };
-}
-document.getElementById('prj-roll').onclick = () => prjBar.suggest(true);
-document.querySelector('#prj-bar .pm-btn')?.addEventListener('click', () => prjBar.suggest(false));
-
-document.getElementById('preset-export').onclick = () => {
-  const data = JSON.stringify({ app: 'tb303-circuit-model', version: 2,
-    current: { sound: soundSnap(), pattern: patternSnap() },
-    soundPresets: soundBar.user, patternPresets: patBar.user, projectPresets: prjBar.user }, null, 2);
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-  a.download = 'tb303-settings.json'; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  prjBar.say(`Exported tb303-settings.json: current sound and pattern, ${Object.keys(soundBar.user).length} sound and ${Object.keys(patBar.user).length} pattern presets.`);
-};
-const fileEl = document.getElementById('preset-file');
-document.getElementById('preset-import').onclick = () => fileEl.click();
-fileEl.addEventListener('change', async () => {
-  const f = fileEl.files[0]; fileEl.value = ''; if (!f) return;
+// Import file (Preset menu) and Import (Options › File) take any file this page has exported: one project, a presets
+// file (Export all, favourites), or an older settings file with separate sound and pattern lists
+const soundPick = (c) => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx });
+const patternPick = (c) => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern });
+const legacyList = (src, pick) => Object.fromEntries(src && typeof src === 'object' ? Object.entries(src)
+  .map(([n, x]) => [n.trim().slice(0, 40), pick(cleanSettings(x))]).filter(([n]) => n) : []);
+async function importFile(f) {
   try {
     const j = JSON.parse(await f.text());
     if (!j || typeof j !== 'object') throw 0;
-    if (j.version === 3) unmigrateTree(j);
-    let ns = 0, np = 0;
-    const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
-    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx }));
-    add(j.patternPresets, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
-    if (j.projectPresets && typeof j.projectPresets === 'object') { for (const [n, x] of Object.entries(j.projectPresets)) { const nm = n.trim().slice(0, 40); if (nm && x && typeof x === 'object') prjBar.user[nm] = x; } prjBar.save(); prjBar.render(''); }
-    if (j.presets) { // version 1 files: combined presets
-      add(j.presets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
-      const withPat = Object.fromEntries(Object.entries(j.presets).filter(([, x]) => Array.isArray(x?.pattern)));
-      add(withPat, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
+    if (j.version === 3) unmigrateTree(j); // saved by v30-v31
+    const x = j.project || j.current?.project;
+    if (j.kind !== 'presets' && x && typeof x === 'object') {
+      applyProject(x);
+      const nm = f.name.replace(/\.json$/i, '').trim().slice(0, 40) || 'Imported';
+      prjBar.user[nm] = projectSnap(); prjBar.save(); prjBar.render('u:' + nm);
+      prjBar.say(`Loaded and saved as ${nm}.`); return;
     }
-    soundBar.save(); patBar.save(); soundBar.render(''); patBar.render(''); foldPresets();
-    const cur = j.current;
-    if (cur?.sound || cur?.pattern) { if (cur.sound) applySound(cur.sound); if (cur.pattern) applyPattern(cur.pattern); }
-    else if (cur) { applySound(cur); applyPattern(cur); }
-    prjBar.say(`Imported ${ns} sound and ${np} pattern preset${np === 1 ? '' : 's'}${cur ? ', and applied the saved sound and pattern' : ''}.`);
-  } catch { prjBar.say('That file is not a settings export from this page. Use Export all here to see the format.'); }
-});
+    let n = 0;
+    if (j.projectPresets && typeof j.projectPresets === 'object') {
+      for (const [k, v] of Object.entries(j.projectPresets)) { const nm = k.trim().slice(0, 40); if (nm && v && typeof v === 'object') { prjBar.user[nm] = v; n++; } }
+      prjBar.save(); prjBar.render('');
+    }
+    // older settings files: separate sound and pattern lists (version 2), or one combined list (version 1)
+    const withPat = j.presets && typeof j.presets === 'object' ? Object.fromEntries(Object.entries(j.presets).filter(([, p]) => Array.isArray(p?.pattern))) : null;
+    n += foldPresets({ ...legacyList(j.soundPresets, soundPick), ...legacyList(j.presets, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave })) },
+      { ...legacyList(j.patternPresets, patternPick), ...legacyList(withPat, patternPick) });
+    const cur = j.current; let applied = false;
+    if (cur?.sound || cur?.pattern) { if (cur.sound) applySound(cur.sound); if (cur.pattern) applyPattern(cur.pattern); applied = true; }
+    else if (cur && typeof cur === 'object') { applySound(cur); applyPattern(cur); applied = true; }
+    if (!n && !applied && !j.projectPresets) throw 0;
+    prjBar.say(`Added ${n} preset${n === 1 ? '' : 's'}${applied ? ', and applied the saved sound and pattern' : ''}.`);
+  } catch { prjBar.say('That file is not a preset export from this page.'); }
+}
+for (const [btn, input] of [['prj-import', 'prj-file'], ['preset-import', 'preset-file']]) {
+  const el = document.getElementById(input);
+  document.getElementById(btn).onclick = () => el.click();
+  el.addEventListener('change', () => { const f = el.files[0]; el.value = ''; if (f) importFile(f); });
+}
+// Options › File › Export all is the Preset menu's Export all
+document.getElementById('preset-export').onclick = () => document.getElementById('prj-export').click();
+for (const el of document.querySelectorAll('.pm')) presetMenu(el);
+document.getElementById('prj-roll').onclick = () => prjBar.suggest(true);
+document.querySelector('#prj-bar .pm-btn')?.addEventListener('click', () => prjBar.suggest(false));
 
 for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); drawKnob(k.id); }
 for (const k in COMPONENTS) preview.setComponent(k, state.parts[k]);
@@ -5202,7 +5084,7 @@ renderFx(); renderSeq(); renderBank(); renderParts(); renderFrontMods(); readout
   const show = () => { const t = msg || (tipsOn ? tip : ''); line.textContent = t; line.classList.toggle('msg', !!msg); };
   const say = (t) => { msg = (t || '').trim(); clearTimeout(msgT); if (msg) msgT = setTimeout(() => { msg = ''; show(); }, 5000); show(); };
   // mirror the old popup message spots into the line
-  for (const id of ['sq-msg', 'prj-msg', 'snd-msg', 'pat-msg']) {
+  for (const id of ['sq-msg', 'prj-msg']) {
     const el = document.getElementById(id); if (!el) continue;
     new MutationObserver(() => { if (el.textContent.trim()) say(el.textContent); }).observe(el, { childList: true, characterData: true, subtree: true });
   }

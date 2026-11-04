@@ -28,7 +28,7 @@ select option { background: var(--glass); color: var(--ink); }
 .gear { border-color: transparent; }
 .play[aria-pressed=true], .onoff[aria-pressed=true], .seg button[aria-pressed=true], .seg button[aria-checked=true],
 .mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true],
-.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-chip[aria-pressed=true], .pm .pm-favf[aria-pressed=true] {
+.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-favf[aria-pressed=true] {
   background: var(--ink); color: var(--glass); text-shadow: none; }
 .play[aria-pressed=true] svg { fill: var(--glass); }
 .seg { border: 2px solid var(--ink); border-radius: 3px; }

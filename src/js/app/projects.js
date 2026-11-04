@@ -38,22 +38,21 @@ function applyProject(x) {
 }
 // factory presets: whole projects from factory-presets.json (build.js puts the file here; the old list is in git history before v42)
 const PROJECT_BUILTIN = /*@factory*/{};
-// the old sound and pattern bars stay hidden in the page so Options' Export all / Import keep their lists
-const soundBar = presetBar('snd', 'soundPresets', SOUND_BUILTIN, soundSnap, applySound);
-const patBar = presetBar('pat', 'patternPresets', PATTERN_BUILTIN, patternSnap, applyPattern);
 const prjBar = presetBar('prj', 'projectPresets', PROJECT_BUILTIN, projectSnap, applyPreset, (taken) => NAMER(taken));
-// fold saved sound and pattern presets into the one list (once, and again for anything imported later)
-function foldPresets() {
+// sound and pattern presets saved before the one Preset menu (v40) are still in storage: fold them into the one list
+// (once each, by name), and the same for any that an old settings file brings in. Returns how many were added.
+function foldPresets(sounds, patterns) {
   const done = new Set(store.get('folded', [])); let n = 0;
-  const fold = (src, kind) => { for (const [name, x] of Object.entries(src)) {
+  const fold = (src, kind) => { for (const [name, x] of Object.entries(src || {})) {
     const id = kind + ':' + name; if (done.has(id)) continue; done.add(id);
     let nm = name; for (let i = 2; nm in prjBar.user; i++) nm = `${name.slice(0, 34)} (${i})`;
     prjBar.user[nm] = { kind, [kind]: x }; n++;
   } };
-  fold(soundBar.user, 'sound'); fold(patBar.user, 'pattern');
+  fold(sounds, 'sound'); fold(patterns, 'pattern');
   store.set('folded', [...done]); if (n) { prjBar.save(); prjBar.render(''); }
+  return n;
 }
-foldPresets();
+foldPresets(loadStore('soundPresets'), loadStore('patternPresets'));
 const download = (name, obj) => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
@@ -70,85 +69,50 @@ document.getElementById('prj-export').onclick = () => {
   download('tb303-presets.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: prjBar.user });
   prjBar.say(`Exported all ${c} preset${c === 1 ? '' : 's'} to tb303-presets.json.`);
 };
-const prjFile = document.getElementById('prj-file');
-document.getElementById('prj-import').onclick = () => prjFile.click();
-prjFile.addEventListener('change', async () => {
-  const f = prjFile.files[0]; prjFile.value = ''; if (!f) return;
-  try {
-    const j = JSON.parse(await f.text()), x = j?.project || j?.current?.project;
-    if (j?.kind === 'presets' && j.projectPresets && typeof j.projectPresets === 'object') { // a favourites file
-      let n = 0; for (const [k, v] of Object.entries(j.projectPresets)) { const nm = k.trim().slice(0, 40); if (nm && v && typeof v === 'object') { prjBar.user[nm] = v; n++; } }
-      prjBar.save(); prjBar.render(''); prjBar.say(`Added ${n} preset${n === 1 ? '' : 's'}.`); return;
-    }
-    if (!x || typeof x !== 'object') throw 0;
-    applyProject(x);
-    const nm = f.name.replace(/\.json$/i, '').trim().slice(0, 40) || 'Imported';
-    prjBar.user[nm] = projectSnap(); prjBar.save(); prjBar.render('u:' + nm);
-    prjBar.say(`Loaded and saved as ${nm}.`);
-  } catch { prjBar.say('That file is not a preset export from this page.'); }
-});
-for (const el of document.querySelectorAll('.pm')) presetMenu(el);
-// ---- dev-only buttons (remove this block and the .dev buttons in index.html when done) ----
-document.getElementById('prj-favx').onclick = () => {
-  const out = {};
-  for (const v of store.get('fav.prj', [])) {
-    const n = v.slice(2), x = v[0] === 'u' ? prjBar.user[n] : PROJECT_BUILTIN[n];
-    if (x) out[v[0] === 'u' ? n : n.split(' / ').pop()] = x;
-  }
-  const c = Object.keys(out).length;
-  if (!c) { prjBar.say('No favourites yet: star some presets first.'); return; }
-  download('tb303-favourites.json', { app: 'tb303-circuit-model', kind: 'presets', version: 1, projectPresets: out });
-  prjBar.say(`Exported ${c} favourite${c === 1 ? '' : 's'} to tb303-favourites.json.`);
-};
-{
-  const btn = document.getElementById('prj-clear'); let armed = false;
-  btn.onclick = () => {
-    const c = Object.keys(prjBar.user).length;
-    if (!armed) { armed = true; btn.textContent = `Confirm clear ${c}`; prjBar.say('This deletes every saved preset. Click again to confirm.'); setTimeout(() => { armed = false; btn.textContent = 'Clear all'; }, 4000); return; }
-    armed = false; btn.textContent = 'Clear all';
-    for (const b of [prjBar, soundBar, patBar]) { for (const k of Object.keys(b.user)) delete b.user[k]; b.save(); b.render(''); }
-    store.set('fav.prj', store.get('fav.prj', []).filter(v => v.startsWith('b:'))); store.set('recent.prj', []);
-    prjBar.say(`Cleared ${c} saved preset${c === 1 ? '' : 's'}.`);
-  };
-}
-document.getElementById('prj-roll').onclick = () => prjBar.suggest(true);
-document.querySelector('#prj-bar .pm-btn')?.addEventListener('click', () => prjBar.suggest(false));
-
-document.getElementById('preset-export').onclick = () => {
-  const data = JSON.stringify({ app: 'tb303-circuit-model', version: 2,
-    current: { sound: soundSnap(), pattern: patternSnap() },
-    soundPresets: soundBar.user, patternPresets: patBar.user, projectPresets: prjBar.user }, null, 2);
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-  a.download = 'tb303-settings.json'; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  prjBar.say(`Exported tb303-settings.json: current sound and pattern, ${Object.keys(soundBar.user).length} sound and ${Object.keys(patBar.user).length} pattern presets.`);
-};
-const fileEl = document.getElementById('preset-file');
-document.getElementById('preset-import').onclick = () => fileEl.click();
-fileEl.addEventListener('change', async () => {
-  const f = fileEl.files[0]; fileEl.value = ''; if (!f) return;
+// Import file (Preset menu) and Import (Options › File) take any file this page has exported: one project, a presets
+// file (Export all, favourites), or an older settings file with separate sound and pattern lists
+const soundPick = (c) => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx });
+const patternPick = (c) => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern });
+const legacyList = (src, pick) => Object.fromEntries(src && typeof src === 'object' ? Object.entries(src)
+  .map(([n, x]) => [n.trim().slice(0, 40), pick(cleanSettings(x))]).filter(([n]) => n) : []);
+async function importFile(f) {
   try {
     const j = JSON.parse(await f.text());
     if (!j || typeof j !== 'object') throw 0;
-    if (j.version === 3) unmigrateTree(j);
-    let ns = 0, np = 0;
-    const add = (src, bar, pick) => { if (src && typeof src === 'object') for (const [n, x] of Object.entries(src)) { const nm = n.trim().slice(0, 40); if (nm) { bar.user[nm] = pick(cleanSettings(x)); bar === soundBar ? ns++ : np++; } } };
-    add(j.soundPresets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, ...(c.tune && { tune: c.tune }), wave: c.wave, fx: c.fx }));
-    add(j.patternPresets, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
-    if (j.projectPresets && typeof j.projectPresets === 'object') { for (const [n, x] of Object.entries(j.projectPresets)) { const nm = n.trim().slice(0, 40); if (nm && x && typeof x === 'object') prjBar.user[nm] = x; } prjBar.save(); prjBar.render(''); }
-    if (j.presets) { // version 1 files: combined presets
-      add(j.presets, soundBar, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave }));
-      const withPat = Object.fromEntries(Object.entries(j.presets).filter(([, x]) => Array.isArray(x?.pattern)));
-      add(withPat, patBar, c => ({ bpm: c.bpm, shuffle: c.shuffle, gate: c.gate, pattern: c.pattern }));
+    if (j.version === 3) unmigrateTree(j); // saved by v30-v31
+    const x = j.project || j.current?.project;
+    if (j.kind !== 'presets' && x && typeof x === 'object') {
+      applyProject(x);
+      const nm = f.name.replace(/\.json$/i, '').trim().slice(0, 40) || 'Imported';
+      prjBar.user[nm] = projectSnap(); prjBar.save(); prjBar.render('u:' + nm);
+      prjBar.say(`Loaded and saved as ${nm}.`); return;
     }
-    soundBar.save(); patBar.save(); soundBar.render(''); patBar.render(''); foldPresets();
-    const cur = j.current;
-    if (cur?.sound || cur?.pattern) { if (cur.sound) applySound(cur.sound); if (cur.pattern) applyPattern(cur.pattern); }
-    else if (cur) { applySound(cur); applyPattern(cur); }
-    prjBar.say(`Imported ${ns} sound and ${np} pattern preset${np === 1 ? '' : 's'}${cur ? ', and applied the saved sound and pattern' : ''}.`);
-  } catch { prjBar.say('That file is not a settings export from this page. Use Export all here to see the format.'); }
-});
+    let n = 0;
+    if (j.projectPresets && typeof j.projectPresets === 'object') {
+      for (const [k, v] of Object.entries(j.projectPresets)) { const nm = k.trim().slice(0, 40); if (nm && v && typeof v === 'object') { prjBar.user[nm] = v; n++; } }
+      prjBar.save(); prjBar.render('');
+    }
+    // older settings files: separate sound and pattern lists (version 2), or one combined list (version 1)
+    const withPat = j.presets && typeof j.presets === 'object' ? Object.fromEntries(Object.entries(j.presets).filter(([, p]) => Array.isArray(p?.pattern))) : null;
+    n += foldPresets({ ...legacyList(j.soundPresets, soundPick), ...legacyList(j.presets, c => ({ knobs: c.knobs, parts: c.parts, wave: c.wave })) },
+      { ...legacyList(j.patternPresets, patternPick), ...legacyList(withPat, patternPick) });
+    const cur = j.current; let applied = false;
+    if (cur?.sound || cur?.pattern) { if (cur.sound) applySound(cur.sound); if (cur.pattern) applyPattern(cur.pattern); applied = true; }
+    else if (cur && typeof cur === 'object') { applySound(cur); applyPattern(cur); applied = true; }
+    if (!n && !applied && !j.projectPresets) throw 0;
+    prjBar.say(`Added ${n} preset${n === 1 ? '' : 's'}${applied ? ', and applied the saved sound and pattern' : ''}.`);
+  } catch { prjBar.say('That file is not a preset export from this page.'); }
+}
+for (const [btn, input] of [['prj-import', 'prj-file'], ['preset-import', 'preset-file']]) {
+  const el = document.getElementById(input);
+  document.getElementById(btn).onclick = () => el.click();
+  el.addEventListener('change', () => { const f = el.files[0]; el.value = ''; if (f) importFile(f); });
+}
+// Options › File › Export all is the Preset menu's Export all
+document.getElementById('preset-export').onclick = () => document.getElementById('prj-export').click();
+for (const el of document.querySelectorAll('.pm')) presetMenu(el);
+document.getElementById('prj-roll').onclick = () => prjBar.suggest(true);
+document.querySelector('#prj-bar .pm-btn')?.addEventListener('click', () => prjBar.suggest(false));
 
 for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); drawKnob(k.id); }
 for (const k in COMPONENTS) preview.setComponent(k, state.parts[k]);

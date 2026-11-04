@@ -39,13 +39,9 @@
   display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
   background: var(--glass); border: 1px solid var(--ink); border-radius: 3px; box-shadow: 0 6px 20px rgb(28 10 0 / .3); }
 .pm-pop[hidden] { display: none; }
-#pat-bar .pm-pop { left: auto; right: 0; }
 .pm-head { display: grid; min-width: 0; }
 .pm .pm-qrow { display: flex; gap: 6px; margin: 8px; }
 .pm .pm-q { flex: 1; min-width: 0; font: 17px var(--font-body); padding: 5px 8px; }
-.pm-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; }
-.pm .pm-chip { font: 14.5px var(--font-body); padding: 3px 8px; border-radius: 10px; background: var(--glass); color: var(--mute); border: 1px solid var(--ink); }
-.pm .pm-chip[aria-pressed=true] { background: var(--hi); color: var(--glass); }
 .pm-list { overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; scrollbar-width: thin; scrollbar-color: var(--fg) transparent; }
 .pm .pm-g { display: flex; width: 100%; border: 0; border-top: 1px solid var(--rulec); padding: 6px 10px; padding-left: calc(10px + var(--d, 0) * 14px); background: transparent;
   font: 14.5px var(--font-body); letter-spacing: .03em; text-align: left; }
@@ -79,7 +75,6 @@
 .top .hp[hidden] { display: none; }
 .pm-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 17px; cursor: pointer; }
 .pm-foot #prj-roll { padding: 5px 8px; }
-.pm-foot .devbtn { border-style: dashed; }
 .pm .pm-favf { padding: 0 10px; font-size: 19.5px; line-height: 1; opacity: .6; }
 .pm .pm-favf[aria-pressed=true] { opacity: 1; }
 .pm .pm-favf[aria-pressed=true] { color: var(--on); border-color: var(--on); }

@@ -1,7 +1,7 @@
-// Renders tests/scenario.json with the web app's JS engine and writes raw float32 stereo to argv[2]
+// Renders a scenario (argv[3], default tests/scenario.json) with the web app's JS engine and writes raw float32 stereo to argv[2]
 const fs = require('fs'), path = require('path');
 const M = require(path.join(__dirname, '../../tb303-model.js'));
-const S = JSON.parse(fs.readFileSync(path.join(__dirname, 'scenario.json'), 'utf8'));
+const S = JSON.parse(fs.readFileSync(process.argv[3] || path.join(__dirname, 'scenario.json'), 'utf8'));
 const e = new M.TB303Engine(S.fs);
 e.v.rng = S.seed | 0;
 e.message({ type: 'bpm', value: S.bpm });

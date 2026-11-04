@@ -1,6 +1,5 @@
 // ---------- presets ----------
 function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, ...(x.tune && { tune: x.tune }), wave: x.wave, fx: x.fx }; }
-function patternSnap() { return { bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; }
 function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
@@ -88,11 +87,9 @@ function presetBar(pre, storeKey, builtins, snap, apply, autoName) {
 // ---------- preset menu: our own picker over the hidden <select>, grouped, searchable, with prev/next ----------
 function presetMenu(host) {
   const sel = document.getElementById(host.dataset.for), pre = host.dataset.for.replace('-preset', '');
-  const isPat = pre === 'pat';
   host.innerHTML = `<button type="button" class="pm-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cur"></span></button>`
     + `<button type="button" class="pm-step" data-d="-1" aria-label="Previous preset">◀</button><button type="button" class="pm-step" data-d="1" aria-label="Next preset">▶</button>`
     + `<div class="pm-pop" hidden><div class="pm-head"><div class="pm-qrow"><input type="text" class="pm-q" placeholder="Search" aria-label="Search presets"><button type="button" class="pm-favf" aria-pressed="false" title="Show favourites only">★</button></div>`
-    + (isPat ? `<div class="pm-chips" role="group" aria-label="Filter">${PM_TAGS.map(t => `<button type="button" class="pm-chip" data-t="${t.k}" aria-pressed="false" title="${t.tip}">${t.label}</button>`).join('')}</div>` : '')
     + `</div><div class="pm-list" role="listbox" aria-label="${sel.getAttribute('aria-label')}"></div></div>`;
   host.querySelector('.pm-pop').appendChild(host.parentElement.querySelector('.pm-foot'));
   const btn = host.querySelector('.pm-btn'), pop = host.querySelector('.pm-pop'), q = host.querySelector('.pm-q'), list = host.querySelector('.pm-list');
@@ -100,7 +97,7 @@ function presetMenu(host) {
   const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   const favKey = 'fav.' + pre, recKey = 'recent.' + pre, openKey = 'pmOpen.' + pre;
   const fav = new Set(store.get(favKey, [])), open = new Set(store.get(openKey, ['fav', 'rec', 'my', 'built']));
-  let recent = store.get(recKey, []), chips = new Set(), act = -1, tree = null, order = [], byV = new Map(), favOnly = !!store.get('favOnly.' + pre, false);
+  let recent = store.get(recKey, []), act = -1, tree = null, order = [], byV = new Map(), favOnly = !!store.get('favOnly.' + pre, false);
 
   // every option becomes an item with a folder path: My presets, Built-in, or source > author > song
   function build() {
@@ -165,10 +162,10 @@ function presetMenu(host) {
   }
   function draw() {
     const term = q.value.trim().toLowerCase(); let h = '';
-    if (term || chips.size || favOnly) {
-      const hits = order.filter(it => (!favOnly || fav.has(it.v)) && (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)) && [...chips].every(t => pmTags(it.v).has(t)));
+    if (term || favOnly) {
+      const hits = order.filter(it => (!favOnly || fav.has(it.v)) && (!term || (it.name + ' ' + pathText(it)).toLowerCase().includes(term)));
       h = hits.slice(0, 300).map(it => row(it, 0, byV.size > 14)).join('');
-      h = (hits.length && (term || chips.size) ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
+      h = (hits.length && term ? `<div class="pm-sum">${hits.length} match${hits.length === 1 ? '' : 'es'}${hits.length > 300 ? ', first 300 shown' : ''}</div>` : '') + h;
     } else {
       if (small()) h = order.map(it => row(it, 0)).join('');
       else for (const t of tree) h += drawNode(t, 0);
@@ -202,10 +199,6 @@ function presetMenu(host) {
     if (st) { const v = st.dataset.v; fav.has(v) ? fav.delete(v) : fav.add(v); store.set(favKey, [...fav]); const y = list.scrollTop; draw(); list.scrollTop = y; return; }
     const it = e.target.closest('.pm-i'); if (it) { choose(it.dataset.v, true); hide(true); }
   });
-  host.querySelector('.pm-chips')?.addEventListener('click', (e) => {
-    const c = e.target.closest('.pm-chip'); if (!c) return;
-    chips.has(c.dataset.t) ? chips.delete(c.dataset.t) : chips.add(c.dataset.t); c.setAttribute('aria-pressed', chips.has(c.dataset.t)); draw();
-  });
   q.addEventListener('input', draw);
   const favBtn = host.querySelector('.pm-favf');
   favBtn.setAttribute('aria-pressed', favOnly);
@@ -222,27 +215,4 @@ function presetMenu(host) {
   document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !host.contains(e.target)) hide(); });
   sel.addEventListener('sync', () => { build(); sync(); if (!pop.hidden) { const y = list.scrollTop; draw(); list.scrollTop = y; } }); sel.addEventListener('change', sync);
   build(); sync();
-}
-// pattern tags, worked out from the notes themselves
-const PM_TAGS = [
-  { k: 'short', label: 'Short', tip: 'Under 16 steps' }, { k: 'long', label: 'Long', tip: 'Over 16 steps' },
-  { k: 'sparse', label: 'Sparse', tip: 'A quarter or more of the steps are rests' }, { k: 'slidey', label: 'Slidey', tip: 'Slides on 40% or more of the steps' },
-  { k: 'accents', label: 'Accents', tip: 'Accents on 40% or more of the steps' }, { k: 'tempo', label: 'Tempo', tip: 'Comes with its own tempo' },
-];
-const pmTagCache = new Map();
-function pmTags(v) {
-  let p;
-  if (v.startsWith('b:')) p = PATTERN_BUILTIN[v.slice(2)]; else if (v.startsWith('u:')) p = loadStore('patternPresets')[v.slice(2)];
-  if (v.startsWith('b:') && pmTagCache.has(v)) return pmTagCache.get(v);
-  const t = new Set(), P = p && Array.isArray(p.pattern) ? p.pattern : [];
-  if (P.length) {
-    const n = P.length, frac = (f) => P.filter(f).length / n;
-    if (n < 16) t.add('short'); if (n > 16) t.add('long');
-    if (frac(s => !s.gate) >= 0.25) t.add('sparse');
-    if (frac(s => s.slide) >= 0.4) t.add('slidey');
-    if (frac(s => s.accent) >= 0.4) t.add('accents');
-    if (p.bpm) t.add('tempo');
-  }
-  if (v.startsWith('b:')) pmTagCache.set(v, t);
-  return t;
 }

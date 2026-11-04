@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # build the page from src/ here, so what goes live always matches the source
+      - run: node build.js
       # Only the app itself goes live, so the source stays private with the repo.
       - run: mkdir dist && cp -R index.html sw.js manifest.webmanifest icons irs dist/
       # stamp the version shown in the top bar: v<deploy number>, with commit and time in its tooltip

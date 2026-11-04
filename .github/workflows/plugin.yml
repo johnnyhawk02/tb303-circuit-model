@@ -1,9 +1,9 @@
 name: Plugin (VST3 / AU)
 on:
   push:
-    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'factory-presets.json', 'irs/**', '.github/workflows/plugin.yml']
+    paths: ['plugin/**', 'tb303-model.js', 'src/js/app/state.js', 'patterns.json', 'factory-presets.json', 'irs/**', '.github/workflows/plugin.yml']
   pull_request:
-    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'factory-presets.json', 'irs/**', '.github/workflows/plugin.yml']
+    paths: ['plugin/**', 'tb303-model.js', 'src/js/app/state.js', 'patterns.json', 'factory-presets.json', 'irs/**', '.github/workflows/plugin.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,7 +21,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: g++ -O2 -std=c++17 -ffp-contract=off -DSCENARIO="\"$PWD/plugin/tests/scenario.json\"" plugin/tests/render.cpp -o render
-      - run: node plugin/tests/render.js js.f32 && ./render cpp.f32 && node plugin/tests/compare.js js.f32 cpp.f32 -60
+      # The C++ runs with flush-to-zero like the plug-in, so a few tiny values differ from the JS (about -140 dBFS);
+      # anything above -120 dBFS is a real difference.
+      - run: node plugin/tests/render.js js.f32 && ./render cpp.f32 && node plugin/tests/compare.js js.f32 cpp.f32 -120
+      - run: node plugin/tests/render.js js2.f32 plugin/tests/scenario-44k.json && ./render cpp2.f32 plugin/tests/scenario-44k.json && node plugin/tests/compare.js js2.f32 cpp2.f32 -120
 
   macos:
     runs-on: macos-14

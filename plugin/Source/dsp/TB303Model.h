@@ -2,7 +2,7 @@
  * TB-303 component-level voice model, C++ port of tb303-model.js (the web app's engine).
  *
  * This is a line-by-line port: same parts table, same maths, same order of operations, so the plugin
- * sounds like the web app. tools/parity checks it against the JS sample for sample. When the JS model
+ * sounds like the web app. plugin/tests checks it against the JS sample for sample. When the JS model
  * changes, port the change here too.
  *
  * Header-only and free of JUCE, so the parity test can build it on its own.
@@ -17,6 +17,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "Tables.h" // parts and knobs, generated from the JS
 
 namespace tb303 {
 
@@ -29,57 +30,7 @@ inline double clampd(double x, double lo, double hi) { return x < lo ? lo : x > 
 inline double audioTaper(double p) { return p <= 0 ? 0 : std::pow(p, 2.74); } // 'A' pot, ~15% at mid
 
 // ---------------------------------------------------------------------------------------------------
-// Parts table (COMPONENTS in the JS). Only what the engine needs: id, stock value, unit and dial range.
-namespace P {
-enum : int {
-    VREF, R_DAC, R2_DAC, R93, C35, C33, V_LO, V_HI, F_TUNE, CV_TUNE, VR2, C10, R_SQB, SQ_LO, SQ_HI, R_SQC, R_SQE,
-    C18, C19, C24, C26, R_IN, R98, C15, VR4, A_Q21, R73, R72, R63, R71, V_CUT, KT, R_KT, V_KT, I_REF,
-    C62, R138, VR6, R152, V_ENV, VR5, VR7, R117, C_ACC, R_ACC, V_D, WOW,
-    C67, R49, R_SOFT, R52, R_VREL, V_VCA, R105, R25, R26, A_OUT, C14, R85, C49, R88, C76, R100, R101, R_OTA, C38, R_OUT,
-    EN_VCF, EN_OTA, EN_OUT, NOISE,
-    RAT_CIN, RAT_RD, RAT_CF, RAT_RG1, RAT_CG1, RAT_RG2, RAT_CG2, RAT_CC, RAT_GBW, RAT_SR, RAT_RCL, RAT_VF, RAT_RF, RAT_CFLT, RAT_VS,
-    LEX_FS, LEX_BW, LEX_BITS, LEX_RANGE, LEX_GREL, LEX_WORD, LEX_MEM, LEX_XSAT,
-    COUNT
-};
-}
-
-struct PartInfo {
-    const char* id; double v; const char* unit;
-    double lo = 0, hi = 0; int mode = 0; // mode 0 = no explicit range, 1 = lin, 2 = log
-};
-
-inline const std::array<PartInfo, P::COUNT>& parts() {
-    static const std::array<PartInfo, P::COUNT> t = {{
-        { "VREF", 5.333, "V", 4, 6.5, 1 }, { "R_DAC", 100e3, "Ω" }, { "R2_DAC", 200e3, "Ω" },
-        { "R93", 100e3, "Ω" }, { "C35", 0.22e-6, "F" },
-        { "C33", 0.01e-6, "F" }, { "V_LO", 5.5, "V", 3, 8, 1 }, { "V_HI", 12.0, "V", 9, 15, 1 },
-        { "F_TUNE", 110, "Hz", 55, 220, 2 }, { "CV_TUNE", 2.75, "V", 1, 4, 1 }, { "VR2", 50e3, "Ω" },
-        { "C10", 0.01e-6, "F" }, { "R_SQB", 100e3, "Ω" }, { "SQ_LO", 5.0, "V" }, { "SQ_HI", 8.0, "V" },
-        { "R_SQC", 10e3, "Ω" }, { "R_SQE", 1e3, "Ω" },
-        { "C18", 0.018e-6, "F" }, { "C19", 0.033e-6, "F" }, { "C24", 0.033e-6, "F" }, { "C26", 0.033e-6, "F" },
-        { "R_IN", 100e3, "Ω" }, { "R98", 2.2e3, "Ω" }, { "C15", 1e-6, "F" }, { "VR4", 50e3, "Ω" },
-        { "A_Q21", 16.5, "×", 0, 26, 1 }, { "R73", 100e3, "Ω" }, { "R72", 220e3, "Ω" }, { "R63", 100e3, "Ω" },
-        { "R71", 2.2e3, "Ω" }, { "V_CUT", 3.3, "V", 0.5, 6, 1 },
-        { "KT", 0, "%", 0, 1, 1 }, { "R_KT", 36e3, "Ω", 18e3, 300e3, 2 }, { "V_KT", 3.0, "V", 1, 4, 1 }, { "I_REF", 3.1e-6, "A", 1.55e-6, 6.2e-6, 2 },
-        { "C62", 1e-6, "F" }, { "R138", 68e3, "Ω" }, { "VR6", 1e6, "Ω" }, { "R152", 100, "Ω" }, { "V_ENV", 5.0, "V" },
-        { "VR5", 50e3, "Ω" }, { "VR7", 50e3, "Ω" }, { "R117", 22e3, "Ω" }, { "C_ACC", 1e-6, "F" }, { "R_ACC", 47e3, "Ω" },
-        { "V_D", 0.55, "V" }, { "WOW", 0, "×", 0, 1, 1 },
-        { "C67", 1e-6, "F" }, { "R49", 100, "Ω" }, { "R_SOFT", 3.3e3, "Ω" }, { "R52", 1.5e6, "Ω" }, { "R_VREL", 4.7e3, "Ω" },
-        { "V_VCA", 5.0, "V" }, { "R105", 22e3, "Ω" }, { "R25", 22e3, "Ω" }, { "R26", 47e3, "Ω" }, { "A_OUT", 10, "×" },
-        { "C14", 1e-6, "F" }, { "R85", 10e3, "Ω" }, { "C49", 0.01e-6, "F" }, { "R88", 220e3, "Ω" }, { "C76", 0.01e-6, "F" },
-        { "R100", 100e3, "Ω" }, { "R101", 2.2e3, "Ω" }, { "R_OTA", 22e3, "Ω" }, { "C38", 1e-6, "F" }, { "R_OUT", 10e3, "Ω" },
-        { "EN_VCF", 15e-9, "V/√Hz", 0, 150e-9, 1 }, { "EN_OTA", 40e-9, "V/√Hz", 0, 400e-9, 1 },
-        { "EN_OUT", 0.35e-6, "V/√Hz", 0, 3.5e-6, 1 }, { "NOISE", 0.15, "×", 0, 0.15, 1 },
-        { "RAT_CIN", 22e-9, "F" }, { "RAT_RD", 100e3, "Ω" }, { "RAT_CF", 100e-12, "F" }, { "RAT_RG1", 47, "Ω" },
-        { "RAT_CG1", 2.2e-6, "F" }, { "RAT_RG2", 560, "Ω" }, { "RAT_CG2", 4.7e-6, "F" }, { "RAT_CC", 30e-12, "F" },
-        { "RAT_GBW", 1e6, "Hz", 2e5, 5e6, 2 }, { "RAT_SR", 0.3, "V/µs", 0.05, 5, 2 }, { "RAT_RCL", 1e3, "Ω" },
-        { "RAT_VF", 0.6, "V", 0.2, 2.5, 1 }, { "RAT_RF", 1.5e3, "Ω" }, { "RAT_CFLT", 3.3e-9, "F" }, { "RAT_VS", 9, "V", 6, 18, 1 },
-        { "LEX_FS", 20000, "Hz", 10000, 48000, 2 }, { "LEX_BW", 9000, "Hz", 3000, 20000, 2 }, { "LEX_BITS", 12, "bit", 6, 20, 1 },
-        { "LEX_RANGE", 24, "dB", 0, 42, 1 }, { "LEX_GREL", 0.08, "s", 0.005, 1, 2 }, { "LEX_WORD", 16, "bit", 8, 24, 1 },
-        { "LEX_MEM", 32768, "words", 8192, 131072, 2 }, { "LEX_XSAT", 1.6, "V", 0.3, 6, 2 },
-    }};
-    return t;
-}
+// Parts and knobs tables: Tables.h, generated from the JS (node plugin/tools/gen-tables.js)
 
 inline int partIndex(const std::string& id) {
     for (int i = 0; i < P::COUNT; ++i) if (id == parts()[i].id) return i;
@@ -105,54 +56,6 @@ inline double partToT(int i, double v) {
     return clampd(t, 0, 1);
 }
 
-// ---------------------------------------------------------------------------------------------------
-// Front panel knobs (0..1). Defaults are the web app's (KNOBS in state.js).
-namespace K {
-enum : int {
-    tuning, cutoff, resonance, envmod, decay, accent, volume, dist, filter, ratvol,
-    lexprog, lexbass, lexmid, lexxover, lextreble, lexdepth, lexdiff, lexpre, lexme, lexpitch, lexmix,
-    cmpamt, cmprel,
-    dlypp, dlytime, dlyfb, dlylo, dlyhi, dlymix,
-    // the reverb slot's other units (appended, so older parameter orders stay put)
-    revtype, plateprog, platepre, platedecay, platedamp, platebw, platelo, platediff, platemod, platemix,
-    sprprog, sprdwell, sprdecay, sprtension, sprtone, sprlo, sprmix,
-    cnvprog, cnvpre, cnvdecay, cnvtone, cnvlo, cnvwidth, cnvmix,
-    // the drive slot's pedal and its DS-1 / TS808 dials, and the Buchla 259 folder (appended)
-    drvtype, dsdist, dstone, dslevel, tsdrive, tstone, tslevel, fldtimbre, fldsym, fldlevel,
-    COUNT
-};
-}
-struct KnobInfo { const char* id; const char* name; double def; const char* group; };
-inline const std::array<KnobInfo, K::COUNT>& knobs() {
-    static const std::array<KnobInfo, K::COUNT> t = {{
-        { "tuning", "Tuning", 0.5, "voice" }, { "cutoff", "Cutoff", 0.3, "voice" }, { "resonance", "Reso", 0.82, "voice" },
-        { "envmod", "Env mod", 0.62, "voice" }, { "decay", "Decay", 0.3, "voice" }, { "accent", "Accent", 0.75, "voice" },
-        { "volume", "Volume", 0.85, "voice" },
-        { "dist", "Distortion", 0.5, "rat" }, { "filter", "Filter", 0.4, "rat" }, { "ratvol", "Volume", 0.5, "rat" },
-        { "lexprog", "Program", 0.125, "lex" }, { "lexbass", "Bass", 0.3, "lex" }, { "lexmid", "Mid", 0.27, "lex" },
-        { "lexxover", "Crossover", 0.443, "lex" }, { "lextreble", "Treble", 0.834, "lex" }, { "lexdepth", "Depth", 0.5, "lex" },
-        { "lexdiff", "Diffusion", 0.55, "lex" }, { "lexpre", "Predelay", 0.2, "lex" }, { "lexme", "Mode enh", 0.5, "lex" },
-        { "lexpitch", "Pitch", 0.2, "lex" }, { "lexmix", "Return", 0.5, "lex" },
-        { "cmpamt", "Amount", 0.4, "cmp" }, { "cmprel", "Release", 0.14142, "cmp" },
-        { "dlypp", "Ping-pong", 1, "dly" }, { "dlytime", "Time", 0.7, "dly" }, { "dlyfb", "Feedback", 0.35, "dly" },
-        { "dlylo", "Low cut", 0.3, "dly" }, { "dlyhi", "High cut", 0.55, "dly" }, { "dlymix", "Return", 0.35, "dly" },
-        { "revtype", "Reverb", 0, "rev" },
-        { "plateprog", "Size", 0.5, "plate" }, { "platepre", "Predelay", 0.2, "plate" }, { "platedecay", "Decay", 0.45, "plate" },
-        { "platedamp", "Damping", 0.6, "plate" }, { "platebw", "Bandwidth", 0.75, "plate" }, { "platelo", "Low cut", 0.35, "plate" },
-        { "platediff", "Diffusion", 0.88, "plate" }, { "platemod", "Mod", 0.5, "plate" }, { "platemix", "Return", 0.5, "plate" },
-        { "sprprog", "Tank", 2.0 / 3, "spring" }, { "sprdwell", "Dwell", 0.4, "spring" }, { "sprdecay", "Decay", 0.5, "spring" },
-        { "sprtension", "Tension", 0.5, "spring" }, { "sprtone", "Tone", 0.5, "spring" }, { "sprlo", "Low cut", 0.4, "spring" },
-        { "sprmix", "Return", 0.5, "spring" },
-        { "cnvprog", "IR", 0, "conv" }, { "cnvpre", "Predelay", 0.2, "conv" }, { "cnvdecay", "Decay", 1, "conv" },
-        { "cnvtone", "Tone", 0.7, "conv" }, { "cnvlo", "Low cut", 0.3, "conv" }, { "cnvwidth", "Width", 2.0 / 3, "conv" },
-        { "cnvmix", "Return", 0.5, "conv" },
-        { "drvtype", "Pedal", 0, "drv" },
-        { "dsdist", "Dist", 0.5, "ds" }, { "dstone", "Tone", 0.5, "ds" }, { "dslevel", "Level", 0.5, "ds" },
-        { "tsdrive", "Drive", 0.5, "ts" }, { "tstone", "Tone", 0.5, "ts" }, { "tslevel", "Level", 0.5, "ts" },
-        { "fldtimbre", "Timbre", 0.5, "fold" }, { "fldsym", "Symmetry", 0.5, "fold" }, { "fldlevel", "Level", 0.5, "fold" },
-    }};
-    return t;
-}
 inline int knobIndex(const std::string& id) {
     for (int i = 0; i < K::COUNT; ++i) if (id == knobs()[i].id) return i;
     return -1;
