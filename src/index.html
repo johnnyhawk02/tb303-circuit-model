@@ -36,30 +36,8 @@
         <button type="button" id="prj-export" title="Saves every preset under My presets to one file. Import file loads them all back in.">Export all</button>
         <button type="button" id="prj-import">Import file</button>
         <label class="pm-opt" title="Loading a preset changes only the sound and effects, and keeps your patterns and tempo"><input type="checkbox" id="prj-sndonly"> Sound only</label>
-        <button type="button" class="devbtn" id="prj-favx" title="Development: export starred presets">Export favourites</button>
-        <button type="button" class="devbtn" id="prj-clear" title="Development: delete every saved preset">Clear all</button>
         <input type="file" id="prj-file" accept=".json,application/json" hidden>
         <span class="hint" id="prj-msg" role="status"></span>
-      </div>
-    </div>
-    <div class="hp presets" id="snd-bar" hidden>
-      <span class="label">Sound</span>
-      <select id="snd-preset" aria-label="Sound presets" hidden></select><div class="pm" data-for="snd-preset"></div>
-      <div class="pm-foot">
-        <input id="snd-name" type="text" placeholder="Save current sound as…" maxlength="40" aria-label="Sound preset name">
-        <button type="button" id="snd-save">Save</button>
-        <button type="button" id="snd-del">Delete</button>
-        <span class="hint" id="snd-msg" role="status"></span>
-      </div>
-    </div>
-    <div class="hp presets" id="pat-bar" hidden>
-      <span class="label">Pattern</span>
-      <select id="pat-preset" aria-label="Pattern presets" hidden></select><div class="pm" data-for="pat-preset"></div>
-      <div class="pm-foot">
-        <input id="pat-name" type="text" placeholder="Save current pattern as…" maxlength="40" aria-label="Pattern preset name">
-        <button type="button" id="pat-save">Save</button>
-        <button type="button" id="pat-del">Delete</button>
-        <span class="hint" id="pat-msg" role="status"></span>
       </div>
     </div>
     <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join">Join chain and copy</button><button type="button" role="menuitem" data-fn="alter">Alter pattern</button><button type="button" role="menuitem" data-fn="install" id="fn-install">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" disabled>Undo</button></div></div>
@@ -84,7 +62,6 @@
            a label column on the left so every row lines up -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
-        <div id="bk-g" hidden><button type="button" data-g="A" aria-pressed="true">A</button></div>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
         <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
         <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
@@ -232,7 +209,7 @@
         <button type="button" id="preset-export">Export all</button>
         <button type="button" id="preset-import">Import</button>
         <input type="file" id="preset-file" accept=".json,application/json" hidden>
-        <span class="hint">Your sound and pattern presets, the current sound and pattern, as one JSON file.</span>
+        <span class="hint">Every preset under My presets, as one JSON file (the same as Export all in the Preset menu). Import also takes older settings files.</span>
       </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>

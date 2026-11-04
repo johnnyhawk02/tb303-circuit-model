@@ -1,0 +1,24 @@
+name: Checks
+# Fast checks on every push and pull request:
+#  - index.html is what `node build.js` makes from src/ (commit the rebuilt file with every src/ change)
+#  - the plug-in's generated tables match the JS (run `node plugin/tools/gen-tables.js` after changing KNOBS or COMPONENTS)
+#  - the web engine still renders bit-for-bit what tests/golden.json records (see tests/golden.js)
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: index.html is up to date with src/
+        run: node build.js && git diff --exit-code --stat index.html
+      - name: plug-in tables match the JS
+        run: node plugin/tools/gen-tables.js && git diff --exit-code --stat plugin/Source
+      - name: sound is unchanged (golden renders)
+        run: node tests/golden.js

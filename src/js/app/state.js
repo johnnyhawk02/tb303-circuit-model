@@ -109,29 +109,6 @@ const state = {
   parts: {},
   tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
 };
-const SOUND_BUILTIN = {
-  'Stock 303': { knobs: {}, parts: {} },
-  'Devil Fish style': {
-    knobs: { resonance: 0.9, envmod: 0.7, decay: 0.2, accent: 0.9 },
-    parts: { A_Q21: 21, R138: 22e3, R52: 680e3, R_SOFT: 1e3, C_ACC: 0.47e-6, R_IN: 47e3, R72: 120e3, V_CUT: 4.5 },
-  },
-  'Acid in the hall': {
-    knobs: { cutoff: 0.28, resonance: 0.85, envmod: 0.65, decay: 0.25, lexprog: 0.25, lexmid: 0.36, lexbass: 0.4, lexpre: 0.3, lexmix: 0.45 },
-    fx: { rat: true, lex: true }, parts: {},
-  },
-  'Long drone': {
-    knobs: { cutoff: 0.25, resonance: 0.75, envmod: 0.4, decay: 0.9 }, wave: 'square',
-    parts: { C35: 1e-6, R52: 4.7e6, R_SOFT: 22e3 },
-  },
-};
-const P = (rows) => rows.map(([code, accent, slide, gate]) => ({ code, accent: !!accent, slide: !!slide, gate: !!gate }));
-const PATTERN_BUILTIN = {
-  'Example line': { bpm: 128, pattern: EXAMPLE.map(st => ({ ...st })) },
-  'Octave bounce': { bpm: 132, pattern: P([[21,1,0,1],[33,0,0,1],[21,0,0,1],[33,1,0,1],[21,0,0,1],[33,0,1,1],[31,0,0,1],[21,0,0,1],
-    [24,1,0,1],[36,0,0,1],[24,0,0,1],[36,1,0,1],[19,0,0,1],[31,0,1,1],[33,0,0,1],[21,1,0,1]]) },
-  'Slow squelch': { bpm: 108, pattern: P([[21,1,1,1],[28,0,1,1],[33,0,0,1],[21,0,0,0],[21,0,1,1],[24,1,1,1],[26,0,0,1],[21,0,0,0],
-    [21,1,0,1],[21,0,0,0],[33,0,1,1],[31,1,1,1],[28,0,0,1],[21,0,0,0],[16,0,1,1],[21,1,0,1]]) },
-};
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
 // a part differs from stock (works for parts whose stock value is 0)
 function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return Math.abs(v - d) > (d ? 1e-6 * Math.abs(d) : 1e-9); }

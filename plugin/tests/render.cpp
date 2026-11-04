@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
 #ifdef __SSE__
     _mm_setcsr(_mm_getcsr() | 0x8040); // FTZ + DAZ, as the plugin runs
 #endif
-    std::ifstream f(std::string(SCENARIO)); std::stringstream ss; ss << f.rdbuf(); std::string text = ss.str();
+    std::ifstream f(std::string(argc > 2 ? argv[2] : SCENARIO)); /* argv[2]: another scenario file */ std::stringstream ss; ss << f.rdbuf(); std::string text = ss.str();
     Parser p { text }; J root = p.parse(); const auto& S = obj(root);
     const double fs = num(S.at("fs")); const int block = (int)num(S.at("block"));
     tb303::Engine e(fs, (uint32_t)(int64_t)num(S.at("seed")));

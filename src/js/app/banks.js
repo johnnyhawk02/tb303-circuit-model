@@ -1,7 +1,8 @@
-// ---------- pattern banks: A-D x 1-12, edits save to the selected slot ----------
+// ---------- the 8 pattern slots, A1-A8: edits save to the selected slot ----------
+// (Storage, projects and the plug-in still name a slot by bank and number, { g: 'A', n }, from when there were
+// banks A-D of 12; only bank A is used now, and the other old slots stay in storage but are not shown.)
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
-// eight patterns, 1-8 (Johnny): they live in what was bank A; other old slots stay in storage but are not shown
 if (sel.g !== 'A' || !(sel.n >= 0 && sel.n < 8)) sel = { g: 'A', n: 0 };
 const slotKey = (g, n) => g + (n + 1);
 let clip = store.get('clip', null);
@@ -15,8 +16,8 @@ function storeSlot() {
 // slots that are empty, or still hold an untouched random pick, get a random preset
 function fillSlots(force) {
   const cur = slotKey(sel.g, sel.n); let n = 0;
-  for (const g of 'A') for (let i = 0; i < 8; i++) {
-    const k = slotKey(g, i), x = banks[k];
+  for (let i = 0; i < 8; i++) {
+    const k = slotKey('A', i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
     const gp = generatePattern(gen.bars * 16, GEN_DENS[gen.dens]);
@@ -25,7 +26,6 @@ function fillSlots(force) {
   store.set('banks', banks); return n;
 }
 function renderBank() {
-  for (const b of document.querySelectorAll('#bk-g button')) b.setAttribute('aria-pressed', b.dataset.g === sel.g);
   for (const b of document.querySelectorAll('#bk-n button')) {
     const n = +b.dataset.n, x = banks[slotKey(sel.g, n)];
     b.setAttribute('aria-pressed', n === sel.n);
@@ -41,7 +41,6 @@ function loadSlot(g, n) {
   state.pattern = c.pattern || blankPattern(); state.shuffle = c.shuffle ?? 0; state.gate = c.gate ?? 0.5;
   tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank();
 }
-document.getElementById('bk-g').onclick = (e) => { const b = e.target.closest('button'); if (b) loadSlot(b.dataset.g, sel.n); };
 document.getElementById('bk-n').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; if (e.metaKey || e.ctrlKey) toggleChain(b); else loadSlot(sel.g, +b.dataset.n); };
 document.getElementById('p-copy').onclick = () => { clip = { shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; store.set('clip', clip); renderBank(); };
 document.getElementById('p-paste').onclick = () => {
