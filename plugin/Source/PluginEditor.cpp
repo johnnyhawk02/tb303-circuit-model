@@ -886,10 +886,9 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     drvKnobs[2][0]->valueText = [kv] { return U("×") + juce::String(juce::roundToInt(1 + (PP::TS_R6 + PP::TS_P1 * audioTaper(kv("tsdrive"))) / PP::TS_R4)); };
     addKnobs(rat, { "dist", "filter", "ratvol" }, 70, &drvKnobs[0]);
     {
-        const char* dn[3] = { "RAT", "DS-1", "TS808" };
-        const char* dt[3] = { "ProCo RAT: LM308 op-amp into a diode pair, Filter after", "Boss DS-1: transistor booster, op-amp into a diode pair to ground, LPF/HPF tone blend",
-                              "Ibanez TS808 Tube Screamer: diodes in the op-amp feedback, active tone stage" };
-        for (int i = 2; i >= 0; --i) { drvTypeBtn[i].setButtonText(dn[i]); drvTypeBtn[i].setTooltip(dt[i]); drvTypeBtn[i].onClick = [setParam, i] { setParam("drvtype", (float)i); }; rat.addHeaderItem(&drvTypeBtn[i], 52); }
+        drvMenuBtn.setTooltip("Which pedal is on the drive slot: ProCo RAT, Boss DS-1 or Ibanez TS808 Tube Screamer");
+        drvMenuBtn.onClick = [this] { showTypeMenu(drvMenuBtn, "drvtype", { "ProCo RAT", "Boss DS-1", "Ibanez TS808" }, shownDrv); };
+        rat.addHeaderItem(&drvMenuBtn, 140);
     }
     {
         auto* kd = dynamic_cast<ui::Knob*>(owned[owned.size() - 3].get()), *kf = dynamic_cast<ui::Knob*>(owned[owned.size() - 2].get());
@@ -916,8 +915,9 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
         };
         lex.addAndMakeVisible(lexProg[i]);
     }
-    const char* rt[4] = { "224", "Plate", "Spring", "Conv" };
-    for (int i = 3; i >= 0; --i) { revTypeBtn[i].setButtonText(rt[i]); revTypeBtn[i].onClick = [setParam, i] { setParam("revtype", (float)i); }; lex.addHeaderItem(&revTypeBtn[i], 58); }
+    revMenuBtn.setTooltip("Which unit is on the reverb slot: Lexicon 224, plate, spring or convolution");
+    revMenuBtn.onClick = [this] { showTypeMenu(revMenuBtn, "revtype", { "Lexicon 224", "Plate", "Spring", "Convolution" }, shownRev); };
+    lex.addHeaderItem(&revMenuBtn, 140);
     lexLcd.setColour(juce::Label::backgroundColourId, ui::ink); lexLcd.setColour(juce::Label::textColourId, ui::glass);
     lexLcd.setFont(ui::lcd(14.0f)); lexLcd.setJustificationType(juce::Justification::centredLeft);
     lex.addHeaderItem(&lexLcd, 260);
@@ -1164,6 +1164,15 @@ void TB303Editor::showFileMenu() {
     m.addItem("Show presets file", [] { TB303Processor::userPresetFile().revealToUser(); });
     m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&fileBtn));
 }
+// a dropdown of the slot's units, the current one ticked; picking one sets the stepped parameter
+void TB303Editor::showTypeMenu(juce::TextButton& btn, const char* param, std::initializer_list<const char*> names, int current) {
+    juce::PopupMenu m; int i = 0;
+    for (auto* n : names) {
+        const int idx = i++;
+        m.addItem(n, true, idx == current, [this, param, idx] { if (auto* p = proc.apvts.getParameter(param)) p->setValueNotifyingHost(p->convertTo0to1((float)idx)); });
+    }
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&btn).withMinimumWidth(btn.getWidth()));
+}
 void TB303Editor::showFunctionsMenu() {
     juce::PopupMenu m;
     m.addItem("Join chain and copy", [this] { seqDo([this] { return proc.seq.joinChain(); }); });
@@ -1207,11 +1216,11 @@ void TB303Editor::timerCallback() {
         if (tab == 5) board.repaint();
         // drive slot: which pedal's dials show
         const int dtp = (int)juce::jlimit(0.0, 2.0, jsRound(Kn[K::drvtype] * 2));
-        for (int i = 0; i < 3; ++i) drvTypeBtn[i].setToggleState(i == dtp, juce::dontSendNotification);
+        { static const char* dn[3] = { "ProCo RAT", "Boss DS-1", "Ibanez TS808" }; drvMenuBtn.setButtonText(juce::String(dn[dtp]) + U("  ▾")); }
         if (dtp != shownDrv) { shownDrv = dtp; for (int t = 0; t < 3; ++t) for (auto* k : drvKnobs[t]) k->setVisible(t == dtp); rat.resized(); }
         // reverb slot: which unit, its program buttons and dials
         const int rtp = revType(Kn);
-        for (int i = 0; i < 4; ++i) revTypeBtn[i].setToggleState(i == rtp, juce::dontSendNotification);
+        { static const char* rn[4] = { "Lexicon 224", "Plate", "Spring", "Convolution" }; revMenuBtn.setButtonText(juce::String(rn[rtp]) + U("  ▾")); }
         if (rtp != shownRev) {
             shownRev = rtp;
             for (int t = 0; t < 4; ++t) for (auto* k : revKnobs[t]) k->setVisible(t == rtp);

@@ -48,10 +48,32 @@ const REV_NOTES = {
     return `Partitioned FFT convolution with a generated impulse response: seeded noise with the highs dying first${q.P.er.length ? ', a build-up and early reflections' : ''}. ${q.P.gate ? 'Decay sets the gate length. ' : ''}The wet signal is one 512-sample block late, which is the shortest predelay.`;
   },
 };
+// ---------- type menus: which drive pedal and which reverb, picked from a dropdown (Johnny), styled like Randomise ▾ ----------
+// el: an empty .tmenu div; items: [{ name, tip }]; pick(i) runs when one is chosen. drawTypeMenu shows the current one.
+function typeMenu(el, items, pick) {
+  el.innerHTML = `<button type="button" aria-haspopup="menu" aria-expanded="false" aria-label="${el.dataset.label}"></button><div class="fn-menu" role="menu" hidden>` +
+    items.map((T, i) => `<button type="button" role="menuitemradio" aria-checked="false" data-t="${i}" title="${T.tip}">${T.name}</button>`).join('') + '</div>';
+  const btn = el.firstElementChild, menu = el.lastElementChild;
+  const open = (on) => {
+    menu.hidden = !on; btn.setAttribute('aria-expanded', on);
+    if (on) (menu.querySelector('[aria-checked=true]') || menu.querySelector('button')).focus();
+  };
+  btn.onclick = () => { for (const m of document.querySelectorAll('.tmenu .fn-menu:not([hidden])')) if (m !== menu) m.parentElement.firstElementChild.click(); open(menu.hidden); };
+  menu.addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if (!b) return; open(false); pick(+b.dataset.t); btn.focus(); });
+  menu.addEventListener('keydown', (e) => {
+    const bs = [...menu.querySelectorAll('button')], j = bs.indexOf(document.activeElement);
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); open(false); btn.focus(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); bs[(j + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus(); }
+  });
+  document.addEventListener('pointerdown', (e) => { if (!menu.hidden && !el.contains(e.target)) open(false); });
+}
+function drawTypeMenu(el, t) {
+  const items = el.querySelectorAll('.fn-menu button');
+  for (const b of items) b.setAttribute('aria-checked', +b.dataset.t === t);
+  if (items[t]) { el.firstElementChild.textContent = items[t].textContent; el.firstElementChild.title = items[t].title; }
+}
 {
-  const el = document.getElementById('rev-type');
-  el.innerHTML = REV_TYPES.map((T, i) => `<button type="button" role="radio" data-t="${i}" title="${T.name}">${T.short}</button>`).join('');
-  el.addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if (b) setKnob('revtype', b.dataset.t / 3); });
+  typeMenu(document.getElementById('rev-type'), REV_TYPES.map(T => ({ name: T.name, tip: T.name })), (i) => setKnob('revtype', i / 3));
   document.getElementById('lex-progs').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-i]'); if (!b) return;
     const [knob, list] = REV_PROGS[REV_TYPES[revType(state.knobs)].id]; setKnob(knob, list.length > 1 ? b.dataset.i / (list.length - 1) : 0);
@@ -80,7 +102,7 @@ let revShown = '';
 function drawLex() {
   const progs = document.getElementById('lex-progs'); if (!progs || !knobEls.lexmix) return;
   const t = revType(state.knobs), T = REV_TYPES[t], [pk, list] = REV_PROGS[T.id];
-  for (const b of document.getElementById('rev-type').children) b.setAttribute('aria-checked', +b.dataset.t === t);
+  drawTypeMenu(document.getElementById('rev-type'), t);
   if (revShown !== T.id) { // this unit's program buttons and dials
     revShown = T.id;
     progs.style.setProperty('--n', list.length);
@@ -115,17 +137,15 @@ function drawLex() {
 
 // ---------- drive slot: ProCo RAT, Boss DS-1, Ibanez TS808 (fx.rat switches it on, drvtype picks the pedal) ----------
 const DRV_TYPES = [
-  { id: 'rat', short: 'RAT', name: 'ProCo RAT: LM308 op-amp into a diode pair, Filter after' },
-  { id: 'ds', short: 'DS-1', name: 'Boss DS-1: transistor booster, op-amp into a diode pair to ground, LPF/HPF tone blend' },
-  { id: 'ts', short: 'TS808', name: 'Ibanez TS808 Tube Screamer: diodes in the op-amp feedback, active tone stage' },
+  { id: 'rat', name: 'ProCo RAT', tip: 'ProCo RAT: LM308 op-amp into a diode pair, Filter after' },
+  { id: 'ds', name: 'Boss DS-1', tip: 'Boss DS-1: transistor booster, op-amp into a diode pair to ground, LPF/HPF tone blend' },
+  { id: 'ts', name: 'Ibanez TS808', tip: 'Ibanez TS808 Tube Screamer: diodes in the op-amp feedback, active tone stage' },
 ];
-const drvTypeEl = document.getElementById('drv-type');
-drvTypeEl.innerHTML = DRV_TYPES.map((T, i) => `<button type="button" role="radio" data-t="${i}" title="${T.name}">${T.short}</button>`).join('');
-drvTypeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if (b) setKnob('drvtype', b.dataset.t / 2); });
+typeMenu(document.getElementById('drv-type'), DRV_TYPES, (i) => setKnob('drvtype', i / 2));
 // a function declaration with no top-level consts, so drawKnob can call it before this file has run
 function drawDrv() {
   const t = Math.max(0, Math.min(2, Math.round((state.knobs.drvtype || 0) * 2))), id = ['rat', 'ds', 'ts'][t];
-  for (const b of document.getElementById('drv-type').children) b.setAttribute('aria-checked', +b.dataset.t === t);
+  drawTypeMenu(document.getElementById('drv-type'), t);
   for (const k of KNOBS) if (k.drv && knobEls[k.id]) knobEls[k.id].wrap.hidden = k.drv !== id;
 }
 drawDrv();
