@@ -178,8 +178,9 @@ html.fit .main { width: 1000px; height: 647px; padding: 0 16px 12px; gap: 8px; g
 html.fit .main > .pane { padding: 12px 16px 0; overflow: hidden; }
 html.fit .top { padding: 8px 16px; gap: 10px 12px; min-height: 0; }
 html.fit .top button, html.fit .top .bpm-read output, html.fit .pm .pm-btn { height: 30px; }
-html.fit .dev { padding: 30px 16px 8px; }
-html.fit .dev::before { height: 26px; font-size: var(--fs-l); }
+html.fit .dev { padding: 10px 16px 8px; }
+/* no 'tb-303 voice' title or rule over the dials (Johnny) */
+.dev::before { display: none !important; }
 html.fit .mtabs { margin: 0 -16px -8px; }
 html.fit .mtabs button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
 
