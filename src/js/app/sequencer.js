@@ -153,7 +153,7 @@ document.querySelector('.sq-side').addEventListener('input', (e) => {
   new MutationObserver(() => { pu.disabled = fu.disabled; }).observe(fu, { attributes: true, attributeFilter: ['disabled'] });
 }
 // Randomise accents, slides or octaves: each rewrites only its own property on the notes (steps with the gate on) and
-// leaves the notes and the other properties alone; rests are untouched. Tap again for another roll; Undo puts it back.
+// leaves the notes and the other properties alone; rests are untouched. Again for another roll; Undo puts it back.
 const RND_OCT = [[-1, 3], [0, 5], [1, 2], [2, 0.4], [-2, 0.4]]; // octave lane, weight: mostly 0 and -1, some +1, a rare extreme
 const rndOct = () => { let r = Math.random() * RND_OCT.reduce((a, [, w]) => a + w, 0); for (const [o, w] of RND_OCT) if ((r -= w) < 0) return o; return 0; };
 function randomise(kind) {
@@ -166,11 +166,8 @@ function randomise(kind) {
     else { const { k } = splitCode(st.code); st.code = clampCode(24 + k + 12 * rndOct()); }
   }
   renderSeq(); pushPattern();
-  sqSay(`New random ${kind === 'accent' ? 'accents' : kind === 'slide' ? 'slides' : 'octaves'}. Tap again for another roll; Undo puts it back.`);
+  sqSay(`New random ${kind === 'accent' ? 'accents' : kind === 'slide' ? 'slides' : 'octaves'}. Again for another roll; Undo puts it back.`);
 }
-document.getElementById('r-acc').onclick = () => randomise('accent');
-document.getElementById('r-sld').onclick = () => randomise('slide');
-document.getElementById('r-oct').onclick = () => randomise('octave');
 // Duplicate steps: repeat the pattern until it fills the next of 16, 32 or 64 steps (a 5-step riff becomes 16, then 32)
 document.getElementById('p-dup').onclick = () => {
   const P = state.pattern, n = P.length, to = [16, 32, 64].find(x => x > n);
@@ -181,15 +178,15 @@ document.getElementById('p-dup').onclick = () => {
   sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Functions › Undo puts it back.`);
 };
 // Shuffle notes: deal the steps out in a new random order (each note keeps its accent and slide); tap again for another
-document.getElementById('p-shuf').onclick = () => {
+function shuffleSteps() {
   const P = state.pattern; if (P.length < 2) return;
   pushUndo();
   const before = JSON.stringify(P);
   for (let tries = 0; tries < 8 && JSON.stringify(P) === before; tries++)
     for (let i = P.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [P[i], P[j]] = [P[j], P[i]]; }
   tail = []; renderSeq(); pushPattern();
-  sqSay(`Shuffled ${P.length} steps. Tap again for another order; Functions › Undo puts it back.`);
-};
+  sqSay(`Shuffled ${P.length} steps. Again for another order; Undo puts it back.`);
+}
 drawGen();
 document.querySelector('.sq-gen').addEventListener('input', (e) => {
   const el = e.target.closest('input[data-g]'); if (!el) return;
@@ -230,8 +227,5 @@ function alterLane(kind) {
   }
   renderSeq(); pushPattern();
   const n = pick.length, w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
-  sqSay(`Altered ${n} ${w[n > 1 ? 1 : 0]}. Tap again for more; Undo puts it back.`);
+  sqSay(`Altered ${n} ${w[n > 1 ? 1 : 0]}. Again for more; Undo puts it back.`);
 }
-document.getElementById('a-acc').onclick = () => alterLane('accent');
-document.getElementById('a-sld').onclick = () => alterLane('slide');
-document.getElementById('a-oct').onclick = () => alterLane('octave');

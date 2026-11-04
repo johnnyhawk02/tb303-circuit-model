@@ -300,3 +300,15 @@ html.fit .main { grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding
 html.fit .main { grid-template-columns: minmax(0, 1fr); }
 .sline { min-width: 0; overflow: hidden; }
 .sl-text { flex: 1 1 0; min-width: 0; }
+
+/* Randomise menu at the right of the pattern row (Johnny): same look as Functions, a key on the right of each item */
+.sq-row .rmenu { margin-left: auto; }
+.rmenu > button::after { content: " ▾"; }
+.rmenu .fn-menu { min-width: 230px; padding: 4px 0 6px; }
+.rmenu .fn-menu button { display: flex; justify-content: space-between; align-items: center; gap: 18px; text-transform: none; letter-spacing: 0; padding: 0 12px 0 22px; }
+html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; font-size: var(--fs-m); box-shadow: none; }
+.rmenu .mh { padding: 6px 12px 2px; font-size: var(--fs-s, 13px); color: var(--mute); text-transform: lowercase; }
+.rmenu kbd { font: var(--fs-s, 13px)/1 var(--font-mono); color: var(--mute); }
+.rmenu .fn-menu button:not(:disabled):hover kbd, .rmenu .fn-menu button:focus-visible kbd { color: var(--glass); }
+/* the randomise row went into the menu, so the roll takes its height */
+#pane-seq { --row-h: 14.5px; }
