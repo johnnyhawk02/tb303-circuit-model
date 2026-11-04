@@ -789,7 +789,7 @@ class ConvReverb {
 }
 
 // zero subnormal-bound numbers in an object's own state (plain numbers, small arrays, nested state objects)
-const FLUSH_SKIP = new Set(['c', 'knobs', 'fx', 'lex', 'plate', 'spring', 'conv', 'mem', 'C']);
+const FLUSH_SKIP = new Set(['c', 'knobs', 'fx', 'lex', 'plate', 'spring', 'conv', 'mem', 'C', 'ds', 'ts', 'b259']);
 function flushTiny(o, depth) {
   if (Array.isArray(o) || ArrayBuffer.isView(o)) {
     if (o.length > 64) return;
@@ -804,6 +804,187 @@ function flushTiny(o, depth) {
 }
 
 const RAT_OS = 2; // the RAT runs at 2x the voice rate (4x the host rate)
+
+// ---------------------------------------------------------------------------
+// Three more units from published schematics, ported unchanged from Johnny's Shyoy (johnnyhawk02/sh101 cde59c9, v0.11.0):
+// a Boss DS-1 and an Ibanez TS808 Tube Screamer on the
+// drive slot beside the RAT, and the Buchla 259 timbre wavefolder ahead of it. Part values are from ElectroSmash's
+// circuit analyses (electrosmash.com/boss-ds1-analysis, /tube-screamer-analysis) and from Esqueda, Pöntynen,
+// Välimäki & Parker, "Virtual Analog Buchla 259 Wavefolder" (DAFx-17). Each runs at 4x the host rate like the RAT
+// (the constructor takes the voice rate, 2x the host), with the RAT's 22 kHz decimation filter and 5 Hz DC block.
+// Input is taken as volts, as for the RAT.
+const DIODE_1N4148 = { Is: 2.52e-9, n: 1.752 }; // 1N4148 / 1N914 SPICE values
+const PEDAL_PARTS = {
+  // Boss DS-1 (ElectroSmash part list, "DS1-A")
+  DS_C3: 47e-9, DS_R5: 100e3,            // booster input HPF, 33 Hz
+  DS_GAIN: 56, DS_R7: 470e3, DS_C4: 250e-12, // Q2 2SC2240: 10k/22R with R7||C4 collector-base feedback, 35 dB
+  DS_VC: 5.8, DS_VSAT: 0.3,              // Q2 collector bias and saturation, on a 9 V rail
+  DS_C5: 68e-9, DS_R10: 100e3,           // op-amp input HPF, 23 Hz
+  DS_R13: 4.7e3, DS_C8: 0.47e-6, DS_VR1: 100e3, DS_C7: 100e-12, // gain 1 + VR1/(R13 + 1/sC8), C7 across VR1
+  DS_OPHI: 3.0, DS_OPLO: 4.3,            // NJM2904 output swing about the 4.5 V bias (not rail to rail)
+  DS_R14: 2.2e3, DS_C10: 10e-9,          // series R into D4/D5 1N4148 to AC ground, with C10 across them
+  DS_R16: 6.8e3, DS_C12: 0.1e-6,         // tone LPF, 234 Hz
+  DS_C11: 22e-9, DS_R17: 6.8e3,          // tone HPF, 1063 Hz
+  // Ibanez TS808 (ElectroSmash)
+  TS_C2: 1e-6, TS_R5: 10e3,              // input coupling to the 4.5 V bias, 16 Hz
+  TS_R4: 4.7e3, TS_C3: 47e-9,            // gain leg to the bias, 720 Hz
+  TS_R6: 51e3, TS_P1: 500e3, TS_C4: 51e-12, // feedback: R6 + Drive (500k log) || C4 || D1/D2
+  TS_RAIL: 3.5,                          // JRC4558 swing about 4.5 V
+  TS_R7: 1e3, TS_C5: 0.22e-6,            // passive LPF, 723 Hz
+  TS_P2: 20e3, TS_R8: 220, TS_C6: 0.22e-6, TS_RF: 1e3, // tone: wiper to ground through 220R + 0.22u, 1k feedback
+  // Buchla 259 (DAFx-17, Table 1): [R1, R2, R3] per folding cell, Vs = 6 V CA3160 rails
+  B259_VS: 6,
+  B259_CELLS: [[10e3, 100e3, 100e3], [49.9e3, 100e3, 43.2e3], [91e3, 100e3, 56e3], [30e3, 100e3, 68e3], [68e3, 100e3, 33e3]],
+  B259_W: [-12.000, -27.777, -21.428, 17.647, 36.363], B259_WIN: 5.000, // mixer weights, Eq. 18
+  B259_RF2: 1.2e6, B259_C: 100e-12,      // output pole, 1.33 kHz
+};
+const PEDAL_OS = 2; // they run inside the voice (already 2x), so 2x that = 4x the host rate, as the RAT
+
+// shared by the three: linear upsampling, a third-order 22 kHz Butterworth down filter and a DC block
+class OsUnit {
+  constructor(fs) {
+    this.fs = fs; this.fo = fs * PEDAL_OS; this.dt = 1 / this.fo; this.xp = 0; this.dco = 0; this.dci = 0;
+    const w = 2 * Math.PI * 22000 / this.fo, cs = Math.cos(w);
+    this.lp = [0.5176, 0.7071, 1.9319].map(Q => { const al = Math.sin(w) / (2 * Q), a0 = 1 + al; return { b0: (1 - cs) / 2 / a0, b1: (1 - cs) / a0, b2: (1 - cs) / 2 / a0, a1: -2 * cs / a0, a2: (1 - al) / a0, x1: 0, x2: 0, y1: 0, y2: 0 }; });
+    this.dcA = Math.exp(-2 * Math.PI * 5 / fs);
+  }
+  e(tau) { return Math.exp(-this.dt / Math.max(tau, 1e-12)); } // one-pole coefficient for a time constant
+  run(x) {
+    const x0 = this.xp; this.xp = x; let y = 0;
+    for (let i = 1; i <= PEDAL_OS; i++) {
+      let z = this.core(x0 + (x - x0) * (i / PEDAL_OS));
+      for (const q of this.lp) { const o = q.b0 * z + q.b1 * q.x1 + q.b2 * q.x2 - q.a1 * q.y1 - q.a2 * q.y2; q.x2 = q.x1; q.x1 = z; q.y2 = q.y1; q.y1 = o; z = o; }
+      y = z;
+    }
+    this.dco = this.dcA * (this.dco + y - this.dci); this.dci = y;
+    return this.dco;
+  }
+}
+// implicit (backward Euler) node with a 1N4148 pair to ground: solves g(w - v) + i0 = C(v - vp)/dt + 2 Is sinh(v/nVt)
+// for v by the RAT's safeguarded Newton (bracketed, bisects when a step would leave the bracket).
+// gw: conductance times drive voltage plus any injected current; G: total linear conductance to the node
+function diodeNode(gw, G, vp, Is, nVt) {
+  const lin = gw / G; // the root lies between 0 and the diodes-off solution
+  let lo = lin < 0 ? lin : 0, hi = lin < 0 ? 0 : lin, v = Math.min(hi, Math.max(lo, vp));
+  for (let i = 0; i < 40; i++) {
+    const t = Math.min(Math.max(v / nVt, -80), 80), ex = Math.exp(t), ei = 1 / ex;
+    const f = gw - G * v - Is * (ex - ei), df = -G - Is * (ex + ei) / nVt;
+    if (f > 0) lo = v; else hi = v;
+    let nv = v - f / df;
+    if (!(nv > lo && nv < hi)) nv = 0.5 * (lo + hi);
+    const dv = nv - v; v = nv;
+    if (dv < 1e-7 && dv > -1e-7) break;
+  }
+  return v;
+}
+// smooth limit into [-lo, hi] (a transistor or op-amp running into its rails)
+const softRail = (v, hi, lo) => v > 0 ? hi * Math.tanh(v / hi) : lo * Math.tanh(v / lo);
+
+// Boss DS-1: Q2 booster, op-amp gain stage, R14 into a diode pair to ground with C10, the Big Muff-style tone, level
+class BossDS1 extends OsUnit {
+  constructor(fs) { super(fs); this.s = { h0: 0, x0: 0, b: 0, h1: 0, x1: 0, hl: 0, xl: 0, vf: 0, v: 0, lp: 0, hp: 0, xh: 0 }; }
+  derive(k) {
+    const c = PEDAL_PARTS;
+    this.aIn = this.e(c.DS_C3 * c.DS_R5);
+    this.aB = this.e(c.DS_R7 * c.DS_C4);
+    this.aOp = this.e(c.DS_C5 * c.DS_R10);
+    this.aLeg = this.e(c.DS_R13 * c.DS_C8);
+    this.vr1 = c.DS_VR1 * k.dsdist + 1;                 // VR1 100KB, linear
+    this.aF = this.e(this.vr1 * c.DS_C7);
+    this.gC = 1 / c.DS_R14; this.cdt = c.DS_C10 / this.dt;
+    this.aLp = this.e(c.DS_R16 * c.DS_C12); this.aHp = this.e(c.DS_C11 * c.DS_R17);
+    this.tone = k.dstone;                               // VR3 20KB: LPF output at 0, HPF output at full
+    this.level = audioTaper(k.dslevel) * 12;            // VR2 100KB into the output buffer; set so it sits as loud as the RAT
+    this.nVt = DIODE_1N4148.n * VT;
+  }
+  core(x) {
+    const s = this.s, c = PEDAL_PARTS;
+    s.h0 = this.aIn * (s.h0 + x - s.x0); s.x0 = x;                 // C3/R5 into Q2's base
+    const tb = -c.DS_GAIN * s.h0;                                  // inverting common emitter, 35 dB
+    s.b = tb + this.aB * (s.b - tb);                               // R7 || C4 feedback rolls off the top
+    const q = softRail(s.b, 9 - c.DS_VC, c.DS_VC - c.DS_VSAT);     // collector swings between the 9 V rail and saturation
+    s.h1 = this.aOp * (s.h1 + q - s.x1); s.x1 = q;                 // C5/R10 to the op-amp + input
+    const u = s.h1;
+    s.hl = this.aLeg * (s.hl + u - s.xl); s.xl = u;                // gain leg R13 + C8: current = hl / R13
+    const vf = s.hl / c.DS_R13 * this.vr1;                         // across VR1, with C7 in parallel
+    s.vf = vf + this.aF * (s.vf - vf);
+    const o = softRail(u + s.vf, c.DS_OPHI, c.DS_OPLO);
+    s.v = diodeNode(this.gC * o + this.cdt * s.v, this.gC + this.cdt, s.v, DIODE_1N4148.Is, this.nVt); // R14, C10, D4/D5
+    s.lp = s.v + this.aLp * (s.lp - s.v);                          // R16/C12
+    s.hp = this.aHp * (s.hp + s.v - s.xh); s.xh = s.v;             // C11/R17
+    return ((1 - this.tone) * s.lp + this.tone * s.hp) * this.level;
+  }
+}
+
+// Ibanez TS808: non-inverting clipping amp with D1/D2 in the feedback, R7/C5, the active tone stage, level
+class TubeScreamer extends OsUnit {
+  constructor(fs) { super(fs); this.s = { h0: 0, x0: 0, hl: 0, xl: 0, vf: 0, z1: 0, z2: 0, w1: 0, w2: 0 }; }
+  derive(k) {
+    const c = PEDAL_PARTS, fo = this.fo;
+    this.aIn = this.e(c.TS_C2 * c.TS_R5);
+    this.aLeg = this.e(c.TS_R4 * c.TS_C3);
+    this.rf = c.TS_R6 + c.TS_P1 * audioTaper(k.tsdrive); // Drive 500k log
+    this.gF = 1 / this.rf; this.cdt = c.TS_C4 / this.dt;
+    this.nVt = DIODE_1N4148.n * VT;
+    // R7/C5 into the second op-amp (+), the tone pot between its (+) and (-) inputs, the wiper to ground through R8 + C6,
+    // RF from the output to (-). With the inputs at one voltage the two pot halves Ra (+ side) and Rb (- side) share the
+    // wiper current: the Ra part loads the (+) node, the Rb part comes through RF and lifts the output. Solved in s:
+    //   H(s) = (1 + s C6 (Rs + kb RF)) / ((1 + s C5 R7)(1 + s C6 Rs) + ka s C6 R7),  Rs = Ra || Rb + R8,
+    //   ka = Rb / P2, kb = Ra / P2.  Tone at 0 (bass end, Ra = 0) adds a low-pass; at full (Rb = 0) a treble shelf.
+    const t = Math.min(0.999, Math.max(0.001, k.tstone)), Ra = c.TS_P2 * t, Rb = c.TS_P2 * (1 - t);
+    const Rs = Ra * Rb / (Ra + Rb) + c.TS_R8, ka = Rb / c.TS_P2, kb = Ra / c.TS_P2;
+    const R7 = c.TS_R7, C5 = c.TS_C5, C6 = c.TS_C6;
+    const n0 = 1, n1 = C6 * (Rs + kb * c.TS_RF), n2 = 0;
+    const d0 = 1, d1 = C5 * R7 + C6 * Rs + ka * C6 * R7, d2 = C5 * R7 * C6 * Rs;
+    const K = 2 * fo, K2 = K * K, a0 = d0 + d1 * K + d2 * K2; // bilinear
+    this.tb = [(n0 + n1 * K + n2 * K2) / a0, (2 * n0 - 2 * n2 * K2) / a0, (n0 - n1 * K + n2 * K2) / a0];
+    this.ta = [(2 * d0 - 2 * d2 * K2) / a0, (d0 - d1 * K + d2 * K2) / a0];
+    this.level = audioTaper(k.tslevel) * 13;            // Level 100k into the output buffer; x13 here (x9 in Shyoy) so it sits as loud as the RAT on the 303
+  }
+  core(x) {
+    const s = this.s, c = PEDAL_PARTS;
+    s.h0 = this.aIn * (s.h0 + x - s.x0); s.x0 = x;                 // C2/R5
+    const u = s.h0;
+    s.hl = this.aLeg * (s.hl + u - s.xl); s.xl = u;                // R4 + C3: the leg current is hl / R4
+    const i = s.hl / c.TS_R4;                                      // ...and all of it flows through the feedback network
+    s.vf = diodeNode(i + this.cdt * s.vf, this.gF + this.cdt, s.vf, DIODE_1N4148.Is, this.nVt); // (R6 + Drive) || C4 || D1/D2
+    const o = softRail(u + s.vf, c.TS_RAIL, c.TS_RAIL);
+    const b = this.tb, a = this.ta;                                 // tone stage, transposed direct form II
+    const y = b[0] * o + s.z1; s.z1 = b[1] * o - a[0] * y + s.z2; s.z2 = b[2] * o - a[1] * y;
+    return y * this.level;
+  }
+}
+
+// Buchla 259 timbre circuit: five CA3160 folding cells and a direct path summed (Eq. 18), then RF2·C (1.33 kHz).
+// Timbre is the input gain into the cells (the paper sweeps 0..10 V peak); Symmetry adds a DC offset ahead of them,
+// as the 259's own Symmetry control does. First-order antiderivative anti-aliasing on top of the 4x oversampling.
+class Buchla259 extends OsUnit {
+  constructor(fs) {
+    super(fs); this.s = { xa: 0, Fa: 0, y: 0 };
+    const c = PEDAL_PARTS, Vs = c.B259_VS;
+    // cell k: 0 inside |v| <= T, else a v - b sgn(v) (continuous, a T = b); weights folded in, plus the direct path
+    this.cells = c.B259_CELLS.map(([R1, R2, R3], i) => {
+      const D = R1 * R3 + R2 * R3 + R1 * R2, a = R2 * R3 / D, b = R1 * R3 * Vs / D, T = R1 / R2 * Vs, w = c.B259_W[i];
+      return { T, a: w * a, b: w * b, C: w * (a * T * T / 2 - b * T) };
+    });
+  }
+  f(v) { let y = PEDAL_PARTS.B259_WIN * v; for (const q of this.cells) { const m = v < 0 ? -v : v; if (m > q.T) y += q.a * v - (v < 0 ? -q.b : q.b); } return y; }
+  F(v) { let y = 0.5 * PEDAL_PARTS.B259_WIN * v * v; for (const q of this.cells) { const m = v < 0 ? -v : v; if (m > q.T) y += q.a * v * v / 2 - q.b * m - q.C; } return y; }
+  derive(k) {
+    const c = PEDAL_PARTS;
+    this.gain = 0.5 + 9.5 * k.fldtimbre * k.fldtimbre;  // 0.5 .. 10 V per volt in
+    this.off = (k.fldsym - 0.5) * 4;                     // ±2 V
+    this.aOut = this.e(c.B259_RF2 * c.B259_C);
+    this.level = audioTaper(k.fldlevel) * 1.7;          // the folder holds its own output near 1.5 V, so no gain tracking needed
+  }
+  core(x) {
+    const s = this.s, v = x * this.gain + this.off, Fv = this.F(v), d = v - s.xa;
+    const y = (d > 1e-6 || d < -1e-6) ? (Fv - s.Fa) / d : this.f(0.5 * (v + s.xa));
+    s.xa = v; s.Fa = Fv;
+    s.y = y + this.aOut * (s.y - y);                               // RF2 with C, 1.33 kHz
+    return s.y * this.level;
+  }
+}
 
 // Simple digital delay (outside the circuit): tempo-synced time, feedback, and a low cut and high cut
 // inside the feedback loop, so every repeat gets thinner and darker. Clean digital repeats, no saturation.
@@ -902,14 +1083,16 @@ class TB303Voice {
 
     // front panel (0..1)
     this.knobs = { tuning: 0.5, cutoff: 0.35, resonance: 0.7, envmod: 0.6, decay: 0.3, accent: 0.7, volume: 0.8, dist: 0.5, filter: 0.4, ratvol: 0.5,
+      drvtype: 0, dsdist: 0.5, dstone: 0.5, dslevel: 0.5, tsdrive: 0.5, tstone: 0.5, tslevel: 0.5, fldtimbre: 0.5, fldsym: 0.5, fldlevel: 0.5,
       lexprog: 0.125, lexbass: 0.3, lexmid: 0.27, lexxover: 0.443, lextreble: 0.834, lexdepth: 0.5, lexdiff: 0.55, lexpre: 0.2, lexme: 0.5, lexpitch: 0.2, lexmix: 0.5,
       revtype: 0, plateprog: 0.5, platepre: 0.2, platedecay: 0.45, platedamp: 0.6, platebw: 0.75, platelo: 0.35, platediff: 0.88, platemod: 0.5, platemix: 0.5,
       sprprog: 2 / 3, sprdwell: 0.4, sprdecay: 0.5, sprtension: 0.5, sprtone: 0.5, sprlo: 0.4, sprmix: 0.5,
       cnvprog: 0, cnvpre: 0.2, cnvdecay: 1, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
       cmpamt: 0.4, cmprel: 0.14142,
       dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35 };
-    this.fx = { rat: false, lex: false, dly: false };
+    this.fx = { rat: false, lex: false, dly: false, fold: false }; // rat switches the drive slot (RAT, DS-1 or TS808)
     this.bpm = 128;
+    this.ds = new BossDS1(this.fs); this.ts = new TubeScreamer(this.fs); this.b259 = new Buchla259(this.fs); this.drvT = 0;
     this.lex = new Lexicon224(sampleRate);
     this.plate = new DattorroPlate(sampleRate); this.spring = new SpringReverb(sampleRate); this.conv = new ConvReverb(sampleRate); this.revT = 0;
     this.dly = new DigitalDelay(sampleRate);
@@ -1035,6 +1218,8 @@ class TB303Voice {
     this.ratIs = 1e-3 / Math.exp(c.RAT_VF / this.ratN);
     this.ratFltA = e((c.RAT_RF + 100e3 * k.filter) * c.RAT_CFLT);
     this.ratLevel = audioTaper(k.ratvol) * 6;
+    this.ds.derive(k); this.ts.derive(k); this.b259.derive(k);
+    this.drvT = Math.max(0, Math.min(2, Math.round((k.drvtype || 0) * 2))); // drive slot: 0 = RAT, 1 = DS-1, 2 = TS808
     this.lex.derive(c, k); this.plate.derive(k); this.spring.derive(k); this.conv.derive(k);
     const t = revType(k);
     if (t !== this.revT) { this.revT = t; this.rev.reset?.(); }
@@ -1248,7 +1433,8 @@ class TB303Voice {
     const vout = iout * c.R_OTA;
     this.hp38 = this.hp38A * (this.hp38 + vout - this.hp38In); this.hp38In = vout;
     let o = this.hp38 * this.vol * 4.0 + nX * 4.0;
-    if (this.fx.rat) o = this._rat(o);
+    if (this.fx.fold) o = this.b259.run(o);                       // Buchla 259 folder, ahead of the drive slot
+    if (this.fx.rat) o = this.drvT === 1 ? this.ds.run(o) : this.drvT === 2 ? this.ts.run(o) : this._rat(o);
     return 0.95 * Math.tanh(o / 0.95); // output stage headroom
   }
 
@@ -1275,7 +1461,7 @@ class TB303Voice {
   // Decaying filter and envelope states eventually reach subnormal floats, which run many times
   // slower on most CPUs (CPU climbed 3x over 15 s of silence). Snap anything that small to zero once
   // per block. 1e-150 is far below any audible level and far below every component value.
-  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.plate, 0); flushTiny(this.spring, 0); flushTiny(this.conv, 0); flushTiny(this.dly, 0); flushTiny(this.cmp, 0); }
+  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.plate, 0); flushTiny(this.spring, 0); flushTiny(this.conv, 0); flushTiny(this.dly, 0); flushTiny(this.cmp, 0); flushTiny(this.ds.s, 0); flushTiny(this.ts.s, 0); flushTiny(this.b259.s, 0); }
 
   // out is mono, or the left channel when outR is given
   process(out, start = 0, end = out.length, outR) {
@@ -1301,7 +1487,7 @@ class TB303Voice {
 // it only decides what value the voice sees each 32-sample tick. Discrete controls switch at once.
 class ParamSlew {
   constructor(voice, fs, tau = 0.015) { this.v = voice; this.fs = fs; this.tau = tau; this.t = new Map(); }
-  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name.startsWith('LEX_'); }
+  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name === 'drvtype' || name.startsWith('LEX_'); }
   set(kind, name, value) {
     const v = this.v;
     if (ParamSlew.instant(kind, name) || !isFinite(value)) { this.t.delete(kind + name); kind === 'k' ? v.setKnob(name, value) : v.setComponent(name, value); return; }
@@ -1422,4 +1608,4 @@ class TB303Engine {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, TB303Voice, ParamSlew, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams, REV_TYPES, revType, DattorroPlate, PLATE_PROGRAMS, plateParams, SpringReverb, SPRING_PROGRAMS, springParams, ConvReverb, CNV_PROGRAMS, convParams, CNV_IR_GAIN };
+if (typeof module !== 'undefined' && module.exports) module.exports = { DigitalDelay, Compactor, DLY_DIVS, dlyDiv, dlyLo, dlyHi, cmpThrDb, cmpMix, cmpRelMs, TB303Voice, ParamSlew, BossDS1, TubeScreamer, Buchla259, PEDAL_PARTS, PEDAL_OS, DeClick, TB303Engine, COMPONENTS, dacVoltage, VT, Lexicon224, LEX_PROGRAMS, lexParams, REV_TYPES, revType, DattorroPlate, PLATE_PROGRAMS, plateParams, SpringReverb, SPRING_PROGRAMS, springParams, ConvReverb, CNV_PROGRAMS, convParams, CNV_IR_GAIN };

@@ -113,8 +113,25 @@ function drawLex() {
     ' Program names, control ranges and converter specs follow Lexicon; the algorithms are estimates built on Dattorro\'s Griesinger-style plate. Parts are in Options under 224.';
 }
 
+// ---------- drive slot: ProCo RAT, Boss DS-1, Ibanez TS808 (fx.rat switches it on, drvtype picks the pedal) ----------
+const DRV_TYPES = [
+  { id: 'rat', short: 'RAT', name: 'ProCo RAT: LM308 op-amp into a diode pair, Filter after' },
+  { id: 'ds', short: 'DS-1', name: 'Boss DS-1: transistor booster, op-amp into a diode pair to ground, LPF/HPF tone blend' },
+  { id: 'ts', short: 'TS808', name: 'Ibanez TS808 Tube Screamer: diodes in the op-amp feedback, active tone stage' },
+];
+const drvTypeEl = document.getElementById('drv-type');
+drvTypeEl.innerHTML = DRV_TYPES.map((T, i) => `<button type="button" role="radio" data-t="${i}" title="${T.name}">${T.short}</button>`).join('');
+drvTypeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if (b) setKnob('drvtype', b.dataset.t / 2); });
+// a function declaration with no top-level consts, so drawKnob can call it before this file has run
+function drawDrv() {
+  const t = Math.max(0, Math.min(2, Math.round((state.knobs.drvtype || 0) * 2))), id = ['rat', 'ds', 'ts'][t];
+  for (const b of document.getElementById('drv-type').children) b.setAttribute('aria-checked', +b.dataset.t === t);
+  for (const k of KNOBS) if (k.drv && knobEls[k.id]) knobEls[k.id].wrap.hidden = k.drv !== id;
+}
+drawDrv();
+
 // ---------- effects ----------
-const FX_UNITS = ['rat', 'dly', 'lex'];
+const FX_UNITS = ['fold', 'rat', 'dly', 'lex'];
 function renderFx() {
   for (const n of FX_UNITS) {
     const b = document.getElementById('fx-' + n + '-on');
@@ -122,7 +139,7 @@ function renderFx() {
     document.getElementById('fx-' + n).classList.toggle('on', !!state.fx[n]);
   }
   document.getElementById('fx-cmp').classList.toggle('on', !!(state.fx.lex || state.fx.dly)); // the Compactor acts on the returns
-  drawDlyMode();
+  drawDlyMode(); drawDrv();
 }
 // Delay mode: ping-pong or mono (stored as the dlypp knob)
 const dlyModeEl = document.getElementById('dly-mode');

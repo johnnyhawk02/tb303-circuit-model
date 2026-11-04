@@ -269,8 +269,10 @@ private:
     juce::Label syncLabel;
     // mods + fx
     juce::Component modsPage, fxPage;
-    ui::Section mods { "Mods" }, rat { "ProCo RAT" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" };
-    juce::TextButton dlyMode[2], lexProg[9], revTypeBtn[4];
+    ui::Section mods { "Mods" }, fold { "Folder" }, rat { "Drive" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" };
+    juce::TextButton dlyMode[2], lexProg[9], revTypeBtn[4], drvTypeBtn[3];
+    std::vector<ui::Knob*> drvKnobs[3]; // the drive slot: only the selected pedal's dials show
+    int shownDrv = -1;
     std::vector<ui::Knob*> revKnobs[4];
     int shownRev = -1, nProgs = 9;
     juce::Label lexLcd, lexNote;

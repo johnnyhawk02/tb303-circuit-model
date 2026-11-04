@@ -118,7 +118,7 @@ private:
     std::array<float, tb303::K::COUNT> lastKnob {};
     std::vector<std::pair<int, std::atomic<float>*>> modParams;
     std::vector<float> lastMod;
-    std::atomic<float>*pWave, *pRat, *pLex, *pDly, *pDeclick, *pDeclickMs, *pSeq;
+    std::atomic<float>*pWave, *pRat, *pLex, *pDly, *pFold, *pDeclick, *pDeclickMs, *pSeq;
     float lastFade = -1;
 
     // parts that are not parameters

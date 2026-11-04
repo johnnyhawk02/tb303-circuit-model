@@ -82,6 +82,10 @@ static juce::String groupName(const char* g) {
     if (s == "plate") return "Plate ";
     if (s == "spring") return "Spring ";
     if (s == "conv") return "Conv ";
+    if (s == "drv") return "Drive ";
+    if (s == "ds") return "DS-1 ";
+    if (s == "ts") return "TS808 ";
+    if (s == "fold") return "Folder ";
     return {};
 }
 
@@ -89,6 +93,7 @@ static juce::String groupName(const char* g) {
 static int revSteps(int k) {
     switch (k) {
     case K::revtype: return 4;
+    case K::drvtype: return 3;
     case K::plateprog: return (int)platePrograms().size();
     case K::sprprog: return (int)springPrograms().size();
     case K::cnvprog: return (int)cnvPrograms().size();
@@ -109,6 +114,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
         } else if (const int n = revSteps(k)) {
             StringArray names;
             if (k == K::revtype) names = { "Lexicon 224", "Plate", "Spring", "Convolution" };
+            else if (k == K::drvtype) names = { "ProCo RAT", "Boss DS-1", "Ibanez TS808" };
             else if (k == K::plateprog) for (auto& p : platePrograms()) names.add(p.shortName);
             else if (k == K::sprprog) for (auto& p : springPrograms()) names.add(p.shortName);
             else for (auto& p : cnvPrograms()) names.add(p.shortName);
@@ -141,6 +147,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
             case K::sprlo: txt = [](float v, int) { return String(juce::roundToInt(revEx(50, 1000, v))) + " Hz"; }; break;
             case K::sprdwell: txt = [](float v, int) { return "x" + String(revEx(0.5, 8, v), 1); }; break;
             case K::platemod: txt = [](float v, int) { return String(juce::roundToInt(200 * v)) + "%"; }; break;
+            case K::dsdist: txt = [](float v, int) { return String(juce::roundToInt(1 + PP::DS_VR1 * v / PP::DS_R13)) + "x"; }; break;
+            case K::tsdrive: txt = [](float v, int) { return String(juce::roundToInt(1 + (PP::TS_R6 + PP::TS_P1 * audioTaper(v)) / PP::TS_R4)) + "x"; }; break;
+            case K::fldtimbre: txt = [](float v, int) { return String(0.5 + 9.5 * v * v, 1) + "x"; }; break;
+            case K::fldsym: txt = [](float v, int) { const double x = (v - 0.5) * 4; return (x >= 0 ? "+" : "") + String(x, 1) + " V"; }; break;
             case K::cnvwidth: txt = [](float v, int) { return String(juce::roundToInt(150 * v)) + "%"; }; break;
             default: break;
             }
@@ -156,9 +166,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
             AudioParameterFloatAttributes().withStringFromValueFunction([pi, unit](float t, int) { return formatPart(partFromT(pi, t), unit); })));
     }
     L.add(std::make_unique<AudioParameterChoice>(ParameterID { "wave", 1 }, "Waveform", StringArray { "Saw", "Square" }, 0));
-    L.add(std::make_unique<AudioParameterBool>(ParameterID { "fx_rat", 1 }, "RAT on", false));
+    L.add(std::make_unique<AudioParameterBool>(ParameterID { "fx_rat", 1 }, "Drive on", false)); // the drive slot (RAT, DS-1 or TS808); id kept
     L.add(std::make_unique<AudioParameterBool>(ParameterID { "fx_dly", 1 }, "Delay on", false));
     L.add(std::make_unique<AudioParameterBool>(ParameterID { "fx_lex", 1 }, "224 on", false));
+    L.add(std::make_unique<AudioParameterBool>(ParameterID { "fx_fold", 1 }, "Folder on", false));
     L.add(std::make_unique<AudioParameterBool>(ParameterID { "declick", 1 }, "De-click", true));
     L.add(std::make_unique<AudioParameterBool>(ParameterID { "seq", 1 }, "Sequencer", true));
     L.add(std::make_unique<AudioParameterFloat>(ParameterID { "declickms", 1 }, "De-click fade", NormalisableRange<float>(0.5f, 3.0f, 0.25f), 1.5f,
@@ -220,7 +231,7 @@ TB303Processor::TB303Processor()
     for (auto& m : frontMods()) modParams.push_back({ partIndex(m.part), apvts.getRawParameterValue(juce::String("m_") + m.part) });
     lastMod.assign(modParams.size(), -1.0f);
     pWave = apvts.getRawParameterValue("wave"); pRat = apvts.getRawParameterValue("fx_rat"); pLex = apvts.getRawParameterValue("fx_lex");
-    pDly = apvts.getRawParameterValue("fx_dly"); pDeclick = apvts.getRawParameterValue("declick"); pDeclickMs = apvts.getRawParameterValue("declickms");
+    pFold = apvts.getRawParameterValue("fx_fold"); pDly = apvts.getRawParameterValue("fx_dly"); pDeclick = apvts.getRawParameterValue("declick"); pDeclickMs = apvts.getRawParameterValue("declickms");
     pSeq = apvts.getRawParameterValue("seq");
     apvts.addParameterListener("declick", this);
     for (int i = 0; i < P::COUNT; ++i) extraParts[(size_t)i] = parts()[i].v;
@@ -315,7 +326,7 @@ void TB303Processor::pushAllParams(bool instant) {
         if (lock.isLocked()) { tuneSeen = tv; e.v.setTune(tuneCents.data()); }
     }
     e.v.square = *pWave > 0.5f;
-    e.v.fxRat = *pRat > 0.5f; e.v.fxLex = *pLex > 0.5f; e.v.fxDly = *pDly > 0.5f;
+    e.v.fxRat = *pRat > 0.5f; e.v.fxLex = *pLex > 0.5f; e.v.fxDly = *pDly > 0.5f; e.v.fxFold = *pFold > 0.5f;
     const bool dc = *pDeclick > 0.5f;
     if (dc != lastDeclick) { lastDeclick = dc; e.dc.setOn(dc); }
     if (*pDeclickMs != lastFade) { lastFade = *pDeclickMs; e.dc.setFade(lastFade); }
@@ -551,6 +562,7 @@ void TB303Processor::applySound(const juce::var& x) {
     setParam(apvts, "fx_rat", (bool)fx.getProperty("rat", false) ? 1.0f : 0.0f);
     setParam(apvts, "fx_lex", (bool)fx.getProperty("lex", false) ? 1.0f : 0.0f);
     setParam(apvts, "fx_dly", (bool)fx.getProperty("dly", false) ? 1.0f : 0.0f);
+    setParam(apvts, "fx_fold", (bool)fx.getProperty("fold", false) ? 1.0f : 0.0f);
 }
 
 void TB303Processor::applyProject(const juce::var& x) {
@@ -599,7 +611,7 @@ juce::var TB303Processor::soundSnapshot() const {
     if (std::any_of(tn.begin(), tn.end(), [](double c) { return c != 0; })) { juce::Array<juce::var> ta; for (double c : tn) ta.add(c); s->setProperty("tune", ta); }
     s->setProperty("wave", *pWave > 0.5f ? "square" : "saw");
     auto* fx = new juce::DynamicObject();
-    fx->setProperty("rat", *pRat > 0.5f); fx->setProperty("lex", *pLex > 0.5f); fx->setProperty("dly", *pDly > 0.5f);
+    fx->setProperty("rat", *pRat > 0.5f); fx->setProperty("lex", *pLex > 0.5f); fx->setProperty("dly", *pDly > 0.5f); fx->setProperty("fold", *pFold > 0.5f);
     s->setProperty("fx", juce::var(fx));
     return juce::var(s);
 }

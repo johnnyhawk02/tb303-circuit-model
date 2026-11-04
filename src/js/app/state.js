@@ -6,9 +6,21 @@ const KNOBS = [
   { id: 'decay',     name: 'Decay',     ref: 'VR6 1M(A)',  def: 0.3 },
   { id: 'accent',    name: 'Accent',    ref: 'VR7 50K(B)', def: 0.75 },
   { id: 'volume',    name: 'Volume',    ref: 'VR8 50K(A)', def: 0.85 },
-  { id: 'dist',      name: 'Distortion',ref: '100k(A)',    def: 0.5,  fx: 'rat' },
-  { id: 'filter',    name: 'Filter',    ref: '100k(B)',    def: 0.4,  fx: 'rat' },
-  { id: 'ratvol',    name: 'Volume',    ref: '100k(A)',    def: 0.5,  fx: 'rat' },
+  // the drive slot (fx.rat switches it on): drvtype picks the pedal, drv says whose dial it is
+  { id: 'drvtype',   name: 'Pedal',     ref: 'RAT/DS-1/TS808', def: 0, fx: 'rat', hidden: true },
+  { id: 'dist',      name: 'Distortion',ref: '100k(A)',    def: 0.5,  fx: 'rat', drv: 'rat' },
+  { id: 'filter',    name: 'Filter',    ref: '100k(B)',    def: 0.4,  fx: 'rat', drv: 'rat' },
+  { id: 'ratvol',    name: 'Volume',    ref: '100k(A)',    def: 0.5,  fx: 'rat', drv: 'rat' },
+  { id: 'dsdist',    name: 'Dist',      ref: 'VR1 100k(B)', def: 0.5, fx: 'rat', drv: 'ds' },
+  { id: 'dstone',    name: 'Tone',      ref: 'VR3 20k(B)', def: 0.5,  fx: 'rat', drv: 'ds' },
+  { id: 'dslevel',   name: 'Level',     ref: 'VR2 100k(A)', def: 0.5, fx: 'rat', drv: 'ds' },
+  { id: 'tsdrive',   name: 'Drive',     ref: '500k(A)',    def: 0.5,  fx: 'rat', drv: 'ts' },
+  { id: 'tstone',    name: 'Tone',      ref: '20k(B)',     def: 0.5,  fx: 'rat', drv: 'ts' },
+  { id: 'tslevel',   name: 'Level',     ref: '100k(A)',    def: 0.5,  fx: 'rat', drv: 'ts' },
+  // Buchla 259 timbre folder, ahead of the drive slot
+  { id: 'fldtimbre', name: 'Timbre',    ref: '×0.5–10',    def: 0.5,  fx: 'fold' },
+  { id: 'fldsym',    name: 'Symmetry',  ref: '±2 V',       def: 0.5,  fx: 'fold' },
+  { id: 'fldlevel',  name: 'Level',     ref: 'output',     def: 0.5,  fx: 'fold' },
   { id: 'lexprog',   name: 'Program',   ref: 'P1–P9',      def: 0.125, fx: 'lex' },
   { id: 'lexbass',   name: 'Bass',      ref: '0.6–70 s',   def: 0.3,  fx: 'lex' },
   { id: 'lexmid',    name: 'Mid',       ref: '0.6–70 s',   def: 0.27, fx: 'lex' },
@@ -92,7 +104,7 @@ if (store.get('partsVersion', 0) === 3) {
 }
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
-  wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false }, shuffle: 0, gate: 0.5,
+  wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false, fold: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
   tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
@@ -131,7 +143,7 @@ function cleanSettings(x) {
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
-  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex, dly: !!x.fx.dly };
+  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex, dly: !!x.fx.dly, fold: !!x.fx.fold };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
@@ -147,7 +159,7 @@ function snapshot() {
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
-  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly };
+  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly, fold: !!sess.fx.fold };
   if (sess.tune) state.tune = sess.tune;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;

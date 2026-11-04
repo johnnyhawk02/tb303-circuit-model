@@ -871,7 +871,26 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     };
     auto onBtn = [&](ui::Section& sec, const char* id) { auto b = std::make_unique<ui::Toggle>(s, id, "On"); sec.setHeaderButton(b.get()); owned.push_back(std::move(b)); };
     auto setParam = [this](const char* id, float plain) { if (auto* p = proc.apvts.getParameter(id)) p->setValueNotifyingHost(p->convertTo0to1(plain)); };
-    onBtn(rat, "fx_rat"); addKnobs(rat, { "dist", "filter", "ratvol" }, 70);
+    // the Buchla 259 folder, ahead of the drive slot
+    onBtn(fold, "fx_fold"); fold.sub = "Buchla 259"; addKnobs(fold, { "fldtimbre", "fldsym", "fldlevel" }, 70);
+    {
+        auto* kt = dynamic_cast<ui::Knob*>(owned[owned.size() - 3].get()), *ks = dynamic_cast<ui::Knob*>(owned[owned.size() - 2].get());
+        kt->valueText = [kv] { const double p = kv("fldtimbre"); return U("×") + juce::String(0.5 + 9.5 * p * p, 1); };
+        ks->valueText = [kv] { const double v = (kv("fldsym") - 0.5) * 4; return (v >= 0 ? "+" : "") + juce::String(v, 1) + " V"; };
+    }
+    // the drive slot (fx_rat switches it on): ProCo RAT, Boss DS-1 or Ibanez TS808, drvtype picks the pedal
+    onBtn(rat, "fx_rat");
+    addKnobs(rat, { "dsdist", "dstone", "dslevel" }, 70, &drvKnobs[1]);
+    drvKnobs[1][0]->valueText = [kv] { return U("×") + juce::String(juce::roundToInt(1 + PP::DS_VR1 * kv("dsdist") / PP::DS_R13)); };
+    addKnobs(rat, { "tsdrive", "tstone", "tslevel" }, 70, &drvKnobs[2]);
+    drvKnobs[2][0]->valueText = [kv] { return U("×") + juce::String(juce::roundToInt(1 + (PP::TS_R6 + PP::TS_P1 * audioTaper(kv("tsdrive"))) / PP::TS_R4)); };
+    addKnobs(rat, { "dist", "filter", "ratvol" }, 70, &drvKnobs[0]);
+    {
+        const char* dn[3] = { "RAT", "DS-1", "TS808" };
+        const char* dt[3] = { "ProCo RAT: LM308 op-amp into a diode pair, Filter after", "Boss DS-1: transistor booster, op-amp into a diode pair to ground, LPF/HPF tone blend",
+                              "Ibanez TS808 Tube Screamer: diodes in the op-amp feedback, active tone stage" };
+        for (int i = 2; i >= 0; --i) { drvTypeBtn[i].setButtonText(dn[i]); drvTypeBtn[i].setTooltip(dt[i]); drvTypeBtn[i].onClick = [setParam, i] { setParam("drvtype", (float)i); }; rat.addHeaderItem(&drvTypeBtn[i], 52); }
+    }
     {
         auto* kd = dynamic_cast<ui::Knob*>(owned[owned.size() - 3].get()), *kf = dynamic_cast<ui::Knob*>(owned[owned.size() - 2].get());
         kd->valueText = [this, kv] { return U("gain ×") + juce::String(juce::roundToInt(1 + (proc.partValue(P::RAT_RD) * audioTaper(kv("dist")) + 1) * (1 / proc.partValue(P::RAT_RG1) + 1 / proc.partValue(P::RAT_RG2)))); };
@@ -904,7 +923,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     lex.addHeaderItem(&lexLcd, 260);
     lexNote.setColour(juce::Label::textColourId, ui::dim); lexNote.setFont(ui::lcd(11.0f)); lexNote.setJustificationType(juce::Justification::topLeft);
     fxPage.addAndMakeVisible(lexNote);
-    for (auto* c : { &rat, &dly, &cmp, &lex }) fxPage.addAndMakeVisible(c);
+    for (auto* c : { &fold, &rat, &dly, &cmp, &lex }) fxPage.addAndMakeVisible(c);
     addChildComponent(fxPage);
 
     // ---- circuit, board ----
@@ -1183,9 +1202,13 @@ void TB303Editor::timerCallback() {
         for (auto& k : knobs) k->refresh();
         partsUndo.setEnabled(proc.canUndoParts());
         if (tab == 1) for (auto& c : mods.getChildren()) c->repaint();
-        if (tab == 2) for (auto* c : { &rat, &dly, &cmp, &lex }) for (auto* ch : c->getChildren()) ch->repaint();
+        if (tab == 2) for (auto* c : { &fold, &rat, &dly, &cmp, &lex }) for (auto* ch : c->getChildren()) ch->repaint();
         if (tab == 4) circuit.refresh();
         if (tab == 5) board.repaint();
+        // drive slot: which pedal's dials show
+        const int dtp = (int)juce::jlimit(0.0, 2.0, jsRound(Kn[K::drvtype] * 2));
+        for (int i = 0; i < 3; ++i) drvTypeBtn[i].setToggleState(i == dtp, juce::dontSendNotification);
+        if (dtp != shownDrv) { shownDrv = dtp; for (int t = 0; t < 3; ++t) for (auto* k : drvKnobs[t]) k->setVisible(t == dtp); rat.resized(); }
         // reverb slot: which unit, its program buttons and dials
         const int rtp = revType(Kn);
         for (int i = 0; i < 4; ++i) revTypeBtn[i].setToggleState(i == rtp, juce::dontSendNotification);
@@ -1260,7 +1283,7 @@ void TB303Editor::timerCallback() {
     }
     const bool cmpLit = Kn[0] >= 0 && (proc.apvts.getRawParameterValue("fx_lex")->load() > 0.5f || proc.apvts.getRawParameterValue("fx_dly")->load() > 0.5f);
     if (cmp.lit != cmpLit) { cmp.lit = cmpLit; cmp.repaint(); }
-    for (auto [sec, id] : { std::pair<ui::Section*, const char*> { &rat, "fx_rat" }, { &dly, "fx_dly" }, { &lex, "fx_lex" } }) {
+    for (auto [sec, id] : { std::pair<ui::Section*, const char*> { &fold, "fx_fold" }, { &rat, "fx_rat" }, { &dly, "fx_dly" }, { &lex, "fx_lex" } }) {
         const bool on = proc.apvts.getRawParameterValue(id)->load() > 0.5f;
         if (sec->lit != on) { sec->lit = on; sec->repaint(); }
     }
@@ -1371,9 +1394,11 @@ void TB303Editor::resized() {
     {
         auto pg = fxPage.getLocalBounds();
         auto r1 = pg.removeFromTop(100);
-        rat.setBounds(r1.removeFromLeft(240)); r1.removeFromLeft(8); dly.setBounds(r1.removeFromLeft(560));
+        // signal order: Folder, Drive, then the delay and the Compactor that ducks the returns
+        fold.setBounds(r1.removeFromLeft(240)); r1.removeFromLeft(8); rat.setBounds(r1.removeFromLeft(320));
         pg.removeFromTop(8);
-        cmp.setBounds(pg.removeFromTop(100).removeFromLeft(560));
+        auto r2 = pg.removeFromTop(100);
+        dly.setBounds(r2.removeFromLeft(560)); r2.removeFromLeft(8); cmp.setBounds(r2.removeFromLeft(240));
         pg.removeFromTop(8);
         lex.setBounds(pg.removeFromTop(140));
         lexNote.setBounds(pg.reduced(4, 2));
