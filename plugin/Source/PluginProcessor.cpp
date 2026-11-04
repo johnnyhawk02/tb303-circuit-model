@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "PartsMeta.h"
+#include "BinaryData.h"
 
 using namespace tb303;
 
@@ -22,6 +23,29 @@ const std::vector<ModInfo>& frontMods() {
         { "I_REF", "Filter trim", "TM3: cutoff calibration" },
     };
     return m;
+}
+
+// the recorded impulse responses for the Conv reverb (irs/*.flac, embedded), decoded once
+struct ConvIR { juce::String id; double rate; juce::AudioBuffer<float> data; };
+static const std::vector<ConvIR>& convIRs() {
+    static const std::vector<ConvIR> v = [] {
+        std::vector<ConvIR> out;
+        juce::FlacAudioFormat flac;
+        for (auto& P_ : cnvPrograms()) {
+            if (!P_.ir) continue;
+            int size = 0;
+            const juce::String res = juce::String(P_.ir) + "_flac";
+            const char* d = BinaryData::getNamedResource(res.toRawUTF8(), size);
+            if (!d || size <= 0) continue;
+            std::unique_ptr<juce::AudioFormatReader> r(flac.createReaderFor(new juce::MemoryInputStream(d, (size_t)size, false), true));
+            if (!r || r->lengthInSamples <= 0) continue;
+            ConvIR ir { P_.ir, r->sampleRate, juce::AudioBuffer<float>((int)r->numChannels, (int)r->lengthInSamples) };
+            r->read(&ir.data, 0, (int)r->lengthInSamples, 0, true, true);
+            out.push_back(std::move(ir));
+        }
+        return out;
+    }();
+    return v;
 }
 
 bool isModPart(int part) {
@@ -55,7 +79,21 @@ static juce::String groupName(const char* g) {
     if (s == "lex") return "224 ";
     if (s == "dly") return "Delay ";
     if (s == "cmp") return "Compactor ";
+    if (s == "plate") return "Plate ";
+    if (s == "spring") return "Spring ";
+    if (s == "conv") return "Conv ";
     return {};
+}
+
+// the reverb slot's stepped knobs: how many positions each has (0 = a plain dial)
+static int revSteps(int k) {
+    switch (k) {
+    case K::revtype: return 4;
+    case K::plateprog: return (int)platePrograms().size();
+    case K::sprprog: return (int)springPrograms().size();
+    case K::cnvprog: return (int)cnvPrograms().size();
+    default: return 0;
+    }
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout() {
@@ -68,6 +106,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
         if (k == K::lexprog) {
             StringArray names; for (auto& p : lexPrograms()) names.add("P" + String(p.n) + " " + p.shortName);
             L.add(std::make_unique<AudioParameterChoice>(ParameterID { id, 1 }, name, names, 1));
+        } else if (const int n = revSteps(k)) {
+            StringArray names;
+            if (k == K::revtype) names = { "Lexicon 224", "Plate", "Spring", "Convolution" };
+            else if (k == K::plateprog) for (auto& p : platePrograms()) names.add(p.shortName);
+            else if (k == K::sprprog) for (auto& p : springPrograms()) names.add(p.shortName);
+            else for (auto& p : cnvPrograms()) names.add(p.shortName);
+            L.add(std::make_unique<AudioParameterChoice>(ParameterID { id, 1 }, name, names, (int)jsRound(info.def * (n - 1))));
         } else if (k == K::dlytime) {
             StringArray names; for (auto* n : DLY_NAMES) names.add(n);
             L.add(std::make_unique<AudioParameterChoice>(ParameterID { id, 1 }, name, names, 7));
@@ -87,6 +132,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
             case K::dlyhi: txt = [](float v, int) { return String(dlyHi(v) / 1000, 1) + " kHz"; }; break;
             case K::cmpamt: txt = [](float v, int) { return v <= 0 ? String("Off") : String(juce::roundToInt(v * 100)) + "%"; }; break;
             case K::cmprel: txt = [](float v, int) { return String(juce::roundToInt(cmpRelMs(v))) + " ms"; }; break;
+            case K::platepre: case K::cnvpre: txt = [](float v, int) { return String(juce::roundToInt(250 * v * v)) + " ms"; }; break;
+            case K::platedecay: txt = [](float v, int) { return String(revEx(0.3, 20, v), 2) + " s"; }; break;
+            case K::sprdecay: txt = [](float v, int) { return String(revEx(0.4, 6, v), 2) + " s"; }; break;
+            case K::platedamp: case K::platebw: case K::cnvtone: txt = [](float v, int) { return String(revEx(1000, 20000, v) / 1000, 1) + " kHz"; }; break;
+            case K::sprtone: txt = [](float v, int) { return String(revEx(1500, 6000, v) / 1000, 1) + " kHz"; }; break;
+            case K::platelo: case K::cnvlo: txt = [](float v, int) { return String(juce::roundToInt(revEx(20, 1000, v))) + " Hz"; }; break;
+            case K::sprlo: txt = [](float v, int) { return String(juce::roundToInt(revEx(50, 1000, v))) + " Hz"; }; break;
+            case K::sprdwell: txt = [](float v, int) { return "x" + String(revEx(0.5, 8, v), 1); }; break;
+            case K::platemod: txt = [](float v, int) { return String(juce::roundToInt(200 * v)) + "%"; }; break;
+            case K::cnvwidth: txt = [](float v, int) { return String(juce::roundToInt(150 * v)) + "%"; }; break;
             default: break;
             }
             L.add(std::make_unique<AudioParameterFloat>(ParameterID { id, 1 }, name, NormalisableRange<float>(0, 1), (float)info.def,
@@ -185,6 +240,7 @@ bool TB303Processor::isBusesLayoutSupported(const BusesLayout& layouts) const {
 double TB303Processor::knobValue(int k) const {
     const double raw = knobParams[(size_t)k]->load();
     if (k == K::lexprog) return raw / 8.0;
+    if (const int n = revSteps(k)) return raw / (n - 1);
     if (k == K::dlytime) return raw / 10.0;
     return raw;
 }
@@ -194,6 +250,21 @@ tb303::Parts TB303Processor::allParts() const { Parts p; for (int i = 0; i < P::
 void TB303Processor::prepareToPlay(double sampleRate, int) {
     fs = sampleRate;
     engine = std::make_unique<Engine>(sampleRate, (uint32_t)juce::Random::getSystemRandom().nextInt() | 1u);
+    // the recorded impulse responses for Conv, at this sample rate
+    for (const auto& ir : convIRs()) {
+        std::vector<float> ch[2];
+        for (int c = 0; c < 2; ++c) {
+            const float* src = ir.data.getReadPointer(juce::jmin(c, ir.data.getNumChannels() - 1));
+            const int n = ir.data.getNumSamples();
+            if (std::abs(sampleRate - ir.rate) < 0.5) ch[c].assign(src, src + n);
+            else {
+                const double ratio = ir.rate / sampleRate; const int m = (int)std::ceil(n / ratio);
+                ch[c].assign((size_t)m, 0.0f);
+                juce::LagrangeInterpolator li; li.process(ratio, src, ch[c].data(), m, n, 0);
+            }
+        }
+        engine->v.conv.setIR(ir.id.toStdString(), std::move(ch[0]), std::move(ch[1]));
+    }
     lastKnob.fill(-1.0f);
     std::fill(lastMod.begin(), lastMod.end(), -1.0f);
     partsSeen = -1; tuneSeen = -1; patternSeen = -1; sentParts.fill(-1.0); lastFade = -1;
@@ -456,6 +527,7 @@ void TB303Processor::applySound(const juce::var& x) {
         if (kn) { const auto j = kn->getProperty(knobs()[k].id); if ((j.isDouble() || j.isInt() || j.isInt64()) && (double)j >= 0 && (double)j <= 1) v = j; }
         float plain = (float)v;
         if (k == K::lexprog) plain = (float)jsRound(v * 8);
+        else if (const int n = revSteps(k)) plain = (float)jsRound(v * (n - 1));
         else if (k == K::dlytime) plain = (float)dlyDivIndex(v);
         else if (k == K::dlypp) plain = v >= 0.5 ? 1.0f : 0.0f;
         setParam(apvts, knobs()[k].id, plain);

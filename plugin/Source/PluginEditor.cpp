@@ -160,7 +160,7 @@ void Section::resized() {
     if (headerButton) headerButton->setBounds(head.removeFromRight(50));
     for (auto& it : headerItems) { head.removeFromRight(6); it.c->setBounds(head.removeFromRight(it.w)); }
     auto r = getLocalBounds().reduced(6, 0); r.removeFromTop(bodyTop); r.removeFromBottom(4);
-    for (auto& it : items) it.c->setBounds(r.removeFromLeft(it.w).reduced(2, 0));
+    for (auto& it : items) if (it.c->isVisible()) it.c->setBounds(r.removeFromLeft(it.w).reduced(2, 0)); // hidden items take no room
 }
 
 // ---------- sequencer grid ----------
@@ -884,13 +884,21 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     onBtn(lex, "fx_lex");
     lex.bodyTop = 62;
     addKnobs(lex, { "lexbass", "lexmid", "lexxover", "lextreble", "lexdepth", "lexdiff", "lexpre", "lexme", "lexpitch", "lexmix" }, 74, &lexKnobs);
+    // the reverb slot's other units share the section: only the selected unit's dials show
+    addKnobs(lex, { "platepre", "platedecay", "platedamp", "platebw", "platelo", "platediff", "platemod", "platemix" }, 74, &revKnobs[1]);
+    addKnobs(lex, { "sprdwell", "sprdecay", "sprtension", "sprtone", "sprlo", "sprmix" }, 74, &revKnobs[2]);
+    addKnobs(lex, { "cnvpre", "cnvdecay", "cnvtone", "cnvlo", "cnvwidth", "cnvmix" }, 74, &revKnobs[3]);
+    revKnobs[0] = lexKnobs;
     for (int i = 0; i < 9; ++i) {
-        const auto& P = lexPrograms()[(size_t)i];
-        lexProg[i].setButtonText(juce::String(P.n) + " " + P.shortName);
-        lexProg[i].setTooltip(P.name);
-        lexProg[i].onClick = [setParam, i] { setParam("lexprog", (float)i); };
+        // the program buttons belong to whichever unit is selected (see timerCallback)
+        lexProg[i].onClick = [this, setParam, i] {
+            static const char* ids[4] = { "lexprog", "plateprog", "sprprog", "cnvprog" };
+            setParam(ids[shownRev < 0 ? 0 : shownRev], (float)i);
+        };
         lex.addAndMakeVisible(lexProg[i]);
     }
+    const char* rt[4] = { "224", "Plate", "Spring", "Conv" };
+    for (int i = 3; i >= 0; --i) { revTypeBtn[i].setButtonText(rt[i]); revTypeBtn[i].onClick = [setParam, i] { setParam("revtype", (float)i); }; lex.addHeaderItem(&revTypeBtn[i], 58); }
     lexLcd.setColour(juce::Label::backgroundColourId, ui::ink); lexLcd.setColour(juce::Label::textColourId, ui::glass);
     lexLcd.setFont(ui::lcd(14.0f)); lexLcd.setJustificationType(juce::Justification::centredLeft);
     lex.addHeaderItem(&lexLcd, 260);
@@ -952,6 +960,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
         "VCF. Four coupled ladder stages with a tanh law per transistor pair, 18n bottom cap and 33n above, solved implicitly. Full feedback (k = 17) self-oscillates.\n\n"
         "Envelopes and VCA. C62 decays through R138 + VR6 (200 ms to 2.5 s). Accent shorts VR6 and charges the sweep cap. The OTA VCA gets resonance compensation through C76/R100, and normal notes fade in through R_SOFT.\n\n"
         "Lexicon 224. Its own 20 kHz clock with 12-bit gain-ranging converters, 16-bit words and a shared 32K-word delay memory. The core is Dattorro's published Griesinger-style plate; the hall, chamber, room and chorus variants are estimates.\n\n"
+        "Plate, Spring, Conv. The other reverbs on the same slot: Dattorro's published plate, a dispersive spring tank after Valimaki, Parker and Abel, and partitioned FFT convolution. Conv impulse responses: EMT 140 plate by Greg Hopkins (CC BY); Drum room, Silo, Garage, Musikverein and On a Star from Voxengo (free for any use).\n\n"
         "RAT. LM308 stage with gain-bandwidth and slew limits from its 30p cap, 1N914 diodes to ground, then the 3.3n filter.\n\n"
         "Plug-in. The sequencer follows the host's transport and tempo (no Play button or tempo dial here). Presets, favourites and Sound only are shared by every copy of the plug-in and "
         "use the web app's file format, so files move both ways through File > Import and Export."), juce::dontSendNotification);
@@ -1169,6 +1178,43 @@ void TB303Editor::timerCallback() {
         if (tab == 2) for (auto* c : { &rat, &dly, &cmp, &lex }) for (auto* ch : c->getChildren()) ch->repaint();
         if (tab == 4) circuit.refresh();
         if (tab == 5) board.repaint();
+        // reverb slot: which unit, its program buttons and dials
+        const int rtp = revType(Kn);
+        for (int i = 0; i < 4; ++i) revTypeBtn[i].setToggleState(i == rtp, juce::dontSendNotification);
+        if (rtp != shownRev) {
+            shownRev = rtp;
+            for (int t = 0; t < 4; ++t) for (auto* k : revKnobs[t]) k->setVisible(t == rtp);
+            juce::StringArray names, tips;
+            if (rtp == 0) for (auto& p : lexPrograms()) { names.add(juce::String(p.n) + " " + p.shortName); tips.add(p.name); }
+            else if (rtp == 1) { int n = 1; for (auto& p : platePrograms()) { names.add(juce::String(n++) + " " + p.shortName); tips.add(p.name); } }
+            else if (rtp == 2) { int n = 1; for (auto& p : springPrograms()) { names.add(juce::String(n++) + " " + p.shortName); tips.add(p.name); } }
+            else { int n = 1; for (auto& p : cnvPrograms()) { names.add(juce::String(n++) + " " + juce::String::fromUTF8(p.shortName)); tips.add(juce::String::fromUTF8(p.name)); } }
+            for (int i = 0; i < 9; ++i) { lexProg[i].setVisible(i < names.size()); if (i < names.size()) { lexProg[i].setButtonText(names[i]); lexProg[i].setTooltip(tips[i]); } }
+            nProgs = names.size();
+            lex.title = "Reverb";
+            resized(); lex.resized();
+        }
+        if (rtp != 0) {
+            int sel = 0; juce::String name, note;
+            if (rtp == 1) {
+                const auto pq = plateParams(Kn); sel = pq.prog; const auto& Pp = platePrograms()[(size_t)sel]; name = Pp.name;
+                note << "Jon Dattorro's published plate (JAES 1997): four input diffusers into a figure-eight tank with modulated allpasses. " << Pp.name
+                     << U(": every delay scaled ×") << juce::String(Pp.size) << ". Damping is the high cut inside the tank, Bandwidth the one before it.";
+            } else if (rtp == 2) {
+                const auto sq = springParams(Kn); sel = sq.prog; const auto& Sp = springPrograms()[(size_t)sel]; name = Sp.name;
+                note << U("A dispersive spring model after Välimäki, Parker and Abel (JAES 2010): each spring is a delay loop through ") << SPRING_STAGES
+                     << " stretched allpasses, so every echo smears into the falling drip. Dwell drives the tank, Tension lengthens the chirp.";
+            } else {
+                const auto cq = convParams(Kn); sel = cq.prog; const auto& Cp = cnvPrograms()[(size_t)sel]; name = juce::String::fromUTF8(Cp.name);
+                note << (Cp.ir ? juce::String("Recorded impulse response; Length trims it (full at the top). EMT 140 plates by Greg Hopkins (CC BY), the other spaces from Voxengo (royalty-free). ")
+                               : juce::String("Generated impulse response: seeded noise with the highs dying first. ") + (Cp.gate ? "Decay sets the gate length. " : ""))
+                     << "Partitioned FFT convolution, one 512-sample block late, which is the shortest predelay.";
+                revKnobs[3][1]->setLabel(Cp.ir ? "Length" : Cp.gate ? "Gate" : "Decay");
+            }
+            for (int i = 0; i < 9; ++i) lexProg[i].setToggleState(i == sel, juce::dontSendNotification);
+            lexLcd.setText(" " + juce::String(sel + 1) + " " + name.toUpperCase(), juce::dontSendNotification);
+            lexNote.setText(note, juce::dontSendNotification);
+        } else {
         // Lexicon: program buttons, LCD, chorus names, note
         const auto q = lexParams(Kn); const auto& LP = lexPrograms()[(size_t)q.prog];
         const bool chorus = LP.alg == ALG_CHORUS;
@@ -1184,6 +1230,7 @@ void TB303Editor::timerCallback() {
         if (!chorus && mu.scale < LP.size - 1e-3) note << " Shrunk to " << juce::roundToInt(mu.scale / LP.size * 100) << "% to fit.";
         note << " Program names, control ranges and converter specs follow Lexicon; the algorithms are estimates built on Dattorro's plate.";
         lexNote.setText(note, juce::dontSendNotification);
+        }
         const int pp = Kn[K::dlypp] >= 0.5 ? 0 : 1;
         for (int i = 0; i < 2; ++i) dlyMode[i].setToggleState(i == pp, juce::dontSendNotification);
         // Monitor readouts (knobs.js readouts())
@@ -1323,8 +1370,8 @@ void TB303Editor::resized() {
         lex.setBounds(pg.removeFromTop(140));
         lexNote.setBounds(pg.reduced(4, 2));
         auto pr = juce::Rectangle<int>(8, 28, lex.getWidth() - 16, 26);
-        const int w = pr.getWidth() / 9;
-        for (auto& b : lexProg) { b.setBounds(pr.removeFromLeft(w).reduced(2, 0)); }
+        const int w = pr.getWidth() / juce::jmax(1, nProgs);
+        for (int i = 0; i < nProgs && i < 9; ++i) lexProg[i].setBounds(pr.removeFromLeft(w).reduced(2, 0));
     }
     {
         auto pg = boardPage.getLocalBounds();

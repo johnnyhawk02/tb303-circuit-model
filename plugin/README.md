@@ -4,14 +4,14 @@ The web app's TB-303 model as a VST3 / AU instrument (and a standalone app), bui
 
 ## What's in it
 - **The same engine.** `Source/dsp/TB303Model.h` is a line-by-line C++ port of `../tb303-model.js`: the
-  component-level voice, circuit noise, the ProCo RAT, the delay, the Compactor and the Lexicon 224, plus
+  component-level voice, circuit noise, the ProCo RAT, the delay, the Compactor and the reverb slot (Lexicon 224, Dattorro plate, spring tank, convolution with the irs/ impulse responses embedded), plus
   the knob slew, de-click and step sequencer. `tests/` renders one scenario (pattern, knob moves, every
   effect, a waveform switch) with both and compares them; on Linux they are identical to the last bit.
   CI runs this on every push, so a change to `tb303-model.js` that isn't ported shows up as a failure.
 - **Everything the web app has, laid out the same way.** Voice knobs with the web page's readouts, the
   TM3 filter trim, and *New unit* / *Messed up* / *Undo* for the components. Tabs for the Sequencer, the
   twelve Mods (E24 / E12 steps, Shift for in-between), FX (RAT, Delay with Ping-pong / Mono, Compactor with
-  Amount and Release, the 224 with its program buttons, LCD and memory note), Circuit (every part by block),
+  Amount and Release, the reverb with its 224 / Plate / Spring / Conv switch, program buttons, LCD and note), Circuit (every part by block),
   Board (the stylised PCB), Monitor (de-click, scope, readouts), MIDI (the CC map) and About.
 - **Sequencer.** Banks A-D x slots 1-12, chains (Cmd-click or right-click a slot), Copy / Paste / Clear /
   Refill, patterns up to 64 steps (the grid shows at least 32; clicking past the end extends), Length,

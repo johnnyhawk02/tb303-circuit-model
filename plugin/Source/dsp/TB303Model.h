@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -112,6 +113,10 @@ enum : int {
     lexprog, lexbass, lexmid, lexxover, lextreble, lexdepth, lexdiff, lexpre, lexme, lexpitch, lexmix,
     cmpamt, cmprel,
     dlypp, dlytime, dlyfb, dlylo, dlyhi, dlymix,
+    // the reverb slot's other units (appended, so older parameter orders stay put)
+    revtype, plateprog, platepre, platedecay, platedamp, platebw, platelo, platediff, platemod, platemix,
+    sprprog, sprdwell, sprdecay, sprtension, sprtone, sprlo, sprmix,
+    cnvprog, cnvpre, cnvdecay, cnvtone, cnvlo, cnvwidth, cnvmix,
     COUNT
 };
 }
@@ -129,6 +134,16 @@ inline const std::array<KnobInfo, K::COUNT>& knobs() {
         { "cmpamt", "Amount", 0.5, "cmp" }, { "cmprel", "Release", 0.4, "cmp" },
         { "dlypp", "Ping-pong", 1, "dly" }, { "dlytime", "Time", 0.7, "dly" }, { "dlyfb", "Feedback", 0.35, "dly" },
         { "dlylo", "Low cut", 0.3, "dly" }, { "dlyhi", "High cut", 0.55, "dly" }, { "dlymix", "Return", 0.35, "dly" },
+        { "revtype", "Reverb", 0, "rev" },
+        { "plateprog", "Size", 0.5, "plate" }, { "platepre", "Predelay", 0.2, "plate" }, { "platedecay", "Decay", 0.45, "plate" },
+        { "platedamp", "Damping", 0.6, "plate" }, { "platebw", "Bandwidth", 0.75, "plate" }, { "platelo", "Low cut", 0.35, "plate" },
+        { "platediff", "Diffusion", 0.88, "plate" }, { "platemod", "Mod", 0.5, "plate" }, { "platemix", "Return", 0.5, "plate" },
+        { "sprprog", "Tank", 2.0 / 3, "spring" }, { "sprdwell", "Dwell", 0.4, "spring" }, { "sprdecay", "Decay", 0.5, "spring" },
+        { "sprtension", "Tension", 0.5, "spring" }, { "sprtone", "Tone", 0.5, "spring" }, { "sprlo", "Low cut", 0.4, "spring" },
+        { "sprmix", "Return", 0.5, "spring" },
+        { "cnvprog", "IR", 0, "conv" }, { "cnvpre", "Predelay", 0.2, "conv" }, { "cnvdecay", "Decay", 1, "conv" },
+        { "cnvtone", "Tone", 0.7, "conv" }, { "cnvlo", "Low cut", 0.3, "conv" }, { "cnvwidth", "Width", 2.0 / 3, "conv" },
+        { "cnvmix", "Return", 0.5, "conv" },
     }};
     return t;
 }
@@ -458,6 +473,405 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
+// The other reverbs on the reverb slot (see tb303-model.js): Dattorro's plate, a dispersive spring tank
+// and partitioned FFT convolution. revType: 0 = Lexicon 224, 1 = plate, 2 = spring, 3 = convolution.
+inline int revType(const Knobs& k) { return (int)std::max(0.0, std::min(3.0, jsRound(k[K::revtype] * 3))); }
+inline int revProg(double p, int n) { return (int)std::max(0.0, std::min((double)(n - 1), jsRound(p * (n - 1)))); }
+inline double revEx(double lo, double hi, double p) { return lo * std::pow(hi / lo, p); }
+inline double onePoleA(double fc, double fs) { return std::exp(-2 * PI * std::min(fc, 0.45 * fs) / fs); }
+inline double biqRun(Biquad* f, int n, double x) {
+    for (int i = 0; i < n; ++i) {
+        Biquad& s = f[i];
+        const double y = s.b0 * x + s.b1 * s.x1 + s.b2 * s.x2 - s.a1 * s.y1 - s.a2 * s.y2;
+        s.x2 = s.x1; s.x1 = x; s.y2 = s.y1; s.y1 = y; x = y;
+    }
+    return x;
+}
+inline void flushD(double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }
+
+struct RevProgram { const char* name; const char* shortName; };
+
+// ---- Plate (Dattorro 1997) ----
+struct PlateProgram { const char* name; const char* shortName; double size; };
+inline const std::array<PlateProgram, 5>& platePrograms() {
+    static const std::array<PlateProgram, 5> t = {{
+        { "Tiny plate", "Tiny", 0.5 }, { "Small plate", "Small", 0.72 }, { "Medium plate (Dattorro)", "Medium", 1 },
+        { "Large plate", "Large", 1.3 }, { "Huge plate", "Huge", 1.65 },
+    }};
+    return t;
+}
+static const int PLATE_IN[4] = { 142, 107, 379, 277 };
+struct PlateParams { int prog; double pre, rt, damp, bw, lo, diff, mod, wet; };
+inline PlateParams plateParams(const Knobs& k) {
+    PlateParams q;
+    q.prog = revProg(k[K::plateprog], 5);
+    q.pre = 250 * k[K::platepre] * k[K::platepre]; q.rt = revEx(0.3, 20, k[K::platedecay]);
+    q.damp = revEx(1000, 20000, k[K::platedamp]); q.bw = revEx(1000, 20000, k[K::platebw]); q.lo = revEx(20, 1000, k[K::platelo]);
+    q.diff = k[K::platediff]; q.mod = 2 * k[K::platemod]; q.wet = 2 * audioTaper(k[K::platemix]);
+    return q;
+}
+
+// a delay line in a preallocated buffer: size = the ring length in use, w = last write
+struct RevLine {
+    std::vector<double> b; int n = 0, size = 1, w = 0;
+    void alloc(int cap) { b.assign((size_t)cap, 0.0); }
+    void use(int n_, int size_) { n = n_; size = size_; }
+    void clear() { std::fill(b.begin(), b.begin() + size, 0.0); w = 0; }
+    double rd(int d) const { int i = w - d; if (i < 0) i += size; return b[(size_t)i]; }
+    void wr(double x) { w = w + 1 == size ? 0 : w + 1; b[(size_t)w] = x; }
+    double ap(double g, double x) { const double vd = rd(n); double v = x + g * vd; if (v < 1e-30 && v > -1e-30) v = 0; wr(v); return vd - g * v; }
+};
+
+class DattorroPlate {
+public:
+    explicit DattorroPlate(double fs) : fs(fs) {
+        // buffers for the largest program, so a program change never allocates
+        const double scMax = fs / 29761 * 1.65;
+        auto Lm = [&](int n) { return std::max(2, (int)jsRound(n * scMax)) + 1; };
+        pre.alloc((int)std::ceil(0.25 * fs) + 3);
+        for (int i = 0; i < 4; ++i) ind[i].alloc(Lm(PLATE_IN[i]) + 1);
+        for (int i = 0; i < 8; ++i) tk[i].alloc(Lm(LEX_TANK[i]) + ((i & 3) == 0 ? (int)std::ceil(4 * 16 * scMax) + 4 : 0) + 1);
+    }
+    double L = 0, R = 0, wet = 0;
+    PlateParams q {};
+    void derive(const Knobs& k) {
+        q = plateParams(k);
+        if (q.prog != prog) layout(q.prog);
+        wet = q.wet;
+        preD = (int)std::max(0.0, jsRound(q.pre * fs / 1000));
+        bwA = onePoleA(q.bw, fs); dmA = onePoleA(q.damp, fs); hpA = std::exp(-2 * PI * q.lo / fs);
+        g1 = 0.85 * q.diff; g2 = 0.708 * q.diff;
+        const double th = (half[0] + half[1]) / 2.0 / fs;
+        decay = std::min(0.98, std::pow(10.0, -1.5 * th / q.rt));
+        exc = q.mod * 16 * sc;
+    }
+    void reset() {
+        if (prog < 0) return;
+        pre.clear(); for (auto& l : ind) l.clear(); for (auto& l : tk) l.clear();
+        bwS = 0; hp = 0; hpIn = 0; dm[0] = dm[1] = 0; fb[0] = fb[1] = 0; ph = 0; L = R = 0;
+    }
+    void run(double x) {
+        hp = hpA * (hp + x - hpIn); hpIn = x;
+        pre.wr(hp);
+        double u = pre.rd(preD);
+        bwS = u + bwA * (bwS - u); u = bwS;
+        u = ind[0].ap(g1, u); u = ind[1].ap(g1, u); u = ind[2].ap(g2, u); u = ind[3].ap(g2, u);
+        ph += 0.9 / fs; if (ph >= 1) ph -= 1;
+        const double lfo[2] = { std::sin(2 * PI * ph), std::cos(2 * PI * ph) };
+        const double dec = decay, f0 = fb[1], f1 = fb[0];
+        for (int s = 0; s < 2; s++) {
+            const int o = s * 4;
+            double a = u + dec * (s ? f1 : f0);
+            RevLine& m = tk[o];
+            const double dl = len[o] + exc * (1 + lfo[s]); const int di = (int)std::floor(dl); const double fr = dl - di;
+            const double vd = m.rd(di) * (1 - fr) + m.rd(di + 1) * fr, w = a - 0.7 * vd;
+            m.wr(w); a = vd + 0.7 * w;
+            tk[o + 1].wr(a);
+            double v = tk[o + 1].rd(len[o + 1]);
+            double d = v + dmA * (dm[s] - v); if (d < 1e-30 && d > -1e-30) d = 0; dm[s] = d; v = d * dec;
+            v = tk[o + 2].ap(0.5, v);
+            tk[o + 3].wr(v);
+            fb[s] = tk[o + 3].rd(len[o + 3]);
+        }
+        double yl = 0, yr = 0;
+        for (int i = 0; i < 7; i++) yl += tapsL[i][2] * tk[tapsL[i][0]].rd(tapsL[i][1]);
+        for (int i = 0; i < 7; i++) yr += tapsR[i][2] * tk[tapsR[i][0]].rd(tapsR[i][1]);
+        L = 0.38 * yl; R = 0.38 * yr;
+    }
+    void flush() { flushD(bwS); flushD(hp); flushD(hpIn); flushD(dm[0]); flushD(dm[1]); flushD(fb[0]); flushD(fb[1]); flushD(L); flushD(R); }
+private:
+    void layout(int p) {
+        prog = p; sc = fs / 29761 * platePrograms()[(size_t)p].size;
+        auto Ln = [&](int n) { return std::max(2, (int)jsRound(n * sc)); };
+        pre.use(0, (int)std::ceil(0.25 * fs) + 3);
+        for (int i = 0; i < 4; ++i) { const int n = Ln(PLATE_IN[i]); ind[i].use(n, n + 1); }
+        for (int i = 0; i < 8; ++i) { len[i] = Ln(LEX_TANK[i]); const int n = len[i] + ((i & 3) == 0 ? (int)std::ceil(4 * 16 * sc) + 4 : 0); tk[i].use(n, n + 1); }
+        for (int o = 0; o < 2; ++o) half[o] = len[o * 4] + len[o * 4 + 1] + len[o * 4 + 2] + len[o * 4 + 3];
+        for (int i = 0; i < 7; ++i) {
+            tapsL[i][0] = LEX_TAPS_L[i][0]; tapsL[i][1] = std::max(1, (int)jsRound(LEX_TAPS_L[i][1] * sc)); tapsL[i][2] = LEX_TAPS_L[i][2];
+            tapsR[i][0] = LEX_TAPS_R[i][0]; tapsR[i][1] = std::max(1, (int)jsRound(LEX_TAPS_R[i][1] * sc)); tapsR[i][2] = LEX_TAPS_R[i][2];
+        }
+        reset();
+    }
+    double fs; int prog = -1; double sc = 1;
+    RevLine pre, ind[4], tk[8]; int len[8] {}; int half[2] {}; int tapsL[7][3] {}, tapsR[7][3] {};
+    int preD = 0; double bwA = 0, dmA = 0, hpA = 0, g1 = 0, g2 = 0, decay = 0, exc = 0;
+    double bwS = 0, hp = 0, hpIn = 0, dm[2] {}, fb[2] {}, ph = 0;
+};
+
+// ---- Spring (after Välimäki, Parker and Abel 2010) ----
+struct SpringProgram { const char* name; const char* shortName; int n; double ms[3]; };
+inline const std::array<SpringProgram, 4>& springPrograms() {
+    static const std::array<SpringProgram, 4> t = {{
+        { "One spring", "1 spring", 1, { 36, 0, 0 } }, { "Two springs", "2 springs", 2, { 31.5, 37.3, 0 } },
+        { "Three springs", "3 springs", 3, { 33.1, 37.7, 41.9 } }, { "Long tank", "Long tank", 3, { 44.3, 51.1, 58.7 } },
+    }};
+    return t;
+}
+constexpr int SPRING_STAGES = 48;
+struct SpringParams { int prog; double dwell, rt, a, tone, lo, wet; };
+inline SpringParams springParams(const Knobs& k) {
+    SpringParams q;
+    q.prog = revProg(k[K::sprprog], 4);
+    q.dwell = revEx(0.5, 8, k[K::sprdwell]); q.rt = revEx(0.4, 6, k[K::sprdecay]); q.a = 0.45 + 0.33 * k[K::sprtension];
+    q.tone = revEx(1500, 6000, k[K::sprtone]); q.lo = revEx(50, 1000, k[K::sprlo]); q.wet = 2 * audioTaper(k[K::sprmix]);
+    return q;
+}
+class SpringReverb {
+public:
+    explicit SpringReverb(double fs) : fs(fs) {
+        K_ = std::max(1, (int)jsRound(fs / (2 * 4300)));
+        const int dMax = (int)jsRound(58.7 * 0.001 * fs);
+        for (auto& s : sp) { s.buf.assign((size_t)dMax + 2, 0.0); s.xh.assign((size_t)(SPRING_STAGES * K_), 0.0); s.yh.assign((size_t)(SPRING_STAGES * K_), 0.0); }
+    }
+    double L = 0, R = 0, wet = 0;
+    SpringParams q {};
+    void derive(const Knobs& k) {
+        q = springParams(k);
+        if (q.prog != prog) layout(q.prog);
+        wet = q.wet;
+        dw = q.dwell; dwN = 1 / std::sqrt(q.dwell);
+        a = q.a; lpA = onePoleA(q.tone, fs); hpA = std::exp(-2 * PI * q.lo / fs);
+        const double gd = SPRING_STAGES * K_ * 0.5 * ((1 - q.a) / (1 + q.a) + (1 + q.a) / (1 - q.a));
+        for (int i = 0; i < n; ++i) g[i] = std::pow(10.0, -3 * (sp[i].d + gd) / fs / q.rt);
+    }
+    void reset() {
+        if (prog < 0) return;
+        for (auto* f : { &olL[0], &olL[1], &olR[0], &olR[1] }) f->x1 = f->x2 = f->y1 = f->y2 = 0;
+        for (int i = 0; i < n; ++i) {
+            auto& s = sp[i];
+            std::fill(s.buf.begin(), s.buf.begin() + s.d + 1, 0.0); std::fill(s.xh.begin(), s.xh.end(), 0.0); std::fill(s.yh.begin(), s.yh.end(), 0.0);
+            s.w = 0; s.lp1 = s.lp2 = s.fb = 0;
+        }
+        j = 0; hp = 0; hpIn = 0; dc[0] = dc[1] = dc[2] = dc[3] = 0; L = R = 0;
+    }
+    void run(double x) {
+        hp = hpA * (hp + x - hpIn); hpIn = x;
+        const double u = std::tanh(hp * dw) * dwN;
+        double l = 0, r = 0;
+        for (int i = 0; i < n; i++) {
+            auto& s = sp[i]; double* xh = s.xh.data(); double* yh = s.yh.data();
+            double v = u + g[i] * s.fb;
+            for (int m = 0, o = j; m < SPRING_STAGES; m++, o += K_) { double y = a * v + xh[o] - a * yh[o]; if (y < 1e-30 && y > -1e-30) y = 0; xh[o] = v; yh[o] = y; v = y; }
+            s.lp1 = v + lpA * (s.lp1 - v); s.lp2 = s.lp1 + lpA * (s.lp2 - s.lp1);
+            const int len = s.d + 1;
+            s.w = s.w + 1 == len ? 0 : s.w + 1; s.buf[(size_t)s.w] = s.lp2;
+            int ri = s.w - s.d; if (ri < 0) ri += len;
+            s.fb = s.buf[(size_t)ri];
+            if (n == 1) { l += s.fb; r += s.fb; } else if (i == 2) { l += 0.5 * s.fb; r += 0.5 * s.fb; } else if (i & 1) r += s.fb; else l += s.fb;
+        }
+        j = j + 1 == K_ ? 0 : j + 1;
+        dc[0] = 0.9995 * (dc[0] + l - dc[1]); dc[1] = l;
+        dc[2] = 0.9995 * (dc[2] + r - dc[3]); dc[3] = r;
+        L = 0.75 * biqRun(olL, 2, dc[0]); R = 0.75 * biqRun(olR, 2, dc[2]);
+    }
+    void flush() {
+        flushD(hp); flushD(hpIn); for (auto& d : dc) flushD(d); flushD(L); flushD(R);
+        for (auto& s : sp) { flushD(s.lp1); flushD(s.lp2); flushD(s.fb); }
+        for (auto* f : { &olL[0], &olL[1], &olR[0], &olR[1] }) { flushD(f->x1); flushD(f->x2); flushD(f->y1); flushD(f->y2); }
+    }
+private:
+    struct Spring { int d = 1; std::vector<double> buf, xh, yh; int w = 0; double lp1 = 0, lp2 = 0, fb = 0; };
+    void layout(int p) {
+        prog = p; const auto& P_ = springPrograms()[(size_t)p]; n = P_.n;
+        for (int i = 0; i < n; ++i) sp[i].d = (int)jsRound(P_.ms[i] * 0.001 * fs);
+        const double fc = 0.85 * fs / (2 * K_);
+        olL[0] = lexLowpass(fc, 0.5412, fs); olL[1] = lexLowpass(fc, 1.3066, fs); olR[0] = lexLowpass(fc, 0.5412, fs); olR[1] = lexLowpass(fc, 1.3066, fs);
+        reset();
+    }
+    double fs; int K_ = 1, prog = -1, n = 0, j = 0;
+    Spring sp[3]; double g[3] {};
+    Biquad olL[2] {}, olR[2] {};
+    double dw = 1, dwN = 1, a = 0.6, lpA = 0, hpA = 0, hp = 0, hpIn = 0, dc[4] {};
+};
+
+// ---- Convolution ----
+constexpr int CNV_B = 512, CNV_N = 1024, CNV_BUILD = 8;
+constexpr double CNV_SECS = 3, CNV_IR_GAIN = 0.17752 * 1.15;
+struct CnvProgram { const char* name; const char* shortName; const char* ir; double build, hf; bool gate; std::vector<std::array<double, 3>> er; };
+inline const std::array<CnvProgram, 9>& cnvPrograms() {
+    static const std::array<CnvProgram, 9> t = {{
+        { "EMT 140 plate", "Plate 140", "plate140", 0, 0, false, {} },
+        { "EMT 140 plate, bright", "Plate 140 Br", "plate140b", 0, 0, false, {} },
+        { "Drum room", "Drum room", "drumroom", 0, 0, false, {} },
+        { "Grain silo", "Silo", "silo", 0, 0, false, {} },
+        { "Concrete garage", "Garage", "garage", 0, 0, false, {} },
+        { "Musikverein, Vienna", "Musikverein", "musikverein", 0, 0, false, {} },
+        { "On a Star", "On a Star", "star", 0, 0, false, {} },
+        { "Church (generated)", "Church", nullptr, 0.08, 0.33, false, { { { 29, 0.22, 0.4 } }, { { 47, -0.2, -0.6 } }, { { 71, 0.16, 0.7 } }, { { 97, -0.12, -0.3 } } } },
+        { "Gated, 1980s (generated)", "Gated", nullptr, 0.003, 0.75, true, {} },
+    }};
+    return t;
+}
+struct ConvParams { int prog; double pre; bool full; double rt, tone, lo, width, wet; };
+inline ConvParams convParams(const Knobs& k) {
+    ConvParams q;
+    q.prog = revProg(k[K::cnvprog], 9);
+    const auto& P_ = cnvPrograms()[(size_t)q.prog];
+    q.pre = 250 * k[K::cnvpre] * k[K::cnvpre]; q.full = P_.ir && k[K::cnvdecay] >= 0.99;
+    q.rt = P_.ir ? revEx(0.2, 3, k[K::cnvdecay]) : P_.gate ? revEx(0.12, 1, k[K::cnvdecay]) : revEx(0.2, 4, k[K::cnvdecay]);
+    q.tone = revEx(1000, 20000, k[K::cnvtone]); q.lo = revEx(20, 1000, k[K::cnvlo]); q.width = 1.5 * k[K::cnvwidth]; q.wet = 2 * audioTaper(k[K::cnvmix]);
+    return q;
+}
+inline void cnvFFT(double* re, double* im, bool inv, const double* cs, const double* sn) {
+    const int N = CNV_N;
+    for (int i = 1, j = 0; i < N; i++) {
+        int bit = N >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit;
+        if (i < j) { std::swap(re[i], re[j]); std::swap(im[i], im[j]); }
+    }
+    for (int len = 2; len <= N; len <<= 1) {
+        const int h = len >> 1, st = N / len;
+        for (int i = 0; i < N; i += len) for (int k = 0; k < h; k++) {
+            const double wr = cs[k * st], wi = inv ? sn[k * st] : -sn[k * st];
+            const int a = i + k, b = a + h;
+            const double xr = re[b] * wr - im[b] * wi, xi = re[b] * wi + im[b] * wr;
+            re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+        }
+    }
+}
+class ConvReverb {
+public:
+    explicit ConvReverb(double fs) : fs(fs) {
+        P_ = (int)std::ceil(CNV_SECS * fs / CNV_B);
+        cs.resize(CNV_N / 2); sn.resize(CNV_N / 2);
+        for (int i = 0; i < CNV_N / 2; i++) { cs[(size_t)i] = std::cos(2 * PI * i / CNV_N); sn[(size_t)i] = std::sin(2 * PI * i / CNV_N); }
+        const size_t S = (size_t)P_ * CNV_N;
+        hr.assign(S, 0.f); hi.assign(S, 0.f); xr.assign(S, 0.f); xi.assign(S, 0.f);
+        pg.assign((size_t)P_, 0.0);
+        pre.assign((size_t)std::ceil(0.25 * fs) + 2, 0.0);
+        reset();
+    }
+    double L = 0, R = 0, wet = 0;
+    ConvParams q {};
+    // a recorded impulse response at the host rate; call before audio runs (it is not locked)
+    void setIR(const std::string& id, std::vector<float> l, std::vector<float> r) {
+        auto& e = ext[id]; e.L = std::move(l); e.R = r.empty() ? e.L : std::move(r);
+        if (prog >= 0 && cnvPrograms()[(size_t)prog].ir && id == cnvPrograms()[(size_t)prog].ir) dirty = true;
+    }
+    void derive(const Knobs& k) {
+        q = convParams(k); wet = q.wet;
+        if (q.prog != prog) { prog = q.prog; dirty = true; }
+        preD = (int)std::max(0.0, jsRound(q.pre * fs / 1000 - CNV_B));
+        lpA = onePoleA(q.tone, fs); hpA = std::exp(-2 * PI * q.lo / fs); width = q.width;
+        const auto& Pr = cnvPrograms()[(size_t)q.prog];
+        const int m = Pr.ir ? (q.full ? 1 : 2) : Pr.gate ? 3 : 0; // 0 exp, 1 full, 2 length, 3 gate
+        if (q.rt != rt || m != mode) {
+            rt = q.rt; mode = m; int nn = 0;
+            for (int p = 0; p < P_; p++) {
+                const double t = (p + 0.5) * CNV_B / fs;
+                const double g = m == 1 ? 1 : m == 0 ? std::exp(-6.9078 * t / q.rt)
+                    : m == 3 ? (t < q.rt * 0.8 ? 1 : std::max(0.0, 1 - (t - q.rt * 0.8) / (q.rt * 0.2)))
+                    : (t < q.rt * 0.7 ? 1 : std::max(0.0, 1 - (t - q.rt * 0.7) / (q.rt * 0.3)));
+                pg[(size_t)p] = g; if (g > 1e-4) nn = p + 1;
+            }
+            nG = nn;
+        }
+    }
+    void reset() {
+        std::fill(xr.begin(), xr.end(), 0.f); std::fill(xi.begin(), xi.end(), 0.f);
+        std::fill(std::begin(ar), std::end(ar), 0.0); std::fill(std::begin(ai), std::end(ai), 0.0); std::fill(std::begin(inb), std::end(inb), 0.0);
+        std::fill(std::begin(outL), std::end(outL), 0.0); std::fill(std::begin(outR), std::end(outR), 0.0); std::fill(pre.begin(), pre.end(), 0.0);
+        i_ = 0; slot = 0; next = 1; nAct = 0; pw = 0; hp = 0; hpIn = 0; lpL = lpR = 0; L = R = 0;
+    }
+    void run(double x) {
+        if (dirty) { startIR(); reset(); }
+        const int B = CNV_B, N = CNV_N;
+        hp = hpA * (hp + x - hpIn); hpIn = x;
+        const int pl = (int)pre.size(); pw = pw + 1 == pl ? 0 : pw + 1; pre[(size_t)pw] = hp;
+        int ri = pw - preD; if (ri < 0) ri += pl;
+        const int i = i_;
+        inb[B + i] = pre[(size_t)ri];
+        const int target = 1 + (int)std::floor((double)(i + 1) * (nAct - 1) / B);
+        while (next < target) { mac(next, slot + 1 - next); next++; }
+        const double yl = outL[i], yr = outR[i];
+        if (++i_ == B) {
+            i_ = 0;
+            for (int n = 0; n < N; n++) { fr[n] = inb[n]; fi[n] = 0; }
+            for (int n = 0; n < B; n++) inb[n] = inb[B + n];
+            cnvFFT(fr, fi, false, cs.data(), sn.data());
+            slot = slot + 1 == P_ ? 0 : slot + 1;
+            for (int n = 0; n < N; n++) { xr[(size_t)slot * N + n] = (float)fr[n]; xi[(size_t)slot * N + n] = (float)fi[n]; }
+            if (nAct > 0) mac(0, slot);
+            for (int n = 0; n < N; n++) { fr[n] = ar[n]; fi[n] = ai[n]; ar[n] = 0; ai[n] = 0; }
+            cnvFFT(fr, fi, true, cs.data(), sn.data());
+            for (int n = 0; n < B; n++) { outL[n] = fr[B + n] / N; outR[n] = fi[B + n] / N; }
+            if (built < nIR) buildSome();
+            nAct = std::min(built, nG); next = 1;
+        }
+        lpL = yl + lpA * (lpL - yl); lpR = yr + lpA * (lpR - yr);
+        const double m = 0.5 * (lpL + lpR), sd = 0.5 * (lpL - lpR) * width;
+        L = m + sd; R = m - sd;
+    }
+    void flush() { flushD(hp); flushD(hpIn); flushD(lpL); flushD(lpR); flushD(L); flushD(R); }
+private:
+    struct Ext { std::vector<float> L, R; };
+    void startIR() {
+        dirty = false; built = 0;
+        seed[0] = 0x9e3779b9u + (uint32_t)prog * 7919u; seed[1] = 0x85ebca6bu + (uint32_t)prog * 104729u;
+        gs[0][0] = gs[0][1] = gs[1][0] = gs[1][1] = 0;
+        const auto& Pr = cnvPrograms()[(size_t)prog];
+        src = nullptr;
+        if (Pr.ir) { auto it = ext.find(Pr.ir); if (it != ext.end()) src = &it->second; }
+        nIR = Pr.ir ? (src ? std::min(P_, (int)std::ceil((double)src->L.size() / CNV_B)) : 0) : P_;
+        if (Pr.ir) return;
+        g0 = std::sqrt(13.8 * 3 / (fs * 1.5));
+        aLo = onePoleA(400, fs); aHi = onePoleA(3500, fs);
+        hfK = 3.4539 * (1 / Pr.hf - 1);
+        erT.clear();
+        for (auto& e : Pr.er) erT.push_back({ jsRound(e[0] * 0.001 * fs), e[1] * 18 * g0, e[2] });
+    }
+    double rnd(int c) {
+        uint32_t t = seed[c] = seed[c] + 0x6D2B79F5u;
+        t = (t ^ (t >> 15)) * (t | 1u);
+        t ^= t + (t ^ (t >> 7)) * (t | 61u);
+        return (double)(t ^ (t >> 14)) / 4294967296.0 * 2 - 1;
+    }
+    void buildSome() {
+        const int N = CNV_N, B = CNV_B; const auto& Pr = cnvPrograms()[(size_t)prog];
+        for (int c = 0; c < CNV_BUILD && built < nIR; c++) {
+            const int p = built;
+            if (src) {
+                const auto& sL = src->L; const auto& sR = src->R; const int o = p * B, m = std::min(B, (int)sL.size() - o);
+                for (int n = 0; n < m; n++) { fr[n] = sL[(size_t)(o + n)] * CNV_IR_GAIN; fi[n] = (o + n < (int)sR.size() ? (double)sR[(size_t)(o + n)] : 0.0) * CNV_IR_GAIN; }
+                for (int n = m; n < N; n++) { fr[n] = 0; fi[n] = 0; }
+            } else {
+                for (int n = 0; n < B; n++) {
+                    const int s = p * B + n; const double t = s / fs;
+                    const double env = g0 * (1 - std::exp(-t / Pr.build)), eh = std::exp(-hfK * t);
+                    for (int ch = 0; ch < 2; ch++) {
+                        const double u = rnd(ch); double* g = gs[ch];
+                        g[0] = u + aLo * (g[0] - u); g[1] = u + aHi * (g[1] - u);
+                        double h = env * (g[1] + eh * (u - g[1]));
+                        for (auto& e : erT) if (e[0] == s) h += e[1] * (ch ? 1 + e[2] : 1 - e[2]);
+                        if (ch) fi[n] = h; else fr[n] = h;
+                    }
+                }
+                for (int n = B; n < N; n++) { fr[n] = 0; fi[n] = 0; }
+            }
+            cnvFFT(fr, fi, false, cs.data(), sn.data());
+            for (int n = 0; n < N; n++) { hr[(size_t)p * N + n] = (float)fr[n]; hi[(size_t)p * N + n] = (float)fi[n]; }
+            built++;
+        }
+    }
+    void mac(int p, int s) {
+        const int N = CNV_N; const double g = pg[(size_t)p];
+        if (s < 0) s += P_;
+        const float* X = xr.data() + (size_t)s * N; const float* Y = xi.data() + (size_t)s * N;
+        const float* H = hr.data() + (size_t)p * N; const float* G = hi.data() + (size_t)p * N;
+        for (int k = 0; k < N; k++) {
+            const double a = X[k], b = Y[k], c = H[k], d = G[k];
+            ar[k] += g * (a * c - b * d); ai[k] += g * (a * d + b * c);
+        }
+    }
+    double fs; int P_ = 1, prog = -1, mode = -1; bool dirty = false; double rt = -1;
+    std::map<std::string, Ext> ext; const Ext* src = nullptr; int nIR = 0, built = 0, nG = 0, nAct = 0, next = 1, slot = 0, i_ = 0, pw = 0, preD = 0;
+    std::vector<double> cs, sn, pg, pre; std::vector<float> hr, hi, xr, xi;
+    double ar[CNV_N] {}, ai[CNV_N] {}, fr[CNV_N] {}, fi[CNV_N] {}, inb[CNV_N] {}, outL[CNV_B] {}, outR[CNV_B] {};
+    uint32_t seed[2] {}; double gs[2][2] {}; double g0 = 0, aLo = 0, aHi = 0, hfK = 0; std::vector<std::array<double, 3>> erT;
+    double lpA = 0, hpA = 0, width = 1, hp = 0, hpIn = 0, lpL = 0, lpR = 0;
+};
+
+// ---------------------------------------------------------------------------------------------------
 // Simple digital delay, ping-pong by default.
 static const double DLY_DIVS[11] = { 1.0 / 8, 1.0 / 6, 1.0 / 4, 1.0 / 3, 3.0 / 8, 1.0 / 2, 2.0 / 3, 3.0 / 4, 1, 3.0 / 2, 2 };
 static const char* const DLY_NAMES[11] = { "1/32", "1/16T", "1/16", "1/8T", "1/16D", "1/8", "1/4T", "1/8D", "1/4", "1/4D", "1/2" };
@@ -551,13 +965,16 @@ constexpr int RAT_OS = 2; // the RAT runs at 2x the voice rate (4x the host rate
 class Voice {
 public:
     Voice(double sampleRate, uint32_t noiseSeed = 0x9e3779b9u)
-        : fsOut(sampleRate), fs(sampleRate * 2), h(1 / (sampleRate * 2)), lex(sampleRate), dly(sampleRate), cmp(sampleRate) {
+        : fsOut(sampleRate), fs(sampleRate * 2), h(1 / (sampleRate * 2)), lex(sampleRate), plate(sampleRate), spring(sampleRate), conv(sampleRate), dly(sampleRate), cmp(sampleRate) {
         for (int i = 0; i < P::COUNT; ++i) c[i] = parts()[i].v;
         // the JS voice's own constructor defaults; the app (and the plugin) then sends the panel values
         const double kd[K::COUNT] = { 0.5, 0.35, 0.7, 0.6, 0.3, 0.7, 0.8, 0.5, 0.4, 0.5,
             0.125, 0.3, 0.27, 0.443, 0.834, 0.5, 0.55, 0.2, 0.5, 0.2, 0.5,
             0.5, 0.4,
-            1, 0.7, 0.35, 0.3, 0.55, 0.35 };
+            1, 0.7, 0.35, 0.3, 0.55, 0.35,
+            0, 0.5, 0.2, 0.45, 0.6, 0.75, 0.35, 0.88, 0.5, 0.5,
+            2.0 / 3, 0.4, 0.5, 0.5, 0.5, 0.4, 0.5,
+            0, 0.2, 1, 0.7, 0.3, 2.0 / 3, 0.5 };
         for (int i = 0; i < K::COUNT; ++i) knobs[i] = kd[i];
         rng = noiseSeed;
         cvTarget = dacVoltage(33, c[P::VREF], c[P::R_DAC], c[P::R2_DAC]);
@@ -572,7 +989,17 @@ public:
     bool fxRat = false, fxLex = false, fxDly = false;
     bool square = false;
     double bpm = 128;
-    Lexicon224 lex; DigitalDelay dly; Compactor cmp;
+    Lexicon224 lex; DattorroPlate plate; SpringReverb spring; ConvReverb conv; DigitalDelay dly; Compactor cmp;
+    int revT = 0;
+    // the unit on the reverb slot (fxLex switches it on)
+    void revRun(double y, double& wl, double& wr) {
+        switch (revT) {
+        case 1: plate.run(y); wl += plate.wet * plate.L; wr += plate.wet * plate.R; break;
+        case 2: spring.run(y); wl += spring.wet * spring.L; wr += spring.wet * spring.R; break;
+        case 3: conv.run(y); wl += conv.wet * conv.L; wr += conv.wet * conv.R; break;
+        default: lex.run(y); wl += lex.wet * lex.L; wr += lex.wet * lex.R; break;
+        }
+    }
     bool gate = false;
 
     void setComponent(int i, double v) { c[i] = v; derive(); }
@@ -650,7 +1077,7 @@ public:
     // the effects after the dry signal y
     void fxOut(double y, float* out, float* outR, int n) {
         double wl = 0, wr = 0;
-        if (fxLex) { lex.run(y); wl += lex.wet * lex.L; wr += lex.wet * lex.R; }
+        if (fxLex) revRun(y, wl, wr);
         if (fxDly) { dly.run(y); wl += dly.l; wr += dly.r; }
         const double g = cmp.run(y, wl, wr);
         out[n] = (float)(0.98 * std::tanh((y + cmp.l * g) / 0.98));
@@ -664,7 +1091,7 @@ public:
         f(sqHp); f(sqLp); f(rt.hin); f(rt.xin); f(rt.h1); f(rt.h2); f(rt.x1); f(rt.fb); f(rt.y); f(rt.hc); f(rt.xc); f(rt.v); f(rt.f); f(rt.xp); f(rt.dco); f(rt.dci);
         for (auto& s : decim) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
         for (auto& s : ratLP) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
-        if (fxLex) lex.flush(); dly.flush(); cmp.flush();
+        if (fxLex) lex.flush(); plate.flush(); spring.flush(); conv.flush(); dly.flush(); cmp.flush();
     }
 
     // out is mono, or the left channel when outR is given
@@ -728,7 +1155,9 @@ private:
         ratIs = 1e-3 / std::exp(c[P::RAT_VF] / ratN);
         ratFltA = e((c[P::RAT_RF] + 100e3 * knobs[K::filter]) * c[P::RAT_CFLT]);
         ratLevel = audioTaper(knobs[K::ratvol]) * 6;
-        lex.derive(c, knobs);
+        lex.derive(c, knobs); plate.derive(knobs); spring.derive(knobs); conv.derive(knobs);
+        const int t = revType(knobs);
+        if (t != revT) { revT = t; if (t == 1) plate.reset(); else if (t == 2) spring.reset(); else if (t == 3) conv.reset(); }
     }
 
     double rat(double x) {
@@ -917,7 +1346,7 @@ private:
 class ParamSlew {
 public:
     ParamSlew(Voice& v, double fs, double tau = 0.015) : v(v), fs(fs), tau(tau) {}
-    static bool instant(bool isKnob, int i) { return isKnob ? i == K::lexprog : i >= P::LEX_FS; }
+    static bool instant(bool isKnob, int i) { return isKnob ? (i == K::lexprog || i == K::revtype || i == K::plateprog || i == K::sprprog || i == K::cnvprog) : i >= P::LEX_FS; }
     void set(bool isKnob, int i, double value) {
         if (instant(isKnob, i) || !std::isfinite(value)) {
             erase(isKnob, i);
