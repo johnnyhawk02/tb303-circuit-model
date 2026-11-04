@@ -34,7 +34,7 @@
 .seq .hd.cur { background: var(--hi); color: var(--glass); }
 .seq .gap { border-bottom: 1.5px solid var(--rulec); }
 .seq button { cursor: pointer; }
-.seq button[data-t] { touch-action: none; }
+.seq button { touch-action: none; } /* ghost steps too, or a touch drag into them pans instead of painting */
 .seq button:focus-visible { outline: 2px solid var(--fg); outline-offset: -3px; }
 .seq .cell.cur:not(.on) { background: var(--tint2); }
 .seq .cell.on { background: var(--on); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .4); }

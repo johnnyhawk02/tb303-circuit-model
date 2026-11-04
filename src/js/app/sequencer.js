@@ -66,29 +66,85 @@ function extendTo(len) {
   const P = state.pattern;
   while (P.length < Math.min(64, len)) P.push(tail.shift() || restStep(P[P.length - 1].code));
 }
+// redraw one column's cells in place (cheap), instead of rebuilding the whole roll on every pointer move
+function syncCol(i) {
+  const s = state.pattern[i]; if (!s) return;
+  const { o, k } = splitCode(s.code);
+  for (const el of seqCols[i] || []) {
+    const t = el.dataset.t; if (!t) continue;
+    const v = +el.dataset.v, on = t === 'k' ? k === v && s.gate : t === 'o' ? o === v && s.gate : !!s[t];
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-pressed', String(t === 'o' ? o === v : on));
+    if (t === 'k') el.setAttribute('aria-label', `Step ${i + 1} ${NOTE[v]}${k === v && !s.gate ? ' (rest)' : ''}`);
+  }
+}
+// A fast drag only gets a pointer event every few steps, so the stroke is followed as a line: from the last point to the
+// new one (and through any coalesced points between), sampled at under half a cell, every cell it crosses is painted.
+// Cell boxes are measured once per stroke (client coordinates, so the --k screen scaling is already in them).
+let paintBoxes = [], paintStep = 4, paintFrame = 0;
+function measurePaint() {
+  paintBoxes = [...seq.querySelectorAll('button[data-t], button[data-gcol]')].map(el => ({ el, r: el.getBoundingClientRect() }));
+  const w = paintBoxes.reduce((m, b) => Math.min(m, b.r.width, b.r.height), Infinity);
+  paintStep = Math.max(1, Math.min(8, (isFinite(w) ? w : 8) / 2.5));
+}
+function cellAt(x, y) {
+  if (!paintBoxes.length || !paintBoxes[0].el.isConnected) measurePaint();
+  for (const b of paintBoxes) if (x >= b.r.left && x < b.r.right && y >= b.r.top && y < b.r.bottom) return b.el;
+  return null;
+}
+function paintAt(x, y) {
+  let b = cellAt(x, y); if (!b) return;
+  if (b.dataset.gcol) { // dragged past the pattern's end: extend it, as a press there does
+    const i = +b.dataset.gcol, t = b.dataset.gt, v = b.dataset.v;
+    if (t !== paint.t && !(paint.t === 'k' && !paint.on)) return;
+    extendTo(i + 1); renderSeq(); measurePaint(); paint.dirty = true;
+    b = document.getElementById(t === 'o' ? `so${v}_${i}` : t === 'k' ? `sk${v}_${i}` : `s${t}_${i}`); if (!b) return;
+  }
+  if (paintCell(b)) { syncCol(+b.dataset.col); paint.dirty = true; }
+}
+function flushPaint() {
+  paintFrame = 0; if (!paint || !paint.dirty) return;
+  paint.dirty = false; sendPattern(); // heard straight away; saving and the bank display wait for the end of the stroke
+  paint.changed = true;
+}
 seq.addEventListener('pointerdown', (e) => {
   const g = e.target.closest('button[data-gcol]');
   if (g && e.button <= 0) { // a dimmed step past the end: extend, then treat it as a press on the real cell
     e.preventDefault(); const i = +g.dataset.gcol, t = g.dataset.gt, v = g.dataset.v;
     extendTo(i + 1); renderSeq();
     const id = t === 'o' ? `so${v}_${i}` : t === 'k' ? `sk${v}_${i}` : `s${t}_${i}`, b = document.getElementById(id);
-    if (b) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: e.pointerId, button: 0, clientX: e.clientX, clientY: e.clientY }));
+    if (b) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: e.pointerId, pointerType: e.pointerType, button: 0, clientX: e.clientX, clientY: e.clientY }));
     else pushPattern();
     return;
   }
   const b = e.target.closest('button[data-t]'); if (!b || e.button > 0) return;
   e.preventDefault(); applyCell(b); paintedClick = true;
   const s = state.pattern[+b.dataset.col], t = b.dataset.t;
-  paint = { t, id: e.pointerId, on: t === 'k' ? s.gate : t === 'o' ? true : s[t], oct: splitCode(s.code).o };
-  renderSeq(); pushPattern();
+  paint = { t, id: e.pointerId, on: t === 'k' ? s.gate : t === 'o' ? true : s[t], oct: splitCode(s.code).o, x: e.clientX, y: e.clientY };
+  try { if (e.isTrusted) seq.setPointerCapture(e.pointerId); } catch {} // keep the stroke's events however the cells change
+  measurePaint(); syncCol(+b.dataset.col); pushPattern();
 });
 addEventListener('pointermove', (e) => {
   if (!paint || e.pointerId !== paint.id) return;
-  if (e.pointerType === 'mouse' && !(e.buttons & 1)) { paint = null; return; } // button released somewhere we didn't hear: stop painting
-  const b = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('#seq button[data-t]'); if (!b) return;
-  if (paintCell(b)) { renderSeq(); pushPattern(); }
+  if (e.pointerType === 'mouse' && !(e.buttons & 1)) { endPaint(e); return; } // button released somewhere we didn't hear: stop painting
+  const pts = e.getCoalescedEvents?.() || []; if (!pts.length) pts.push(e);
+  for (const p of pts) {
+    const dx = p.clientX - paint.x, dy = p.clientY - paint.y, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / paintStep));
+    for (let j = 1; j <= n; j++) paintAt(paint.x + dx * j / n, paint.y + dy * j / n);
+    paint.x = p.clientX; paint.y = p.clientY;
+  }
+  if (paint.dirty && !paintFrame) paintFrame = requestAnimationFrame(flushPaint);
 });
-const endPaint = (e) => { if (paint && e.pointerId === paint.id) paint = null; };
+function endPaint(e) {
+  if (!paint || e.pointerId !== paint.id) return;
+  if (e.type === 'pointerup' && (e.clientX !== paint.x || e.clientY !== paint.y)) { // the last stretch of the line
+    const dx = e.clientX - paint.x, dy = e.clientY - paint.y, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / paintStep));
+    for (let j = 1; j <= n; j++) paintAt(paint.x + dx * j / n, paint.y + dy * j / n);
+  }
+  const done = paint.dirty || paint.changed; paint = null; paintBoxes = [];
+  if (paintFrame) { cancelAnimationFrame(paintFrame); paintFrame = 0; }
+  if (done) { renderSeq(); pushPattern(); }
+}
 addEventListener('pointerup', endPaint); addEventListener('pointercancel', endPaint);
 seq.addEventListener('click', (e) => {
   if (paintedClick) { paintedClick = false; if (e.detail !== 0) return; } // the press already did it
