@@ -641,8 +641,9 @@ html.fit .main { grid-template-columns: minmax(0, 1fr); }
 .sline { min-width: 0; overflow: hidden; }
 .sl-text { flex: 1 1 0; min-width: 0; }
 
-/* Randomise menu at the right of the pattern row (Johnny): same look as Functions, a key on the right of each item */
+/* Randomise and Tools menus at the right of the pattern row (Johnny): same look as Functions, a key on the right of each item */
 .sq-row .rmenu { margin-left: auto; }
+.sq-row .rmenu + .rmenu { margin-left: 0; }
 .rmenu > button::after { content: " ▾"; }
 .rmenu .fn-menu { min-width: 230px; padding: 4px 0 6px; }
 .rmenu .fn-menu button { display: flex; justify-content: space-between; align-items: center; gap: 18px; text-transform: none; letter-spacing: 0; padding: 0 12px 0 22px; }
@@ -650,7 +651,7 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
 .rmenu .mh { padding: 6px 12px 2px; font-size: var(--fs-s, 13px); color: var(--mute); text-transform: lowercase; }
 .rmenu kbd { font: var(--fs-s, 13px)/1 var(--font-mono); color: var(--mute); }
 .rmenu .fn-menu button:not(:disabled):hover kbd, .rmenu .fn-menu button:focus-visible kbd { color: var(--glass); }
-/* the randomise row went into the menu, so the roll takes its height */
+/* the randomise row went into the menu, so the roll takes its height; the generate row is just its two sliders now */
 #pane-seq { --row-h: 14.5px; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
@@ -701,13 +702,6 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
         <span class="rlab">pattern</span>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
         <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
-        <div class="acts sq-ed"><button type="button" id="p-copy">Copy</button><button type="button" id="p-paste" disabled>Paste</button></div>
-        <span class="rlab rlab-in">edit</span>
-        <div class="acts">
-          <button type="button" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
-          <button type="button" id="p-clear">Clear</button>
-          <button type="button" id="p-undo" disabled>Undo</button>
-        </div>
         <div class="fn rmenu"><button type="button" id="rm-btn" aria-haspopup="menu" aria-expanded="false" title="Randomise, alter, shuffle and generate the pattern">Randomise</button><div class="fn-menu" id="rm-menu" role="menu" hidden>
           <span class="mh">randomise</span>
           <button type="button" role="menuitem" data-rm="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
@@ -720,8 +714,23 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
           <button type="button" role="menuitem" data-rm="alter" title="Vary the whole pattern: about a quarter of the steps change note, octave, accent, slide or rest">Whole pattern</button>
           <span class="mh">pattern</span>
           <button type="button" role="menuitem" data-rm="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle steps</button>
-          <button type="button" role="menuitem" data-rm="rand" title="New pattern from a random factory one, at the density and bars set below">Generate</button>
-          <button type="button" role="menuitem" data-rm="p-refill" title="Give every slot you have not edited a new generated pattern">Refill slots</button>
+          <button type="button" role="menuitem" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled, at the density and bars set below">Generate</button>
+          <button type="button" role="menuitem" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill slots</button>
+        </div></div>
+        <div class="fn rmenu"><button type="button" id="tm-btn" aria-haspopup="menu" aria-expanded="false" title="Copy, paste, double, clear, undo and move the notes">Tools</button><div class="fn-menu" id="tm-menu" role="menu" hidden>
+          <span class="mh">pattern</span>
+          <button type="button" role="menuitem" id="p-copy" title="Copy this pattern">Copy</button>
+          <button type="button" role="menuitem" id="p-paste" title="Paste over this pattern" disabled>Paste</button>
+          <button type="button" role="menuitem" id="p-dup" title="Repeat the pattern until it fills 16 steps, or 32 if it is already 16 or more">Double</button>
+          <button type="button" role="menuitem" id="p-clear" title="Clear every step of this pattern">Clear</button>
+          <button type="button" role="menuitem" id="p-undo" title="Undo the last change to a pattern" disabled>Undo</button>
+          <span class="mh">move notes</span>
+          <button type="button" role="menuitem" data-rm="nu-up" title="Every note up a semitone">Up a semitone</button>
+          <button type="button" role="menuitem" data-rm="nu-dn" title="Every note down a semitone">Down a semitone</button>
+          <button type="button" role="menuitem" data-rm="nu-oup" title="Every note up an octave">Up an octave</button>
+          <button type="button" role="menuitem" data-rm="nu-odn" title="Every note down an octave">Down an octave</button>
+          <span class="mh">chain</span>
+          <button type="button" role="menuitem" data-rm="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button>
         </div></div>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div>
@@ -742,10 +751,6 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
         <span class="rlab">generate</span>
         <label class="sld"><span>Density</span><input type="range" data-g="dens" min="0" max="7" step="1" aria-label="Density of generated patterns"><output id="o-dens">Any</output></label>
         <label class="sld"><span>Bars</span><input type="range" data-g="bars" min="1" max="4" step="1" aria-label="Bars to generate"><output id="o-bars">1</output></label>
-        <div class="acts">
-          <button type="button" class="rnd" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled, at this density and length">Generate</button>
-          <button type="button" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill</button>
-        </div>
       </div>
     </div>
   </section>
@@ -3892,10 +3897,11 @@ document.getElementById('bk-n').onclick = (e) => { const b = e.target.closest('b
 document.getElementById('p-copy').onclick = () => { clip = { shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; store.set('clip', clip); renderBank(); };
 document.getElementById('p-paste').onclick = () => {
   const c = cleanSettings(clip); if (!c.pattern) return;
+  pushUndo();
   state.pattern = c.pattern; state.shuffle = c.shuffle ?? state.shuffle; state.gate = c.gate ?? state.gate;
   tail = []; sendGroove(); renderSeq(); pushPattern();
 };
-document.getElementById('p-clear').onclick = () => { state.pattern = blankPattern(state.pattern.length); tail = []; renderSeq(); pushPattern(); };
+document.getElementById('p-clear').onclick = () => { pushUndo(); state.pattern = blankPattern(state.pattern.length); tail = []; renderSeq(); pushPattern(); };
 function pushPattern() { store.set('pattern', state.pattern); storeSlot(); sendPattern(); renderBank(); saveSession(); }
 
 // ---------- chains: right-click slots to play several patterns in a row ----------
@@ -4060,16 +4066,24 @@ if (!banks[slotKey(sel.g, sel.n)]) storeSlot();
 fillSlots(false);
 document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPattern(); renderBank(); };
 
-// ---------- Randomise menu and pattern key commands ----------
-// Johnny: the randomise and alter buttons live in one menu next to the pattern tools instead of a row on the page,
-// and every pattern tool has a key. Keys are plain letters (Shift for the gentler Alter versions), so they never
-// clash with 1-8 (pattern slots), Space (play) or Cmd/Ctrl+C/V (copy, paste). Each key is shown in the menu and in the
-// status-line tooltip. Keys are ignored while typing in a text field or with Options open.
+// ---------- Randomise and Tools menus, and pattern key commands ----------
+// Johnny: the pattern buttons live in two menus at the right of the pattern row instead of on the page. Randomise holds
+// the random and alter tools, Shuffle, Generate and Refill; Tools holds Copy, Paste, Double, Clear, Undo, moving the notes
+// and joining the chain. Every item has a key, shown in the menu and in the status-line tooltip. Keys are plain letters
+// (Shift for the gentler Alter versions) and never clash with 1-8 (pattern slots), Space (play) or Cmd/Ctrl+C/V (copy,
+// paste, handled in audio.js). Keys are ignored while typing in a text field or with Options open.
 (() => {
   const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   const cmd = mac ? '⌘' : 'Ctrl+', shift = mac ? '⇧' : 'Shift+';
-  const click = (id) => () => { const b = document.getElementById(id); if (b && !b.disabled) b.click(); };
-  // id: what it does, its key (code + shift/cmd), and the on-page button that shows the key in its tooltip (if any)
+  const click = (sel) => () => { const b = document.querySelector(sel); if (b && !b.disabled) b.click(); };
+  const MENUS = [['rm-btn', 'rm-menu'], ['tm-btn', 'tm-menu']].map(([b, m]) => ({ btn: document.getElementById(b), menu: document.getElementById(m) }));
+  const open = (M, on) => {
+    for (const o of MENUS) if (o !== M || !on) { o.menu.hidden = true; o.btn.setAttribute('aria-expanded', false); }
+    if (on) { M.menu.hidden = false; M.btn.setAttribute('aria-expanded', true); M.menu.querySelector('button:not(:disabled)')?.focus(); }
+  };
+  const toggle = (i) => () => open(MENUS[i], MENUS[i].menu.hidden);
+  // each action: what it runs, its key (code, shift, cmd, and a label when the code is not a letter), and the element
+  // that shows the key: a menu item with data-rm="<id>", or the element with id="<id>" (a real button that runs itself)
   const ACTS = {
     'r-acc': { run: () => randomise('accent'), code: 'KeyA' },
     'r-sld': { run: () => randomise('slide'), code: 'KeyS' },
@@ -4079,47 +4093,55 @@ document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPatte
     'a-oct': { run: () => alterLane('octave'), code: 'KeyO', shift: true },
     'alter': { run: () => FUNCTIONS.alter(), code: 'KeyL' },
     'p-shuf': { run: () => shuffleSteps(), code: 'KeyH' },
-    'rand': { run: click('rand'), code: 'KeyG', btn: 'rand' },
-    'p-refill': { run: click('p-refill'), code: 'KeyG', shift: true, btn: 'p-refill' },
-    'p-dup': { run: click('p-dup'), code: 'KeyD', btn: 'p-dup' },
-    'p-undo': { run: click('p-undo'), code: 'KeyZ', cmd: true, btn: 'p-undo' },
-    'menu': { run: () => rmOpen(rmMenu.hidden), code: 'KeyR', btn: 'rm-btn' },
+    'rand': { run: click('#rand'), code: 'KeyG' },
+    'p-refill': { run: click('#p-refill'), code: 'KeyG', shift: true },
+    'p-copy': { code: 'KeyC', cmd: true },            // the keys themselves are handled in audio.js
+    'p-paste': { code: 'KeyV', cmd: true },
+    'p-dup': { run: click('#p-dup'), code: 'KeyD' },
+    'p-clear': { run: click('#p-clear'), code: 'Backspace', shift: true, label: '⌫' },
+    'p-undo': { run: click('#p-undo'), code: 'KeyZ', cmd: true },
+    'nu-up': { run: click('.nudge [data-nudge="1"]'), code: 'BracketRight', label: ']' },
+    'nu-dn': { run: click('.nudge [data-nudge="-1"]'), code: 'BracketLeft', label: '[' },
+    'nu-oup': { run: click('.nudge [data-nudge="12"]'), code: 'BracketRight', shift: true, label: ']' },
+    'nu-odn': { run: click('.nudge [data-nudge="-12"]'), code: 'BracketLeft', shift: true, label: '[' },
+    'join': { run: () => FUNCTIONS.join(), code: 'KeyJ' },
+    'rm-btn': { run: toggle(0), code: 'KeyR' },
+    'tm-btn': { run: toggle(1), code: 'KeyT' },
   };
-  const keyName = (a) => (a.cmd ? cmd : '') + (a.shift ? shift : '') + a.code.slice(3);
-  const btn = document.getElementById('rm-btn'), rmMenu = document.getElementById('rm-menu');
-  function rmOpen(on) {
-    rmMenu.hidden = !on; btn.setAttribute('aria-expanded', on);
-    if (on) rmMenu.querySelector('button').focus();
-  }
-  // labels: the key on the right of each menu item, and after the tooltip text everywhere
+  const keyName = (a) => (a.cmd ? cmd : '') + (a.shift ? shift : '') + (a.label || a.code.slice(3));
   for (const [id, a] of Object.entries(ACTS)) {
-    const k = keyName(a);
-    for (const el of [rmMenu.querySelector(`[data-rm="${id}"]`), a.btn && document.getElementById(a.btn)]) {
-      if (!el) continue;
-      const tip = el.getAttribute('title') || el.dataset.tip || el.textContent.trim();
-      el.title = `${tip} (key ${k})`;
-      if (el.closest('#rm-menu')) el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
-    }
+    const el = document.querySelector(`[data-rm="${id}"]`) || document.getElementById(id); if (!el) continue;
+    const k = keyName(a), tip = el.getAttribute('title') || el.dataset.tip || el.textContent.trim();
+    el.title = `${tip} (key ${k})`;
+    if (el.closest('.fn-menu')) el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
   }
-  const pc = document.getElementById('p-copy'), pp = document.getElementById('p-paste');
-  pc.title = `Copy this pattern (key ${cmd}C)`; pp.title = `Paste over this pattern (key ${cmd}V)`;
-  btn.onclick = () => rmOpen(rmMenu.hidden);
-  document.addEventListener('pointerdown', (e) => { if (!rmMenu.hidden && !e.target.closest('.rmenu')) rmOpen(false); });
-  rmMenu.addEventListener('click', (e) => { const b = e.target.closest('[data-rm]'); if (!b) return; rmOpen(false); ACTS[b.dataset.rm].run(); });
-  rmMenu.addEventListener('keydown', (e) => {
-    const items = [...rmMenu.querySelectorAll('button:not(:disabled)')], i = items.indexOf(document.activeElement);
-    if (e.key === 'Escape') { e.preventDefault(); rmOpen(false); btn.focus(); }
-    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
+  // the nudge arrows beside the roll show their keys too
+  for (const [d, id] of [['1', 'nu-up'], ['-1', 'nu-dn'], ['12', 'nu-oup'], ['-12', 'nu-odn']]) {
+    const b = document.querySelector(`.nudge [data-nudge="${d}"]`); if (b) b.title = `${b.title} (key ${keyName(ACTS[id])})`;
+  }
+  MENUS.forEach((M, i) => {
+    M.btn.onclick = toggle(i);
+    M.menu.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || b.disabled) return;
+      open(M, false);
+      if (b.dataset.rm) ACTS[b.dataset.rm].run();   // items with an id are the real buttons and run their own onclick
+    });
+    M.menu.addEventListener('keydown', (e) => {
+      const items = [...M.menu.querySelectorAll('button:not(:disabled)')], j = items.indexOf(document.activeElement);
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); open(M, false); M.btn.focus(); }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(j + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
+    });
   });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.rmenu')) for (const M of MENUS) if (!M.menu.hidden) open(M, false); });
   document.addEventListener('keydown', (e) => {
     if (e.repeat || e.altKey || e.isComposing) return;
     if (e.target.closest?.('input[type=text], input[type=number], input:not([type]), textarea, select, [contenteditable=""], [contenteditable=true]')) return;
     if (document.getElementById('options').open) return;
     const c = e.metaKey || e.ctrlKey;
-    const hit = Object.entries(ACTS).find(([, a]) => a.code === e.code && !!a.shift === e.shiftKey && !!a.cmd === c);
+    const hit = Object.entries(ACTS).find(([, a]) => a.run && a.code === e.code && !!a.shift === e.shiftKey && !!a.cmd === c);
     if (!hit) return;
     e.preventDefault();
-    if (hit[0] !== 'menu' && !rmMenu.hidden) rmOpen(false);
+    if (!/^(rm|tm)-btn$/.test(hit[0])) for (const M of MENUS) if (!M.menu.hidden) open(M, false);
     hit[1].run();
   });
 })();
@@ -4373,7 +4395,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault(); document.getElementById('p-copy').click(); sqSay(`Copied ${sel.g}${sel.n + 1}.`);
   } else if (k === 'v') {
     if (!clip) return;
-    e.preventDefault(); pushUndo(); document.getElementById('p-paste').click(); sqSay(`Pasted into ${sel.g}${sel.n + 1}. Functions › Undo puts it back.`);
+    e.preventDefault(); document.getElementById('p-paste').click(); sqSay(`Pasted into ${sel.g}${sel.n + 1}. Functions › Undo puts it back.`);
   }
 });
 const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById('bpm-val');

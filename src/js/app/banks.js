@@ -45,10 +45,11 @@ document.getElementById('bk-n').onclick = (e) => { const b = e.target.closest('b
 document.getElementById('p-copy').onclick = () => { clip = { shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; store.set('clip', clip); renderBank(); };
 document.getElementById('p-paste').onclick = () => {
   const c = cleanSettings(clip); if (!c.pattern) return;
+  pushUndo();
   state.pattern = c.pattern; state.shuffle = c.shuffle ?? state.shuffle; state.gate = c.gate ?? state.gate;
   tail = []; sendGroove(); renderSeq(); pushPattern();
 };
-document.getElementById('p-clear').onclick = () => { state.pattern = blankPattern(state.pattern.length); tail = []; renderSeq(); pushPattern(); };
+document.getElementById('p-clear').onclick = () => { pushUndo(); state.pattern = blankPattern(state.pattern.length); tail = []; renderSeq(); pushPattern(); };
 function pushPattern() { store.set('pattern', state.pattern); storeSlot(); sendPattern(); renderBank(); saveSession(); }
 
 // ---------- chains: right-click slots to play several patterns in a row ----------
