@@ -1539,7 +1539,7 @@ class TB303Voice {
     {
       const ra = Math.max(c.VR4 * k.resonance, 1), rb = Math.max(c.VR4 * (1 - k.resonance), 1);
       const rs = c.R_ACC + c.VR7 * k.accent * (1 - k.accent);
-      const gl = 1 / (c.R63 + 1 / (g73 + g72 + g71)), gb = 1 / rb, dt = 1 / this.fs;
+      const gl = 1 / (c.R63 + 1 / (g73 + g72 + g71 + gKt)), gb = 1 / rb, dt = 1 / this.fs;
       const tap = (gsrc) => { const sum = gsrc + gb + gl; return { a: gsrc / sum, b: gb / sum, tgt: gsrc / (gsrc + gl), k: Math.exp(-dt * gb * (gsrc + gl) / sum / c.C_ACC) }; };
       this.wowOn = tap(1 / (rs + ra)); this.wowOff = tap(0);
     }
