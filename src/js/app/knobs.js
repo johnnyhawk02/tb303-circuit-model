@@ -41,6 +41,7 @@ function knobText(id, p) {
     case 'cmprel': return Math.round(cmpRelMs(p)) + ' ms';
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
+      if (/^(plate|spr|cnv)/.test(id)) return revText(id, p);
       return Math.round(p * 100) + '%';
     }
   }
@@ -63,6 +64,30 @@ function lexText(id, p) {
     case 'lexmix': return Math.round(p * 100) + '%';
   }
   return '';
+}
+// plate, spring and convolution readouts
+function revText(id, p) {
+  const k = { ...state.knobs, [id]: p }, sec = (t) => (t < 10 ? t.toFixed(2) : t.toFixed(1)) + ' s';
+  const hz = (f) => f >= 1000 ? (f / 1000).toFixed(f < 10000 ? 1 : 0) + ' kHz' : Math.round(f) + ' Hz', pc = (x) => Math.round(x * 100) + '%';
+  const a = plateParams(k), b = springParams(k), c = convParams(k);
+  switch (id) {
+    case 'platepre': return Math.round(a.pre) + ' ms';
+    case 'platedecay': return sec(a.rt);
+    case 'platedamp': return hz(a.damp);
+    case 'platebw': return hz(a.bw);
+    case 'platelo': return hz(a.lo);
+    case 'platemod': return pc(a.mod);
+    case 'sprdwell': return '×' + b.dwell.toFixed(1);
+    case 'sprdecay': return sec(b.rt);
+    case 'sprtone': return hz(b.tone);
+    case 'sprlo': return hz(b.lo);
+    case 'cnvpre': return Math.round(Math.max(c.pre, 1000 * 512 / (ctx ? ctx.sampleRate : 48000))) + ' ms';
+    case 'cnvdecay': return c.full ? 'full' : sec(c.rt);
+    case 'cnvtone': return hz(c.tone);
+    case 'cnvlo': return hz(c.lo);
+    case 'cnvwidth': return pc(c.width);
+  }
+  return pc(p);
 }
 // One binding for every dial: vertical drag (Shift = fine), arrow and Page keys, Home/End, double-click.
 // host is the dial itself, or a container whose dials are found by pick(e) and named by data-k.
@@ -97,6 +122,7 @@ function bindDial(host, { pick = () => host, get, set, nudge = (k, d, e) => set(
   return { dragging: () => !!d };
 }
 const knobEls = {};
+const REV_IDS = new Set(KNOBS.filter(k => k.fx === 'lex').map(k => k.id)); // everything on the reverb slot
 for (const k of KNOBS) {
   if (k.hidden) continue;
   const wrap = document.createElement('div'); wrap.className = k.fx ? 'kn small' : 'kn';
@@ -104,17 +130,19 @@ for (const k of KNOBS) {
     <div class="name">${k.name}</div><div class="ref">${k.ref}</div><div class="val"></div>`;
   (k.fx ? document.getElementById('fx-' + k.fx + '-knobs') : panel).appendChild(wrap);
   const el = wrap.querySelector('.knob');
-  knobEls[k.id] = { el, val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
+  knobEls[k.id] = { el, wrap, val: wrap.querySelector('.val'), name: wrap.querySelector('.name') };
   bindDial(el, { get: () => state.knobs[k.id], set: (_, v) => setKnob(k.id, v), min: 0, max: 1, reset: () => setKnob(k.id, k.def), start: () => wrap.classList.add('active') });
   el.addEventListener('dialend', () => wrap.classList.remove('active'));
 }
 function drawKnob(id) {
   if (id === 'dlypp') { drawDlyMode(); return; }
-  const p = state.knobs[id], k = knobEls[id]; if (!k) return;
-  knobDraw(k.el, p);
-  k.el.setAttribute('aria-valuenow', Math.round(p * 100));
-  k.val.textContent = knobText(id, p);
-  if (id.startsWith('lex')) drawLex();
+  const p = state.knobs[id], k = knobEls[id];
+  if (k) {
+    knobDraw(k.el, p);
+    k.el.setAttribute('aria-valuenow', Math.round(p * 100));
+    k.val.textContent = knobText(id, p);
+  }
+  if (REV_IDS.has(id)) drawLex();
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;

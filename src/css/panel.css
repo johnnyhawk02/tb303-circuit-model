@@ -46,8 +46,9 @@
 .fxknobs .kn { width: var(--kn-w); }
 .blk-lex { grid-column: 1 / -1; padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--rulec); gap: 10px; }
 .lex-lcd { font: 18px var(--font-body); letter-spacing: .04em; color: var(--hi); }
-.lex-progs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.lex-progs { display: grid; grid-template-columns: repeat(var(--n, 9), minmax(0, 1fr)); gap: 4px; }
 .lex-progs button { padding: 4px; font: 14.5px/1.2 var(--font-body); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lex-progs button b { display: block; font: 18px/1.2 var(--font-body); }
 .lex-progs button[aria-checked=true] { background: var(--on); color: var(--glass); }
 .lex-note { max-width: 70ch; font-size: 15.5px; color: var(--mute); }
+.kn[hidden] { display: none !important; }
