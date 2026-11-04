@@ -19,7 +19,7 @@ async function initAudio() {
   document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
+  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   sendDeclick();
   drawScope();
@@ -55,7 +55,7 @@ playBtn.onclick = async () => {
   status.textContent = playing ? (node ? 'Running · AudioWorklet' : 'Running · main thread') : 'Stopped';
   if (!playing) markStep(-1);
 };
-// tempo dial: drag, wheel or arrows, 60-200 BPM; double-click to type a value
+// tempo dial: drag or arrows, 60-200 BPM; double-click to type a value
 // spacebar plays and stops, except while typing in a text field
 const typing = (t) => t.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]');
 document.addEventListener('keydown', (e) => {
@@ -79,8 +79,7 @@ const bpmKnob = document.getElementById('bpm'), bpmVal = document.getElementById
 bpmKnob.innerHTML = knobSVG();
 function drawBpm() {
   const p = (state.bpm - 60) / 140;
-  bpmKnob.querySelector('.arc').setAttribute('d', arcPath(p));
-  bpmKnob.querySelector('.ptr').setAttribute('transform', `rotate(${KNOB_A0 + KNOB_SWEEP * p} 32 32)`);
+  knobDraw(bpmKnob, p);
   bpmKnob.setAttribute('aria-valuenow', state.bpm); bpmVal.textContent = state.bpm;
 }
 function setBpm(v) {

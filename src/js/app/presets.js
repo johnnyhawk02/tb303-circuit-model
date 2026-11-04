@@ -1,11 +1,12 @@
 // ---------- presets ----------
-function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, wave: x.wave, fx: x.fx }; }
+function soundSnap() { const x = snapshot(); return { knobs: x.knobs, parts: x.parts, ...(x.tune && { tune: x.tune }), wave: x.wave, fx: x.fx }; }
 function patternSnap() { return { bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; }
 function applySound(x) {
   const c = cleanSettings(x);
   for (const k of KNOBS) state.knobs[k.id] = c.knobs[k.id] ?? k.def;
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
   state.wave = c.wave || 'saw';
+  state.tune = c.tune || new Array(12).fill(0); sendTune();
   state.fx = c.fx || { rat: false, lex: false, dly: false };
   for (const n in state.fx) { preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] }); }
   renderFx();
@@ -13,7 +14,7 @@ function applySound(x) {
   for (const k in COMPONENTS) { preview.setComponent(k, state.parts[k]); send({ type: 'component', name: k, value: state.parts[k] }); }
   preview.waveform = state.wave; send({ type: 'wave', value: state.wave });
   drawWave();
-  renderParts(); renderFrontMods(); drawTrim(); for (const id in knobEls) drawKnob(id); readouts(); saveSession(); renderBoardSoon();
+  renderParts(); renderFrontMods(); drawTrim(); drawKeyTrack(); drawTune(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
 }
 function applyPattern(x) {
   const c = cleanSettings(x);

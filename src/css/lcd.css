@@ -1,0 +1,302 @@
+/* LCD glass (v45, the look of Johnny's SH-101 project): the whole instrument is one pane of glass in a bezel.
+   Colours and type come from the tokens in base.css; this file draws the glass and turns every control into ink on glass. */
+.main { position: relative; color: var(--ink); text-shadow: var(--shadow); border: 0; border-radius: 0; padding: 0 16px 16px;
+  background-color: var(--glass);
+  background-image: linear-gradient(170deg, rgb(255 255 255 / .14), rgb(255 255 255 / 0) 38%, rgb(0 0 0 / .05)),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px),
+    radial-gradient(60% 30% at 10% 100%, rgb(255 228 175 / .55), rgb(255 228 180 / 0) 70%),
+    radial-gradient(50% 28% at 90% 102%, rgb(255 222 170 / .4), rgb(255 222 175 / 0) 70%),
+    radial-gradient(38% 20% at 70% 30%, rgb(70 28 5 / .14), rgb(70 28 5 / 0) 70%),
+    linear-gradient(180deg, rgb(60 22 4 / .2) 0%, rgb(60 22 4 / 0) 22%),
+    radial-gradient(130% 100% at 50% 60%, rgb(0 0 0 / 0) 60%, rgb(45 15 0 / .28) 100%);
+  box-shadow: inset 0 6px 14px rgb(0 0 0 / .35), inset -4px 0 10px rgb(0 0 0 / .15), 0 18px 40px rgb(0 0 0 / .5); }
+body { padding-block: 20px 40px; font-size: 17px; line-height: 1.2; }
+:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
+::selection { background: var(--ink); color: var(--glass); }
+
+/* top bar: part of the glass, parted from the rest by a rule */
+.top { position: relative; margin: 0 -16px; background: transparent; border-bottom: 1px solid var(--line); }
+.sq-msg, .fn-menu, .pm-pop { background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; box-shadow: 0 10px 30px rgb(0 0 0 / .45); text-shadow: none; }
+
+/* buttons, fields: outlined in ink, inverted when on */
+button, select, input[type=text] { background: transparent; color: var(--ink); border: 2px solid var(--ink); border-radius: 3px; text-shadow: var(--shadow); text-transform: lowercase; }
+input[type=text] { text-transform: none; background: var(--tint); }
+button:hover:not(:disabled) { background: var(--tint); }
+button:active:not(:disabled) { background: var(--ink); color: var(--glass); text-shadow: none; }
+select option { background: var(--glass); color: var(--ink); }
+.icon svg, .gear svg { fill: var(--ink); }
+.gear { border-color: transparent; }
+.play[aria-pressed=true], .onoff[aria-pressed=true], .seg button[aria-pressed=true], .seg button[aria-checked=true],
+.mtabs button[aria-selected=true], .otabs button[aria-selected=true], #ptabs button[aria-selected=true],
+.lex-progs button[aria-checked=true], .pm .pm-i[aria-selected=true], .pm .pm-chip[aria-pressed=true], .pm .pm-favf[aria-pressed=true] {
+  background: var(--ink); color: var(--glass); text-shadow: none; }
+.play[aria-pressed=true] svg { fill: var(--glass); }
+.seg { border: 2px solid var(--ink); border-radius: 3px; }
+.seg button { border: 0; border-right: 1px solid var(--rulec); border-radius: 0; text-shadow: var(--shadow); }
+.seg button:last-child { border-right: 0; }
+.switch { background: transparent; border: 2px solid var(--ink); }
+.switch .thumb { background: var(--ink); border-radius: 2px; top: 1px; }
+.switch[aria-checked=true] { background: var(--ink); }
+.switch[aria-checked=true] .thumb { background: var(--glass); }
+.label, .tname { text-transform: lowercase; letter-spacing: 0; }
+
+/* dials (Johnny's reference, in the orange palette): separate wedge segments lit up to the value, ghost where unlit, the
+   readout above and the label below; no pointer line and no centre number */
+.knob svg { overflow: visible; }
+.knob svg .trk { fill: var(--ghost); stroke: none; }
+.knob svg .arc { fill: var(--ink); stroke: none; filter: drop-shadow(1.5px 1.5px 0 rgb(28 10 0 / .17)); }
+.kn .val, .md .val { order: -2; }
+.kn .name, .md .mname, .pk .ref { order: 1; }
+.pk .val { order: -2; }
+.wave-kn .name, .parts-kn .name { order: -3; } /* the waveform and components cells keep their titles on top */
+.wave-kn .val { order: 1; }
+.knob:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
+::selection { background: var(--ink); color: var(--glass); }
+
+/* dials: a solid ring, ghost where unlit and ink up to the pointer, and a pointer from the centre to the ring */
+.knob svg { overflow: visible; }
+.knob svg .trk, .knob svg .arc { stroke-width: 7; stroke-linecap: butt; }
+.knob svg .trk { stroke: var(--ghost); }
+.knob svg .arc { fill: var(--ink); stroke: none !important; filter: drop-shadow(2px 2px 0 rgb(28 10 0 / .17)); }
+.knob svg .ptr { stroke: var(--ink); stroke-width: 4; stroke-linecap: butt; }
+.knob:focus-visible { outline-offset: 4px; border-radius: 4px; }
+.pk.fixed .knob { opacity: .35; }
+.kn .name, .md .mname, .fxname { text-transform: lowercase; }
+.kn .val, .md .val { min-height: 1.1em; }
+
+/* devices: no grey boxes, just a lowercase heading over an ink rule */
+.dev, .main > .pane { background: transparent; border: 0; border-radius: 0; }
+.main > .pane::before { display: none; }
+.main > .pane { padding-top: 14px; }
+.dev::before { left: 16px; right: 16px; }
+.dev::before, .main > .pane::before { background: transparent; color: var(--ink); border-bottom: 1px solid var(--line); border-radius: 0; text-transform: lowercase; padding-left: 0; font-size: 21px; }
+.dev::after, .main > .pane::after { display: none; }
+.dev { border-bottom: 1px solid var(--line); margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.mtabs { margin: 10px -16px -11px; padding: 0 16px; border-bottom: 2px solid var(--ink); gap: 6px; }
+.mtabs button { background: transparent; border: 2px solid var(--ink); border-bottom: 0; border-radius: 4px 4px 0 0; color: var(--ink); text-transform: lowercase; text-shadow: var(--shadow); }
+.fxb, .blk-lex { border-color: var(--line); }
+
+/* sequencer: ink cells on glass */
+.seq { background: transparent; border: 2px solid var(--ink); text-shadow: none; }
+.seq > * { border-right-color: rgb(28 10 0 / .25); border-bottom-color: rgb(28 10 0 / .25); color: var(--ink); }
+.seq .rh { background: transparent; border-right: 2px solid var(--ink); text-transform: lowercase; }
+.seq .bar { border-right-color: rgb(28 10 0 / .6); }
+.seq .gap { border-bottom: 2px solid rgb(28 10 0 / .6); }
+.seq .hd { background: transparent; }
+.seq .hd.cur { background: var(--ink); color: var(--glass); }
+.seq .cell.on { background: var(--ink); box-shadow: none; }
+.seq .cell.on.cur { box-shadow: inset 0 0 0 2px var(--glass); }
+.seq [data-t=slide].on, .seq [data-t=accent].on { background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 5px); }
+.seq .end { border-right: 3px solid var(--ink); }
+.sq-bank .slots button.used:not([aria-pressed=true]) { background: var(--ghost); }
+.sq-bank .slots button[data-ch]:not([data-ch=""])::after { background: var(--ink); color: var(--glass); }
+.sq-bank .slots button.playing { outline: 2px dashed var(--ink); outline-offset: 2px; }
+.bpm-read output { background: transparent; border: 2px solid var(--ink); border-radius: 4px; }
+
+/* options sheet: a second pane of glass */
+dialog#options { background: var(--glass); color: var(--ink); border: 6px solid var(--bezel); border-radius: 12px; text-shadow: var(--shadow); }
+.opt-head { background: transparent; border-bottom: 2px solid var(--ink); }
+.otabs button { background: transparent; border: 2px solid var(--ink); border-bottom: 0; text-transform: lowercase; color: var(--ink); }
+canvas { background: transparent; border: 2px solid var(--ink); }
+.dot, .pk.mod::after { background: var(--ink); border-radius: 0; }
+
+/* sliders (Options › Monitor): a segmented ink bar with a solid ink cap */
+input[type=range] { -webkit-appearance: none; appearance: none; height: 22px; margin: 0; background: none; cursor: pointer; touch-action: none; accent-color: var(--ink); }
+input[type=range]::-webkit-slider-runnable-track { height: 10px; border: 2px solid var(--ink); border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 6px); }
+input[type=range]::-moz-range-track { height: 6px; border: 2px solid var(--ink); border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 6px); }
+input[type=range]::-moz-range-progress { height: 6px; background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 6px); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 20px; margin-top: -7px; background: var(--ink); border: 0; border-radius: 2px; box-shadow: var(--shadow); }
+input[type=range]::-moz-range-thumb { width: 12px; height: 20px; background: var(--ink); border: 0; border-radius: 2px; }
+input[type=checkbox] { accent-color: var(--ink); }
+
+/* waveform switch: an LCD toggle, the lit block slides across */
+.switch { border-radius: 3px; }
+.switch .thumb { border-radius: 1px; box-shadow: none; }
+/* steppers: the value reads like a segment display between two ink keys */
+
+/* step grid as in the Shyoy: square ink blocks, no rounding; slides and accents solid like notes */
+.seq > * { border-radius: 0; text-shadow: none; }
+.seq button:hover:not(:disabled) { background: var(--tint2); }
+.seq .cell.on, .seq [data-t=slide].on, .seq [data-t=accent].on { background: var(--ink); }
+.seq .rh.blk, .seq .blk { background: var(--tint); }
+/* waveform switch: always a light (glass) square sliding on a black ink track, whichever side it is on (Johnny) */
+.switch, .switch[aria-checked=true], button.switch:hover:not(:disabled), button.switch:active:not(:disabled) { background: var(--ink); border-color: var(--ink); }
+.switch .thumb, .switch[aria-checked=true] .thumb { background: var(--glass); }
+
+/* ---- v63: the Elixir Synth screen treatment, in orange: black bezel on the dark case, a faded-patch veil over the glass,
+   a soft glow round every lit pixel, a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
+:root { --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170; }
+html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815) fixed; }
+.main { border: 5px solid #0b0c0a; border-radius: 10px;
+  box-shadow: inset 0 6px 16px rgb(0 0 0 / .36), inset -8px 8px 18px rgb(0 0 0 / .2), inset 0 0 0 1px rgb(255 255 255 / .1), 0 1px 0 rgb(255 255 255 / .07), 0 18px 40px rgb(0 0 0 / .5); }
+.main::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 5;
+  background: radial-gradient(34% 17% at 76% 24%, rgb(var(--panel-rgb) / .42), rgb(var(--panel-rgb) / 0) 100%),
+    radial-gradient(22% 12% at 16% 66%, rgb(var(--panel-rgb) / .38), rgb(var(--panel-rgb) / 0) 100%),
+    radial-gradient(14% 9% at 58% 83%, rgb(var(--panel-rgb) / .3), rgb(var(--panel-rgb) / 0) 100%),
+    linear-gradient(90deg, rgb(var(--panel-rgb) / 0) 88%, rgb(var(--panel-rgb) / .22) 97%, rgb(var(--panel-rgb) / .1)); }
+.main, .main button, .main .label, .main output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+.main button:not(.seg button):not(.tabs button), .main .seg { box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+.main button:not(.mtabs button) { text-transform: uppercase; letter-spacing: .06em; }
+.main .seq .cell.on, .main input[type=range]::-webkit-slider-thumb { filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.main button:active:not(:disabled), .main button[aria-pressed="true"], .main button[aria-selected="true"] { text-shadow: none; }
+/* fit-to-window (see fit.js): a 1000px screen scaled as a whole, centred on the dark case, nothing scrolls */
+html.fit, html.fit body { height: 100dvh; overflow: hidden; }
+html.fit body { padding: 0; position: relative; }
+html.fit .main { position: absolute; left: 50%; top: 50%; width: 1000px; max-width: none; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
+html.fit .sq-row { gap: 8px 14px; } html.fit .sld { grid-template-columns: 58px 72px 34px; gap: 6px; }
+
+/* v65: sliders as segmented bar graphs (like the faders in Johnny's SH-101 screen): a row of segments, lit up to the value over a ghost of the rest */
+.main input[type=range] { --f: 0; height: 22px; }
+.main input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.main input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+.main input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; filter: none; }
+.main input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+.main input[type=range]:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
+/* every page the same size: the pages stack in one cell (the hidden ones keep their space, unseen), so the screen is as tall as the tallest and never jumps */
+html.fit .main > .pane { grid-row: 4; grid-column: 1; min-height: 0; overflow: auto; }
+html.fit .main > .pane[hidden] { display: var(--pane-d, block) !important; visibility: hidden; pointer-events: none; }
+.fxpane { --pane-d: grid; }
+
+/* ---- design pass (Nov 2026): one fixed 1000 x 647 screen (MacBook Pro shape), one type scale, one control height ----
+   type: 14px small print (dial readouts and names, row labels, notes), 16px controls, 18px headings
+   controls in the pages: 26px tall, 2px ink outline, uppercase spaced labels; tabs and headings stay lowercase
+   spacing: 6px between controls in a row, 8px between rows, 16px screen margin */
+:root { --fs-s: 14px; --fs-m: 16px; --fs-l: 18px; --ctl-h: 26px; --row-h: 13px; }
+
+/* dials: crisp wedges only. The ghost track used to carry a 7-unit ghost stroke (a soft halo that filled the gaps
+   between segments) and the lit wedges a drop shadow; both gone, so every edge is sharp at any scale */
+.knob svg { shape-rendering: geometricPrecision; }
+.knob svg .trk, .main .knob svg .trk { fill: var(--ghost); stroke: none !important; filter: none; }
+.knob svg .arc, .main .knob svg .arc { fill: var(--ink); stroke: none !important; filter: none; }
+
+/* the screen */
+html.fit .main { width: 1000px; height: 647px; padding: 0 16px 12px; gap: 8px; grid-template-rows: auto auto auto minmax(0, 1fr); align-content: stretch; }
+html.fit .main > .pane { padding: 12px 16px 0; overflow: hidden; }
+html.fit .top { padding: 8px 16px; gap: 10px 12px; min-height: 0; }
+html.fit .top button, html.fit .top .bpm-read output, html.fit .pm .pm-btn { height: 30px; }
+html.fit .dev { padding: 10px 16px 8px; }
+/* no 'tb-303 voice' title or rule over the dials (Johnny) */
+.dev::before { display: none !important; }
+html.fit .mtabs { margin: 0 -16px -8px; }
+html.fit .mtabs button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
+
+/* one size for small print and one for controls, everywhere */
+html.fit .kn .val, html.fit .md .val, html.fit .kn .name, html.fit .md .mname, html.fit .trim .tname, html.fit .trim .tval,
+html.fit .label, html.fit .md .mdesc, html.fit .sq-row > .rlab { font-size: var(--fs-s); }
+html.fit .sld, html.fit .sld output, html.fit .fxname, html.fit .lex-lcd { font-size: var(--fs-m); }
+html.fit .pane button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button { height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; }
+html.fit .pane .seg button { min-width: 30px; }
+
+/* sequencer: pattern and edit rows above the roll, shape and generate rows below; one label column */
+html.fit .sq-body { gap: 6px; }
+html.fit .sq-row { flex-wrap: nowrap; gap: 6px; min-height: var(--ctl-h); }
+html.fit .sq-row > .rlab { width: 72px; color: var(--mute); }
+html.fit .sq-row > .rlab-in { width: auto; margin-left: 22px; margin-right: 4px; }
+html.fit .sq-row .acts { margin-left: 0; gap: 6px; }
+html.fit .sq-row .acts + .acts, html.fit .sq-row .slots + .acts, html.fit .sq-row .chain-read + .acts { margin-left: 16px; }
+html.fit .sq-bank .slots button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; }
+html.fit .sld { grid-template-columns: 64px 84px 36px; gap: 6px; margin-right: 12px; }
+html.fit .sq-side .sld:last-child { margin-right: 0; }
+html.fit .seqwrap { display: grid; grid-template-columns: minmax(0, 1fr) 24px; gap: 4px; overflow: visible; }
+html.fit .seq { grid-auto-rows: var(--row-h); font-size: 13px; }
+/* nudge arrows, beside the octave lanes and the note rows: rows line up with the roll's (2px outline, then the step row) */
+.nudge { display: grid; grid-template-rows: 2px repeat(19, var(--row-h, 16px)); align-content: start; }
+.nudge button { min-width: 0; padding: 0; margin: 1px 0; font-size: 10px; line-height: 1; letter-spacing: 0; text-shadow: none; box-shadow: none !important; }
+.nu-oct-up { grid-row: 3 / 5; } .nu-oct-dn { grid-row: 5 / 7; }
+.nu-key-up { grid-row: 7 / 13; } .nu-key-dn { grid-row: 13 / 19; }
+
+/* effects: RAT, delay and Compactor in one row over the 224 */
+html.fit .fxpane { --knob: 40px; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 0; }
+html.fit .fxpane .fxb:not(.blk-lex) { --kn-w: 56px; padding: 0 16px; }
+html.fit .fxpane .fxb:first-child { padding-left: 0; }
+html.fit .fxpane .fxb:nth-child(3) { padding-right: 0; }
+html.fit .fxknobs { flex-wrap: nowrap; gap: 6px; }
+html.fit .fxknobs .kn { width: var(--kn-w); }
+html.fit .fxb { gap: 8px; }
+html.fit .fxh { height: 30px; flex-wrap: nowrap; gap: 10px; }
+html.fit .fxsub { display: none; }
+html.fit .blk-lex { --kn-w: 64px; padding-top: 12px; gap: 8px; }
+html.fit .lex-progs button { height: 38px; padding: 0 4px; font-size: 13px; line-height: 1.1; }
+html.fit .lex-progs button b { font-size: var(--fs-m); line-height: 1.1; }
+html.fit .lex-note { max-width: none; margin: 0; font-size: var(--fs-s); line-height: 1.25; }
+
+/* mods: two even rows */
+html.fit .mods { gap: 16px 10px; padding-top: 4px; }
+
+/* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
+html.fit dialog#options { width: 960px; height: 600px; max-width: none; max-height: none; inset: auto; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
+dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42); }
+dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
+dialog#options .opt-head h2 { font-size: var(--fs-l); }
+dialog#options .kn .val, dialog#options .pk .val, dialog#options .pk .ref, dialog#options .readouts, dialog#options .hint, dialog#options .legend, dialog#options .detail, dialog#options .dclk-fade { font-size: var(--fs-s); }
+dialog#options .notes, dialog#options .dclk-txt { font-size: var(--fs-m); }
+dialog#options input[type=range] { --f: 0; height: 22px; }
+dialog#options input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#options input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; }
+dialog#options input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+
+/* popovers (Preset, Functions): the same controls as the pages */
+.pm-foot button, .pm-foot input[type=text] { height: 30px; font-size: var(--fs-m); }
+.pm-foot button { padding: 0 10px; line-height: 1; }
+
+/* dial cells stack from the top, so a long description never pushes its dial out of line with the row */
+.kn, .md, .pk { align-content: start; }
+html.fit .fxh .seg button { height: 22px; }
+/* the voice panel: the components buttons a size down so the panel is no taller than its dials */
+html.fit .parts-kn .mini { height: 22px; padding: 0 4px; font-size: var(--fs-s); }
+html.fit .panel { row-gap: 0; }
+/* names lowercase everywhere, like every other dial name */
+.trim .tname { text-transform: lowercase; letter-spacing: 0; }
+.wave-kn .val { text-transform: lowercase; }
+/* waveform switch: a saw glyph at the saw end, a square glyph at the square end, drawn in ink like the segments */
+.wave-row { display: flex; align-items: center; gap: 6px; margin: 14px 0 12px; }
+.wave-row .switch { margin: 0; }
+.wglyph { width: 18px; height: 11px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: miter; stroke-linecap: square; overflow: visible; }
+/* mods: the two rows of dials share the page's height, rather than leaving a gap at the bottom */
+html.fit .mods { gap: 30px 10px; padding-top: 10px; }
+/* the Options sheet: the screen's fine pixel grid too, and a lowercase title like every other heading */
+dialog#options { background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / .03) 0 1px, transparent 1px 3px); }
+dialog#options .opt-head h2 { text-transform: lowercase; }
+/* touch: no pinch-zoom or page scroll (the screen already fills the window); scroll areas inside still scroll */
+html.fit { touch-action: pan-x pan-y; overscroll-behavior: none; }
+html.fit .pm-pop { max-height: 460px; }
+/* tuning: 12 upright segmented faders, one per note; lit from the zero line up or down to the offset, a ghost of the rest.
+   Readout above and name below, like the dials; a row of temperaments above and the root below, like the sequencer's rows */
+.tupane { --pane-d: flex; display: flex; flex-direction: column; gap: 8px; }
+.tupane[hidden] { display: none; }
+html.fit .tu-top .acts.tu-end { margin-left: auto; }
+#tu-sys button[aria-pressed=true] { background: var(--ink); color: var(--glass); text-shadow: none; }
+.tu-faders { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: center; padding: 4px 0; }
+.tu-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tu-col .val, .tu-col .mname { font-size: var(--fs-s); line-height: 1.2; color: var(--ink); text-transform: lowercase; font-variant-numeric: tabular-nums; }
+.tu-col .val { cursor: pointer; min-width: 5ch; text-align: center; }
+.tu-bar { display: flex; flex-direction: column; gap: 2px; width: 34px; padding: 2px; cursor: ns-resize; touch-action: none; outline-offset: 3px; }
+.tu-bar i { display: block; height: 4px; background: var(--ghost); }
+.tu-bar i.on { background: var(--ink); filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
+.tu-bar i[data-s="0"] { height: 2px; margin: 1px -4px; background: var(--ink); }
+.tu-bar:focus-visible { outline: 2px dashed var(--ink); }
+.tu-foot .tu-note { margin-left: auto; font-size: var(--fs-s); white-space: nowrap; }
+#tu-root { flex: none; }
+html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); min-width: 32px; padding: 0; text-transform: lowercase; }
+
+/* status line: the last row of the screen, under a rule, for every message and tooltip (statusline.js) */
+html.fit .main { grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding-bottom: 0; }
+.sline { grid-row: 5; grid-column: 1 / -1; margin: 0 -16px; padding: 0 16px; height: 24px; display: flex; align-items: center; border-top: 1px solid var(--line); }
+.sl-text { font-size: var(--fs-s); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-text.msg { color: var(--ink); }
+/* the old popup message boxes are now only sources for the line */
+.sq-msg, .pm-foot .hint[role=status] { display: none !important; }
+/* the status line can never widen the screen: one line, clipped with an ellipsis */
+html.fit .main { grid-template-columns: minmax(0, 1fr); }
+.sline { min-width: 0; overflow: hidden; }
+.sl-text { flex: 1 1 0; min-width: 0; }

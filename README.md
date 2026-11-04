@@ -2,12 +2,12 @@
 
 A JavaScript simulation of the TB-303 bass voice, modelled at component level from the Roland main board schematic (Feb 1982). Values that sheet doesn't show clearly were taken from the Behringer TD-3 schematic.
 
-Open `index.html` in a browser to play it. It has a step sequencer, one Preset menu (sound, effects, tempo, all 48 bank slots and the chain, with a Sound only option and an auto-namer for saves), the front panel knobs, a scope, and a parts list you can edit while it plays.
+Open `index.html` in a browser to play it. It has a step sequencer, one Preset menu (sound, effects, tempo, the 8 pattern slots (keys 1-8 pick them) and the chain, with a Sound only option and an auto-namer for saves), the front panel knobs, a scope, and a parts list you can edit while it plays.
 
 ## Files
 - `tb303-model.js`: the voice (`TB303Voice`) and its parts table (`COMPONENTS`). It has no dependencies and runs in Node, in a browser, or in an AudioWorklet.
 - `tb303-model.js` also has `TB303Engine`, the player around the voice (knob slew, de-click, the step sequencer). The AudioWorklet and the main-thread fallback both run it.
-- `src/`: the page source. `src/index.html` is the markup with slots; `src/css/` holds the styles by area, `src/js/worklet.js` the AudioWorklet wrapper, and `src/js/app/` the app by feature (sequencer, banks, knobs, parts, board, presets, MIDI and so on).
+- `src/`: the page source. `src/index.html` is the markup with slots; `src/css/` holds the styles by area, `src/js/worklet.js` the AudioWorklet wrapper, and `src/js/app/` the app by feature (sequencer, banks, knobs, parts, presets, MIDI and so on).
 - `build.js`: `node build.js` fills the slots in `src/index.html` with the CSS, the model, the worklet, the app code and `patterns.json`, and writes the single-file `index.html` that gets deployed. Edit `src/`, never `index.html`.
 - `test.js`: sanity checks (DAC voltages, 110 Hz at the A key, filter range, decay times) and renders `demo.wav`.
 - `patterns.json`: the ABL3 and Phoscyon factory patterns that Generate uses as raw material. `tools/import-patterns.js` makes it from the plug-ins' files, and `node build.js` puts it in the page.
@@ -32,7 +32,7 @@ After the VCA there is an optional effect, modelled from its parts:
   - **What is documented:** the program names, control ranges, sample rate, converters, word size and memory (the Lexicon v4.4 manual, the spec sheet, and Dattorro 1997, footnote 5).
   - **What is estimated:** Lexicon never published the 224's microcode. The core is the "plate-class topology in the style of Griesinger" that Jon Dattorro published (*Effect Design Part 1*, JAES 1997), using his delay lengths and output taps: input allpass diffusers feed a figure-eight tank. The hall, chamber, room and constant-density variants, the Depth mapping, the Mode Enhancement step timing, the chorus voice timings and the truncation rule are my estimates. The converter and memory settings are in Options under 224.
 - **Delay:** a clean digital delay on a parallel return, ping-pong by default (repeats alternate left and right; Mono puts them in the middle): tempo-synced Time (1/32 to 1/2, with dotted and triplet values), Feedback up to 95%, and a Low cut (20 Hz to 1 kHz) and High cut (1 to 20 kHz) inside the feedback loop, so each repeat gets thinner and darker.
-- **Compactor:** a sidechain limiter/ducker modelled on the Kilohearts Compactor, on the delay and 224 returns and keyed from the dry synth. Threshold is the synth level that ducks the returns to silence; Range (0 to 200%) shapes how quieter levels count; Attack is lookahead (0 to 10 ms); Hold and Release set the recovery; Peak, ISP or RMS detection; Mix blends in the unducked returns. With Attack and Release at 0 the gain follows the synth waveform (ring-mod sidechaining). Kilohearts doesn't publish its gain law, so this follows the published control descriptions.
+- **Compactor:** a sidechain ducker after the Kilohearts Compactor, on the delay and 224 returns and keyed from the dry synth. Two controls: **Amount** sets how deep the duck goes (0 = off, full duck from about 70%) and how easily it triggers (the synth level that ducks fully goes from -10 dB to -30 dB); **Release** (0 to 1 s) sets how fast the returns come back. Lookahead is fixed at 3 ms with a peak detector. With Release at 0 the gain follows the synth waveform (ring-mod sidechaining). Sounds saved before this version load with Amount at 0 (no ducking). Kilohearts does not publish its gain law, so this follows the published control descriptions.
 
 The RAT, the delay, the Compactor and the 224 share the FX tab.
 
