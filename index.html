@@ -5397,8 +5397,13 @@ preview.waveform = state.wave; drawBpm();
 drawWave();
 for (const n in state.fx) preview.setFx(n, state.fx[n]);
 
-// ---------- MIDI: front dials on CC 1 onwards, any channel ----------
-const MIDI_MAP = [...KNOBS.filter(k => !k.fx).map(k => ({ name: k.name, set: (t) => setKnob(k.id, t) })),
+// ---------- MIDI: CC 1 onwards, any channel ----------
+// CC 1-8 are the main panel's dials left to right (Key track sits after Reso), CC 9 the Filter trim, then the Mods page.
+// The plug-in's ccMap() (PluginProcessor.cpp) uses the same order.
+const voiceCc = (k) => ({ name: k.name, set: (t) => setKnob(k.id, t) });
+const MIDI_MAP = [...KNOBS.filter(k => !k.fx).flatMap(k => k.id === 'resonance'
+    ? [voiceCc(k), { name: 'Key track', set: (t) => setPartT('KT', t, true) }] : [voiceCc(k)]),
+  { name: 'Filter trim', set: (t) => setPartT('I_REF', t) },
   ...FRONT_MODS.map(([k, name]) => ({ name, set: (t) => setPartT(k, t) }))];
 document.getElementById('midi-map').innerHTML = MIDI_MAP.map((m, i) => `<dt>CC ${i + 1}</dt><dd>${m.name}</dd>`).join('');
 const midiPending = new Map(); let midiFrame = 0;

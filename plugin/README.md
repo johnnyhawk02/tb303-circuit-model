@@ -24,8 +24,9 @@ The web app's TB-303 model as a VST3 / AU instrument (and a standalone app), bui
   Functions menu (Join chain and copy, Alter pattern, Undo). It follows the host's transport and tempo,
   locked to the bar; there is no Play button or tempo dial, the host does that.
 - **MIDI.** Notes play the voice at any time: mono, last note wins, a note played while another is held
-  slides (legato), velocity 100 or more is an accent. MIDI A2 (note 45) is the 303's A, 110 Hz. CC 1-19
-  move the front-panel dials, as in the web app.
+  slides (legato), velocity 100 or more is an accent. MIDI A2 (note 45) is the 303's A, 110 Hz. CC 1-8
+  move the voice dials in panel order (Tuning, Cutoff, Reso, Key track, Env mod, Decay, Accent, Volume),
+  CC 9 the Filter trim and CC 10-21 the Mods page, as in the web app.
 - **Presets.** The top bar has the web app's preset browser: search, star favourites (and show only them),
   previous / next, Save with the auto-namer (and another name), Delete, and *Sound only*. Presets are whole
   projects (sound, all 48 slots and the chain), kept in

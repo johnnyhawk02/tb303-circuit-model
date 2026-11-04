@@ -215,8 +215,13 @@ double snapReal(int k, double v) {
 const std::vector<CcTarget>& ccMap() {
     static const std::vector<CcTarget> m = [] {
         std::vector<CcTarget> v;
-        for (int k = 0; k <= K::volume; ++k) v.push_back({ knobs()[k].id, knobs()[k].name });
-        for (auto& f : frontMods()) if (juce::String(f.part) != "I_REF") v.push_back({ juce::String("m_") + f.part, f.name });
+        // same order as the web app (MIDI_MAP in midi.js): CC 1-8 the voice dials with Key track after Reso, CC 9 Filter trim, then the mods
+        for (int k = 0; k <= K::volume; ++k) {
+            v.push_back({ knobs()[k].id, knobs()[k].name });
+            if (k == K::resonance) v.push_back({ "m_KT", "Key track" });
+        }
+        v.push_back({ "m_I_REF", "Filter trim" });
+        for (auto& f : frontMods()) { const juce::String p(f.part); if (p != "I_REF" && p != "KT") v.push_back({ "m_" + p, f.name }); }
         return v;
     }();
     return m;
