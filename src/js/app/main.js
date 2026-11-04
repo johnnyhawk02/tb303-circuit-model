@@ -15,4 +15,4 @@ mtabs.addEventListener('keydown', (e) => {
 });
 showPane(store.get('mainTab', 'seq'));
 
-renderFx(); renderSeq(); renderBank(); renderParts(); renderFrontMods(); readouts();
+renderFx(); renderSeq(); renderBank(); renderFrontMods();

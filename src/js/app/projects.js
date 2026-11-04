@@ -115,13 +115,11 @@ async function importFile(f) {
     prjBar.say(`Added ${n} preset${n === 1 ? '' : 's'}${applied ? ', and applied the saved sound and pattern' : ''}.`);
   } catch { prjBar.say('That file is not a preset export from this page.'); }
 }
-for (const [btn, input] of [['prj-import', 'prj-file'], ['preset-import', 'preset-file']]) {
+for (const [btn, input] of [['prj-import', 'prj-file']]) {
   const el = document.getElementById(input);
   document.getElementById(btn).onclick = () => el.click();
   el.addEventListener('change', () => { const f = el.files[0]; el.value = ''; if (f) importFile(f); });
 }
-// Options › File › Export all is the Preset menu's Export all
-document.getElementById('preset-export').onclick = () => document.getElementById('prj-export').click();
 for (const el of document.querySelectorAll('.pm')) presetMenu(el);
 document.getElementById('prj-roll').onclick = () => prjBar.suggest(true);
 document.querySelector('#prj-bar .pm-btn')?.addEventListener('click', () => prjBar.suggest(false));

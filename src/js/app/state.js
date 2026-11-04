@@ -152,15 +152,7 @@ let ctx = null, node = null, analyser = null, fallback = null;
 // the deploy stamps the version; a local build shows 'dev'
 { const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
 const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
-// de-click is a playback preference, kept apart from sounds and projects
+// de-click is a playback preference, kept apart from sounds and projects; its switch went with the Options Monitor tab, so a stored setting still holds and the default is on, 1.5 ms
 const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
 function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
-function renderDeclick() {
-  const b = document.getElementById('dc-on'), r = document.getElementById('dc-ms');
-  b.setAttribute('aria-pressed', declick.on); b.textContent = declick.on ? 'On' : 'Off';
-  r.value = declick.ms; r.disabled = !declick.on; document.getElementById('dc-ms-v').textContent = declick.ms + ' ms';
-}
-document.getElementById('dc-on').onclick = () => { declick.on = !declick.on; store.set('declick', declick); renderDeclick(); sendDeclick(); };
-document.getElementById('dc-ms').oninput = (e) => { declick.ms = +e.target.value; store.set('declick', declick); renderDeclick(); sendDeclick(); };
-renderDeclick();
 

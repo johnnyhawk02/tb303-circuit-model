@@ -15,9 +15,4 @@ otabs.addEventListener('keydown', (e) => {
   const t = [...otabs.querySelectorAll('[role=tab]')], i = t.findIndex(b => b.getAttribute('aria-selected') === 'true');
   showSec(t[(i + d + t.length) % t.length].dataset.sec, true); e.preventDefault();
 });
-showSec(document.getElementById('osec-' + store.get('optTab', 'circuit')) ? store.get('optTab', 'circuit') : 'circuit');
-document.getElementById('restore').onclick = () => {
-  for (const k in COMPONENTS) { state.parts[k] = COMPONENTS[k].v; preview.setComponent(k, COMPONENTS[k].v); send({ type: 'component', name: k, value: COMPONENTS[k].v }); }
-  renderParts(); renderFrontMods(); renderFx(); for (const id in knobEls) drawKnob(id); readouts(); saveSession();
-};
-
+showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.get('optTab', 'midi') : 'midi');

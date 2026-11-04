@@ -12,29 +12,7 @@ dialog#options::backdrop { background: rgb(28 10 0 / .3); }
 .osec { display: grid; gap: 16px; align-content: start; min-width: 0; }
 .osec[hidden] { display: none; }
 
-/* Circuit: every part as a dial, by block */
-.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 17px; color: var(--mute); }
-.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--on); margin-right: 6px; vertical-align: middle; }
-.parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 10px; min-height: 120px; padding-top: 6px; }
-.pk { padding: 6px 2px; position: relative; }
-.pk .knob { width: var(--knob-part); height: var(--knob-part); }
-.pk .knob:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
-.pk.mod::after { content: ""; position: absolute; top: 4px; right: 18%; width: 6px; height: 6px; border-radius: 50%; background: var(--on); }
-.parts.all-mod .pk.mod::after { display: none; }
-.pk.fixed .val { cursor: default; }
-.pk.fixed .knob { opacity: .3; cursor: default; }
-.detail { min-height: 3.2em; font-size: 17.5px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
-.detail b { color: var(--fg); font-family: var(--font-mono); font-weight: 400; }
-
-/* Monitor: de-click, scope and readouts */
-.dclk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--ink); }
-.dclk-txt { display: grid; gap: 2px; flex: 1 1 280px; min-width: 0; font-size: 17px; }
-.dclk-txt .hint { font-size: 15.5px; color: var(--mute); }
-.dclk-fade { display: flex; align-items: center; gap: 8px; font: 15.5px var(--font-body); color: var(--mute); }
-.dclk-fade input { width: 120px; accent-color: var(--hi); }
-.dclk-fade output { color: var(--hi); min-width: 4.5em; font-weight: 400; }
-.monitor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
-canvas { width: 100%; height: 150px; display: block; border: 1px solid var(--ink); border-radius: 2px; background: var(--well); }
+/* MIDI: the CC map */
 .readouts { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; align-content: start; margin: 0; font: 16px var(--font-body); }
 .readouts dt { color: var(--mute); }
 .readouts dd { margin: 0; font-variant-numeric: tabular-nums; color: var(--hi); }
