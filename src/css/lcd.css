@@ -348,3 +348,13 @@ dialog#options #ptabs button { border-width: 2px; border-bottom-width: 0; }
 .dclk-fade { text-transform: lowercase; }
 #midi-status { margin: 0; }
 #midi-map dd { text-transform: lowercase; }
+
+/* the cross under the roll (Johnny): replaces the octave and semitone arrows that ran down the right of the roll, so the
+   roll takes the whole width. The shape and generate rows stack on the left, the cross sits at the right of the two */
+html.fit .seqwrap { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.sq-foot { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.sq-foot-rows { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.dpad { display: grid; grid-template-columns: repeat(3, 32px); grid-template-rows: repeat(3, 19px); gap: 1px 2px; flex: none; }
+.dpad button { min-width: 0; height: auto; margin: 0; padding: 0; font-size: 11px; line-height: 1; letter-spacing: 0; }
+.dp-up { grid-area: 1 / 2; } .dp-lt { grid-area: 2 / 1; } .dp-rt { grid-area: 2 / 3; } .dp-dn { grid-area: 3 / 2; }
+html.fit .sq-foot .sld { grid-template-columns: 64px 68px 36px; }
