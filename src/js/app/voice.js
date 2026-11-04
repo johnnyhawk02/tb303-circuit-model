@@ -5,6 +5,19 @@ panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn"><span class="nam
   <svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 V1 H10 V11 H19 V1"/></svg></div>
   <span class="val" id="wave-val">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
+// Key track: the KT part (a TD-3-MO / Devil Fish style mod), as a full front-panel dial after Reso
+document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: feeds the pitch CV into the filter so higher notes open it. About 66% of the dial is exact 1 V/oct. 0 switches it out, which is the stock 303. Double-click to reset.">
+  <div class="knob" data-k="KT" tabindex="0" role="slider" aria-label="Key track" aria-valuemin="0" aria-valuemax="100" id="knob-kt">${knobSVG()}</div>
+  <div class="name">Key track</div><div class="ref">KT 100K(B)</div><div class="val" id="kt-val"></div></div>`);
+const ktEl = document.getElementById('knob-kt');
+function drawKeyTrack() {
+  drawPartKnob('KT');
+  const el = document.getElementById('kt-val'); if (!el) return;
+  el.textContent = state.parts.KT > 0 ? Math.round(preview.wKt / (VT * Math.LN2) * 100) + '%' : 'off';
+}
+bindDial(ktEl, { get: () => partT('KT'), set: (_, t) => { setPartT('KT', t, true); drawKeyTrack(); }, min: 0, max: 1,
+  reset: () => { applyPart('KT', COMPONENTS.KT.v); drawKeyTrack(); }, start: () => ktEl.parentElement.classList.add('active') });
+ktEl.addEventListener('dialend', () => ktEl.parentElement.classList.remove('active'));
 panel.insertAdjacentHTML('beforeend', `<div class="kn parts-kn"><span class="name">Components</span>
   <div class="trim" title="TM3 filter frequency trimmer: shifts the cutoff about an octave either way. Double-click to reset.">
     <div class="knob" data-k="I_REF" tabindex="0" role="slider" aria-label="Filter trim (TM3)" aria-valuemin="0" aria-valuemax="100">${knobSVG()}</div>
@@ -22,7 +35,7 @@ function drawTrim() {
 }
 bindDial(trimEl, { get: () => partT('I_REF'), set: (_, t) => { setPartT('I_REF', t); drawTrim(); }, drag: 240, fine: 800, focus: true,
   reset: () => { applyPart('I_REF', COMPONENTS.I_REF.v); drawTrim(); } });
-drawTrim();
+drawTrim(); drawKeyTrack();
 const partsUndo = [];
 function syncPartsUndo() { document.getElementById('parts-undo').disabled = !partsUndo.length; }
 document.getElementById('parts-rand').onclick = () => FUNCTIONS.parts();

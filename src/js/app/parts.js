@@ -73,6 +73,7 @@ tabsEl.addEventListener('keydown', (e) => {
 function applyPart(k, val) {
   state.parts[k] = val;
   if (k === 'I_REF') queueMicrotask(drawTrim);
+  if (k === 'KT' || k === 'R_KT') queueMicrotask(drawKeyTrack);
   for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', partChanged(k, val)); }
   drawPartKnob(k);
   preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
@@ -113,7 +114,6 @@ const FRONT_MODS = [
   ['C_ACC', 'Accent sweep', 'how accents build up'],
   ['R72', 'Env depth', 'size of the filter sweep'],
   ['V_CUT', 'Cutoff range', 'how far the cutoff reaches'],
-  ['KT', 'Key track', 'higher notes open the filter'],
   ['A_Q21', 'Reso limit', 'up to self-oscillation'],
   ['R_IN', 'Drive', 'push the filter harder'],
   ['C18', 'Ladder cap', 'resonance character'],
