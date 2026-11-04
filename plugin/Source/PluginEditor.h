@@ -270,15 +270,17 @@ private:
     // mods + fx
     juce::Component modsPage, fxPage;
     ui::Section mods { "Mods" }, fold { "Folder" }, rat { "Drive" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" };
-    juce::TextButton dlyMode[2], lexProg[9];
+    juce::TextButton dlyMode[2];
+    // the reverb unit's program (224 P1-P9, plate sizes, spring tanks, Conv IRs), also a dropdown
+    juce::TextButton progMenuBtn; juce::StringArray progNames; int progSel = 0;
     // the drive pedal and the reverb unit are picked from dropdown menus (as the web app's FX page)
     juce::TextButton drvMenuBtn, revMenuBtn;
     void showTypeMenu(juce::TextButton& btn, const char* param, std::initializer_list<const char*> names, int current);
     std::vector<ui::Knob*> drvKnobs[3]; // the drive slot: only the selected pedal's dials show
     int shownDrv = -1;
     std::vector<ui::Knob*> revKnobs[4];
-    int shownRev = -1, nProgs = 9;
-    juce::Label lexLcd, lexNote;
+    int shownRev = -1;
+    juce::Label lexNote;
     std::vector<ui::Knob*> lexKnobs;
     // options pages
     ui::TuningPage tuning;

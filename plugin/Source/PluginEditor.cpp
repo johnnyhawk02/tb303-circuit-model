@@ -900,27 +900,25 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     for (int i = 0; i < 2; ++i) { dlyMode[i].setButtonText(dm[i]); dlyMode[i].onClick = [setParam, i] { setParam("dlypp", i == 0 ? 1.0f : 0.0f); }; dly.addHeaderItem(&dlyMode[1 - i], 74); }
     cmp.sub = "ducks the returns, keyed by the synth"; addKnobs(cmp, { "cmpamt", "cmprel" }, 70);
     onBtn(lex, "fx_lex");
-    lex.bodyTop = 62;
     addKnobs(lex, { "lexbass", "lexmid", "lexxover", "lextreble", "lexdepth", "lexdiff", "lexpre", "lexme", "lexpitch", "lexmix" }, 74, &lexKnobs);
     // the reverb slot's other units share the section: only the selected unit's dials show
     addKnobs(lex, { "platepre", "platedecay", "platedamp", "platebw", "platelo", "platediff", "platemod", "platemix" }, 74, &revKnobs[1]);
     addKnobs(lex, { "sprdwell", "sprdecay", "sprtension", "sprtone", "sprlo", "sprmix" }, 74, &revKnobs[2]);
     addKnobs(lex, { "cnvpre", "cnvdecay", "cnvtone", "cnvlo", "cnvwidth", "cnvmix" }, 74, &revKnobs[3]);
     revKnobs[0] = lexKnobs;
-    for (int i = 0; i < 9; ++i) {
-        // the program buttons belong to whichever unit is selected (see timerCallback)
-        lexProg[i].onClick = [this, setParam, i] {
-            static const char* ids[4] = { "lexprog", "plateprog", "sprprog", "cnvprog" };
-            setParam(ids[shownRev < 0 ? 0 : shownRev], (float)i);
-        };
-        lex.addAndMakeVisible(lexProg[i]);
-    }
     revMenuBtn.setTooltip("Which unit is on the reverb slot: Lexicon 224, plate, spring or convolution");
     revMenuBtn.onClick = [this] { showTypeMenu(revMenuBtn, "revtype", { "Lexicon 224", "Plate", "Spring", "Convolution" }, shownRev); };
     lex.addHeaderItem(&revMenuBtn, 140);
-    lexLcd.setColour(juce::Label::backgroundColourId, ui::ink); lexLcd.setColour(juce::Label::textColourId, ui::glass);
-    lexLcd.setFont(ui::lcd(14.0f)); lexLcd.setJustificationType(juce::Justification::centredLeft);
-    lex.addHeaderItem(&lexLcd, 260);
+    // the program menu lists whichever unit is selected (see timerCallback)
+    progMenuBtn.setTooltip("The selected reverb's program");
+    progMenuBtn.onClick = [this, setParam] {
+        static const char* ids[4] = { "lexprog", "plateprog", "sprprog", "cnvprog" };
+        const char* id = ids[shownRev < 0 ? 0 : shownRev];
+        juce::PopupMenu m;
+        for (int i = 0; i < progNames.size(); ++i) m.addItem(progNames[i], true, i == progSel, [setParam, id, i] { setParam(id, (float)i); });
+        m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&progMenuBtn).withMinimumWidth(progMenuBtn.getWidth()));
+    };
+    lex.addHeaderItem(&progMenuBtn, 260);
     lexNote.setColour(juce::Label::textColourId, ui::dim); lexNote.setFont(ui::lcd(11.0f)); lexNote.setJustificationType(juce::Justification::topLeft);
     fxPage.addAndMakeVisible(lexNote);
     for (auto* c : { &fold, &rat, &dly, &cmp, &lex }) fxPage.addAndMakeVisible(c);
@@ -1224,13 +1222,12 @@ void TB303Editor::timerCallback() {
         if (rtp != shownRev) {
             shownRev = rtp;
             for (int t = 0; t < 4; ++t) for (auto* k : revKnobs[t]) k->setVisible(t == rtp);
-            juce::StringArray names, tips;
-            if (rtp == 0) for (auto& p : lexPrograms()) { names.add(juce::String(p.n) + " " + p.shortName); tips.add(p.name); }
-            else if (rtp == 1) { int n = 1; for (auto& p : platePrograms()) { names.add(juce::String(n++) + " " + p.shortName); tips.add(p.name); } }
-            else if (rtp == 2) { int n = 1; for (auto& p : springPrograms()) { names.add(juce::String(n++) + " " + p.shortName); tips.add(p.name); } }
-            else { int n = 1; for (auto& p : cnvPrograms()) { names.add(juce::String(n++) + " " + juce::String::fromUTF8(p.shortName)); tips.add(juce::String::fromUTF8(p.name)); } }
-            for (int i = 0; i < 9; ++i) { lexProg[i].setVisible(i < names.size()); if (i < names.size()) { lexProg[i].setButtonText(names[i]); lexProg[i].setTooltip(tips[i]); } }
-            nProgs = names.size();
+            juce::StringArray names;
+            if (rtp == 0) for (auto& p : lexPrograms()) names.add("P" + juce::String(p.n) + " " + juce::String::fromUTF8(p.name));
+            else if (rtp == 1) { int n = 1; for (auto& p : platePrograms()) names.add(juce::String(n++) + " " + juce::String::fromUTF8(p.name)); }
+            else if (rtp == 2) { int n = 1; for (auto& p : springPrograms()) names.add(juce::String(n++) + " " + juce::String::fromUTF8(p.name)); }
+            else { int n = 1; for (auto& p : cnvPrograms()) names.add(juce::String(n++) + " " + juce::String::fromUTF8(p.name)); }
+            progNames = names; progSel = -1;
             lex.title = "Reverb";
             resized(); lex.resized();
         }
@@ -1251,15 +1248,13 @@ void TB303Editor::timerCallback() {
                      << "Partitioned FFT convolution, one 512-sample block late, which is the shortest predelay.";
                 revKnobs[3][1]->setLabel(Cp.ir ? "Length" : Cp.gate ? "Gate" : "Decay");
             }
-            for (int i = 0; i < 9; ++i) lexProg[i].setToggleState(i == sel, juce::dontSendNotification);
-            lexLcd.setText(" " + juce::String(sel + 1) + " " + name.toUpperCase(), juce::dontSendNotification);
+            progSel = sel; progMenuBtn.setButtonText(progNames[sel] + U("  ▾"));
             lexNote.setText(note, juce::dontSendNotification);
         } else {
         // Lexicon: program buttons, LCD, chorus names, note
         const auto q = lexParams(Kn); const auto& LP = lexPrograms()[(size_t)q.prog];
         const bool chorus = LP.alg == ALG_CHORUS;
-        for (int i = 0; i < 9; ++i) lexProg[i].setToggleState(i == q.prog, juce::dontSendNotification);
-        lexLcd.setText(" P" + juce::String(LP.n) + " " + juce::String(LP.name).toUpperCase(), juce::dontSendNotification);
+        progSel = q.prog; progMenuBtn.setButtonText(progNames[q.prog] + U("  ▾"));
         static const char* chorusNames[5] = { "Pair 1", "Pair 2", "Pair 3", "Pair 4", "Wander" };
         static const char* ids[5] = { "lexbass", "lexmid", "lexxover", "lextreble", "lexdepth" };
         for (int i = 0; i < 5; ++i) lexKnobs[(size_t)i]->setLabel(chorus ? juce::String(chorusNames[i]) : knobName(ids[i]));
@@ -1411,9 +1406,6 @@ void TB303Editor::resized() {
         pg.removeFromTop(8);
         lex.setBounds(pg.removeFromTop(140));
         lexNote.setBounds(pg.reduced(4, 2));
-        auto pr = juce::Rectangle<int>(8, 28, lex.getWidth() - 16, 26);
-        const int w = pr.getWidth() / juce::jmax(1, nProgs);
-        for (int i = 0; i < nProgs && i < 9; ++i) lexProg[i].setBounds(pr.removeFromLeft(w).reduced(2, 0));
     }
     {
         auto pg = boardPage.getLocalBounds();

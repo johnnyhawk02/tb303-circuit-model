@@ -315,7 +315,7 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
 .tmenu > button { min-width: 0; padding: 2px 10px; font: var(--fs-m, 14.5px) var(--font-body); white-space: nowrap; }
 .tmenu .fn-menu { left: 0; right: auto; min-width: 180px; }
 .tmenu .fn-menu button { position: relative; justify-content: flex-start; }
-#pane-fx .tmenu .fn-menu button { height: 24px; padding: 0 14px 0 28px; }
+#pane-fx .tmenu .fn-menu button { height: 21px; padding: 0 14px 0 28px; } /* 21px so nine programs fit below the reverb row */
 .tmenu .fn-menu button[aria-checked=true]::before { content: "✓"; position: absolute; left: 9px; }
 /* the randomise row went into the menu, so the roll takes its height; the generate row is just its two sliders now */
 #pane-seq { --row-h: 14.5px; }

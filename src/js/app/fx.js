@@ -48,11 +48,15 @@ const REV_NOTES = {
     return `Partitioned FFT convolution with a generated impulse response: seeded noise with the highs dying first${q.P.er.length ? ', a build-up and early reflections' : ''}. ${q.P.gate ? 'Decay sets the gate length. ' : ''}The wet signal is one 512-sample block late, which is the shortest predelay.`;
   },
 };
-// ---------- type menus: which drive pedal and which reverb, picked from a dropdown (Johnny), styled like Randomise ▾ ----------
-// el: an empty .tmenu div; items: [{ name, tip }]; pick(i) runs when one is chosen. drawTypeMenu shows the current one.
+// ---------- type menus: the drive pedal, the reverb unit and its program, picked from dropdowns (Johnny), styled like Randomise ▾ ----------
+// el: an empty .tmenu div; items: [{ name, tip }]; pick(i) runs when one is chosen. setTypeItems swaps the list (the
+// program menu changes with the unit); drawTypeMenu ticks the current one and shows it on the button.
+function setTypeItems(el, items) {
+  el.lastElementChild.innerHTML = items.map((T, i) => `<button type="button" role="menuitemradio" aria-checked="false" data-t="${i}" title="${T.tip}">${T.name}</button>`).join('');
+}
 function typeMenu(el, items, pick) {
-  el.innerHTML = `<button type="button" aria-haspopup="menu" aria-expanded="false" aria-label="${el.dataset.label}"></button><div class="fn-menu" role="menu" hidden>` +
-    items.map((T, i) => `<button type="button" role="menuitemradio" aria-checked="false" data-t="${i}" title="${T.tip}">${T.name}</button>`).join('') + '</div>';
+  el.innerHTML = `<button type="button" aria-haspopup="menu" aria-expanded="false" aria-label="${el.dataset.label}"></button><div class="fn-menu" role="menu" hidden></div>`;
+  setTypeItems(el, items);
   const btn = el.firstElementChild, menu = el.lastElementChild;
   const open = (on) => {
     menu.hidden = !on; btn.setAttribute('aria-expanded', on);
@@ -74,9 +78,8 @@ function drawTypeMenu(el, t) {
 }
 {
   typeMenu(document.getElementById('rev-type'), REV_TYPES.map(T => ({ name: T.name, tip: T.name })), (i) => setKnob('revtype', i / 3));
-  document.getElementById('lex-progs').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-i]'); if (!b) return;
-    const [knob, list] = REV_PROGS[REV_TYPES[revType(state.knobs)].id]; setKnob(knob, list.length > 1 ? b.dataset.i / (list.length - 1) : 0);
+  typeMenu(document.getElementById('rev-prog'), [], (i) => {
+    const [knob, list] = REV_PROGS[REV_TYPES[revType(state.knobs)].id]; setKnob(knob, list.length > 1 ? i / (list.length - 1) : 0);
   });
 }
 // recorded impulse responses for Conv (irs/irs.json): the list loads when Conv is shown, the samples when audio is running,
@@ -100,22 +103,20 @@ async function loadIRs() {
 const LEX_CHORUS_NAMES = { lexbass: 'Pair 1', lexmid: 'Pair 2', lexxover: 'Pair 3', lextreble: 'Pair 4', lexdepth: 'Wander' };
 let revShown = '';
 function drawLex() {
-  const progs = document.getElementById('lex-progs'); if (!progs || !knobEls.lexmix) return;
+  const progs = document.getElementById('rev-prog'); if (!progs || !knobEls.lexmix) return;
   const t = revType(state.knobs), T = REV_TYPES[t], [pk, list] = REV_PROGS[T.id];
   drawTypeMenu(document.getElementById('rev-type'), t);
-  if (revShown !== T.id) { // this unit's program buttons and dials
+  if (revShown !== T.id) { // this unit's programs and dials
     revShown = T.id;
-    progs.style.setProperty('--n', list.length);
-    progs.innerHTML = list.map(([n, short, name], i) => `<button type="button" role="radio" data-i="${i}" aria-checked="false" title="${name}"><b>${n}</b>${short}</button>`).join('');
+    setTypeItems(progs, list.map(([n, , name]) => ({ name: `${T.id === 'lex' ? 'P' : ''}${n} ${name}`, tip: name })));
     for (const k of KNOBS) if (k.fx === 'lex' && knobEls[k.id]) knobEls[k.id].wrap.hidden = (k.rev || 'lex') !== T.id;
   }
   const sel = revProg(state.knobs[pk], list.length);
-  for (const b of progs.children) b.setAttribute('aria-checked', +b.dataset.i === sel);
-  const lcd = document.getElementById('lex-lcd'), note = document.getElementById('lex-note');
+  drawTypeMenu(progs, sel);
+  const note = document.getElementById('lex-note');
   if (T.id === 'conv') { loadIRMeta(); loadIRs(); }
   if (T.id !== 'lex') {
     const q = { plate: plateParams, spring: springParams, conv: convParams }[T.id](state.knobs);
-    lcd.textContent = `${sel + 1} ${q.P.name.toUpperCase()}`;
     for (const k of KNOBS) if (k.rev === T.id && knobEls[k.id]) {
       knobEls[k.id].name.textContent = k.id === 'cnvdecay' ? (q.P.gate ? 'Gate' : q.P.ir ? 'Length' : 'Decay') : k.name;
       knobEls[k.id].val.textContent = knobText(k.id, state.knobs[k.id]);
@@ -125,7 +126,6 @@ function drawLex() {
   }
   const q = lexParams(state.knobs), chorus = q.P.alg === 'chorus';
   for (const k of KNOBS) if (k.fx === 'lex' && !k.rev && knobEls[k.id]) { const e = knobEls[k.id]; e.name.textContent = (chorus && LEX_CHORUS_NAMES[k.id]) || k.name; e.val.textContent = knobText(k.id, state.knobs[k.id]); }
-  lcd.textContent = `P${q.P.n} ${q.P.name.toUpperCase()}`;
   const m = preview.lex.memoryUse(), c = state.parts;
   const shrunk = !chorus && m.scale < q.P.size - 1e-3 ? ` Shrunk to ${Math.round(m.scale / q.P.size * 100)}% to fit.` : '';
   note.textContent = (chorus
