@@ -15,12 +15,16 @@ static const PartMeta PARTS_META[] = {
     { "F_TUNE", "VCO", "schematic", "TM4: 110 Hz at CV 2.75 V (A key)", "", false },
     { "CV_TUNE", "VCO", "schematic", "CV out at A key", "", false },
     { "VR2", "VCO", "schematic", "TUNING 50K(B), ±1 oct assumed", "", true },
-    { "C10", "Square", "schematic", "coupling from saw", "", false },
-    { "R_SQB", "Square", "td3", "Q8 base bias; HPF with C10 sets pitch-dependent duty (TD-3 R191)", "", false },
-    { "SQ_LO", "Square", "schematic", "square low (scope trace)", "", false },
-    { "SQ_HI", "Square", "schematic", "square high (scope trace)", "", false },
-    { "R_SQC", "Square", "td3", "Q8 collector load (TD-3 R175)", "", false },
-    { "R_SQE", "Square", "estimate", "Q8 emitter degeneration", "", false },
+    { "C10", "Square", "schematic", "C10 (.01): with R34, the fast path from the ramp to Q8 base; it snaps Q8 off at the reset", "", false },
+    { "R_SQS", "Square", "schematic", "R34 10K: in series with C10 (TD-3 R190)", "", false },
+    { "R_SQB", "Square", "schematic", "R35 100K: ramp to Q8 base, the DC path (TD-3 R191)", "", false },
+    { "R_SQV", "Square", "schematic", "R45 22K: supply to Q8 emitter (TD-3 R189)", "Square width. Lower values feed the emitter more current, so it sits higher and Q8 turns on earlier in the ramp: a wider, louder pulse.", false },
+    { "C_SQE", "Square", "schematic", "C11 (1/50): holds Q8 emitter; it sags while Q8 conducts, which tilts the top of the square (TD-3 C122)", "", false },
+    { "R_SQC", "Square", "schematic", "R36 10K: collector load to the 5.333 V rail (VREF), which is the square's low level (TD-3 R175)", "", false },
+    { "V_SQ", "Square", "estimate", "supply at R45 (the ramp tops out at 12 V)", "", false },
+    { "IS_Q8", "Square", "estimate", "2SA733 saturation current", "", false },
+    { "BF_Q8", "Square", "estimate", "2SA733 current gain (hFE; P rank is 200 to 400)", "", false },
+    { "C_IN", "Square", "td3", "waveform coupling into the filter, with R_IN and R98 (TD-3 C19 1/50): takes the square's DC off", "", false },
     { "C18", "VCF", "schematic", "bottom stage cap (.018)", "Bottom ladder cap. Changing it toward 33n alters how the resonance sits; a popular experiment, not a standard mod.", false },
     { "C19", "VCF", "schematic", "stage 2 cap (.033)", "", false },
     { "C24", "VCF", "schematic", "stage 3 cap (.033)", "", false },
@@ -99,5 +103,5 @@ static const PartMeta PARTS_META[] = {
     { "LEX_MEM", "224", "lex", "delay memory (16K at launch, doubled shortly after). Programs shrink to fit.", "", false },
     { "LEX_XSAT", "224", "estimate", "input transformer saturation level", "", false },
 };
-static constexpr int PARTS_META_COUNT = 94;
+static constexpr int PARTS_META_COUNT = 98;
 } // namespace tb303
