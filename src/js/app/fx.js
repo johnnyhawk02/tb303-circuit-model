@@ -6,18 +6,6 @@ const REV_PROGS = {
   spring: ['sprprog', SPRING_PROGRAMS.map((P, i) => [i + 1, P.short, P.name])],
   conv: ['cnvprog', CNV_PROGRAMS.map((P, i) => [i + 1, P.short, P.name])],
 };
-const REV_NOTES = {
-  plate: (q) => `Jon Dattorro's published plate (JAES 1997): four input diffusers into a figure-eight tank with modulated allpasses. ${q.P.name}: every delay scaled ×${q.P.size}. Damping is the high cut inside the tank, Bandwidth the one before it.`,
-  spring: (q) => `A dispersive spring model after Välimäki, Parker and Abel (JAES 2010): each spring is a delay loop through ${SPRING_STAGES} stretched allpasses, so every echo smears into the falling drip. ${q.P.name}, transit ${q.P.ms.join(' / ')} ms. Dwell drives the tank, Tension lengthens the chirp.`,
-  conv: (q) => {
-    if (q.P.ir) {
-      const m = irMeta?.irs.find(x => x.id === q.P.ir);
-      return (m ? `${m.character} ${m.credit}, ${m.licence}. ` : irFailed ? 'The impulse responses could not be loaded. ' : 'Recorded impulse response; it loads when audio starts. ') +
-        'Length trims the response (full at the top). Partitioned FFT convolution, one 512-sample block late, which is the shortest predelay.';
-    }
-    return `Partitioned FFT convolution with a generated impulse response: seeded noise with the highs dying first${q.P.er.length ? ', a build-up and early reflections' : ''}. ${q.P.gate ? 'Decay sets the gate length. ' : ''}The wet signal is one 512-sample block late, which is the shortest predelay.`;
-  },
-};
 // ---------- type menus: the drive pedal, the reverb unit and its program, picked from dropdowns (Johnny), styled like Randomise ▾ ----------
 // el: an empty .tmenu div; items: [{ name, tip }]; pick(i) runs when one is chosen. setTypeItems swaps the list (the
 // program menu changes with the unit); drawTypeMenu ticks the current one and shows it on the button.
@@ -83,7 +71,6 @@ function drawLex() {
   }
   const sel = revProg(state.knobs[pk], list.length);
   drawTypeMenu(progs, sel);
-  const note = document.getElementById('lex-note');
   if (T.id === 'conv') { loadIRMeta(); loadIRs(); }
   if (T.id !== 'lex') {
     const q = { plate: plateParams, spring: springParams, conv: convParams }[T.id](state.knobs);
@@ -91,18 +78,10 @@ function drawLex() {
       knobEls[k.id].name.textContent = k.id === 'cnvdecay' ? (q.P.gate ? 'Gate' : q.P.ir ? 'Length' : 'Decay') : k.name;
       knobEls[k.id].val.textContent = knobText(k.id, state.knobs[k.id]);
     }
-    note.textContent = REV_NOTES[T.id](q);
     return;
   }
   const q = lexParams(state.knobs), chorus = q.P.alg === 'chorus';
   for (const k of KNOBS) if (k.fx === 'lex' && !k.rev && knobEls[k.id]) { const e = knobEls[k.id]; e.name.textContent = (chorus && LEX_CHORUS_NAMES[k.id]) || k.name; e.val.textContent = knobText(k.id, state.knobs[k.id]); }
-  const m = preview.lex.memoryUse(), c = state.parts;
-  const shrunk = !chorus && m.scale < q.P.size - 1e-3 ? ` Shrunk to ${Math.round(m.scale / q.P.size * 100)}% to fit.` : '';
-  note.textContent = (chorus
-    ? 'Eight voices, four a side, each delay wandering at random. The first four knobs are the voice-pair levels; Diffusion acts on pairs 3 and 4.'
-    : `Predelay ${q.P.pre[0]}–${q.P.pre[1]} ms on this program.`) +
-    ` ${(c.LEX_FS / 1000).toFixed(1)} kHz, ${Math.round(c.LEX_BITS)}-bit converters, ${m.words.toLocaleString()} of ${m.of.toLocaleString()} words.${shrunk}` +
-    ' Program names, control ranges and converter specs follow Lexicon; the algorithms are estimates built on Dattorro\'s Griesinger-style plate. Parts are in Options under 224.';
 }
 
 // ---------- drive slot: ProCo RAT, Boss DS-1, Ibanez TS808 (fx.rat switches it on, drvtype picks the pedal) ----------

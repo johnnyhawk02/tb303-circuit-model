@@ -391,13 +391,18 @@ html.fit .fxpane .fxb:not(.blk-lex):not(.blk-route) { --kn-w: 58px; }
 html.fit .blk-lex { --kn-w: 58px; padding-top: 10px; }
 html.fit .fxknobs { gap: 6px; }
 html.fit .fxpane .fxb.blk-route { padding: 10px 0 0; gap: 0; }
-.blk-route > .fxname { width: 72px; flex: none; align-self: flex-start; margin-top: 15px; line-height: 20px; }
 html.fit .blk-route .seg button { height: calc(var(--ctl-h) - 4px); }
 .route-ctl { gap: 8px; }
 
 /* Sequencer foot (Johnny): no row labels; a long Length slider on its own line, then Step len, Shift and Transpose */
 html.fit .sq-row.sq-side { flex-wrap: wrap; row-gap: 6px; }
 html.fit .sq-foot .sld.len { flex: 1 0 100%; grid-template-columns: 64px minmax(0, 1fr) 36px; margin-right: 0; }
+
+/* FX page, second pass (Johnny): no "routing" label, the diagram starts at the page edge; the rows share the spare
+   height so the page does not end in a gap */
+html.fit .fxpane { gap: 26px 0; }
+html.fit .fxpane .fxb.blk-route { padding-top: 14px; }
+html.fit .blk-lex { padding-top: 14px; }
 
 /* ---- LCD colours (Johnny, Nov 2026: Options › Colours). Each theme swaps only the colour tokens, so the glass, haze,
    glow and shadows are drawn the same way in every colour. Orange (#faa142 glass, brown-black ink) stays the default and is

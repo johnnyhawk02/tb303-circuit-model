@@ -942,7 +942,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     auto onBtn = [&](ui::Section& sec, const char* id) { auto b = std::make_unique<ui::Toggle>(s, id, "On"); sec.setHeaderButton(b.get()); owned.push_back(std::move(b)); };
     auto setParam = [this](const char* id, float plain) { if (auto* p = proc.apvts.getParameter(id)) p->setValueNotifyingHost(p->convertTo0to1(plain)); };
     // the Buchla 259 folder, ahead of the drive slot
-    onBtn(fold, "fx_fold"); fold.sub = "Buchla 259"; addKnobs(fold, { "fldtimbre", "fldsym", "fldlevel" }, 70);
+    onBtn(fold, "fx_fold"); addKnobs(fold, { "fldtimbre", "fldsym", "fldlevel" }, 70);
     {
         auto* kt = dynamic_cast<ui::Knob*>(owned[owned.size() - 3].get()), *ks = dynamic_cast<ui::Knob*>(owned[owned.size() - 2].get());
         kt->valueText = [kv] { const double p = kv("fldtimbre"); return juce::String(0.5 + 9.5 * p * p, 1) + " V"; };
@@ -965,10 +965,10 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
         kd->valueText = [this, kv] { return U("gain ×") + juce::String(juce::roundToInt(1 + (proc.partValue(P::RAT_RD) * audioTaper(kv("dist")) + 1) * (1 / proc.partValue(P::RAT_RG1) + 1 / proc.partValue(P::RAT_RG2)))); };
         kf->valueText = [this, kv] { return TB303Processor::formatPart(std::round(1 / (2 * juce::MathConstants<double>::pi * (proc.partValue(P::RAT_RF) + 100e3 * kv("filter")) * proc.partValue(P::RAT_CFLT))), "Hz"); };
     }
-    onBtn(dly, "fx_dly"); dly.sub = "tempo synced, tone on the repeats"; addKnobs(dly, { "dlytime", "dlyfb", "dlylo", "dlyhi", "dlymix" }, 70);
+    onBtn(dly, "fx_dly"); addKnobs(dly, { "dlytime", "dlyfb", "dlylo", "dlyhi", "dlymix" }, 70);
     const char* dm[2] = { "Ping-pong", "Mono" };
     for (int i = 0; i < 2; ++i) { dlyMode[i].setButtonText(dm[i]); dlyMode[i].onClick = [setParam, i] { setParam("dlypp", i == 0 ? 1.0f : 0.0f); }; dly.addHeaderItem(&dlyMode[1 - i], 74); }
-    cmp.sub = "ducks the returns, keyed by the synth"; addKnobs(cmp, { "cmpamt", "cmprel" }, 70);
+    addKnobs(cmp, { "cmpamt", "cmprel" }, 70);
     onBtn(lex, "fx_lex");
     addKnobs(lex, { "lexbass", "lexmid", "lexxover", "lextreble", "lexdepth", "lexdiff", "lexpre", "lexme", "lexpitch", "lexmix" }, 74, &lexKnobs);
     // the reverb slot's other units share the section: only the selected unit's dials show
@@ -990,9 +990,8 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     };
     lex.addHeaderItem(&progMenuBtn, 260);
     lexNote.setColour(juce::Label::textColourId, ui::dim); lexNote.setFont(ui::lcd(11.0f)); lexNote.setJustificationType(juce::Justification::topLeft);
-    fxPage.addAndMakeVisible(lexNote);
+    // no note under the reverb (Johnny: extra text does not help when making music); lexNote is kept but never shown
     // routing: folder/drive order and how the delay and reverb returns connect, over a small block diagram
-    route.sub = "click a block to switch it";
     orderMenuBtn.setTooltip("Folder and drive order");
     orderMenuBtn.onClick = [this, kv] { showTypeMenu(orderMenuBtn, "fxorder", { "Folder > Drive", "Drive > Folder" }, kv("fxorder") >= 0.5f ? 1 : 0); };
     retMenuBtn.setTooltip("Delay and reverb: side by side, or one feeding the other");
