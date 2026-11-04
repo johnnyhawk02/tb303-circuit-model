@@ -7,16 +7,16 @@
   --bezel: #0b0c0a;
   --glass: #f7962f;     /* orange backlit LCD */
   --ink: #1c0a00;
-  --ghost: rgb(28 10 0 / .13);
-  --tint: rgb(28 10 0 / .08);
-  --tint2: rgb(28 10 0 / .2);
-  --rulec: rgb(28 10 0 / .4);
-  --shadow: 2px 2px 0 rgb(28 10 0 / .17);
+  --ghost: rgb(var(--ink-rgb) / .13);
+  --tint: rgb(var(--ink-rgb) / .08);
+  --tint2: rgb(var(--ink-rgb) / .2);
+  --rulec: rgb(var(--ink-rgb) / .4);
+  --shadow: 2px 2px 0 rgb(var(--ink-rgb) / .17);
   --page: var(--case);
   --bg: transparent;    /* device panel: the glass shows through */
   --fg: var(--ink);
-  --mute: rgb(28 10 0 / .72);
-  --line: rgb(28 10 0 / .45);
+  --mute: rgb(var(--ink-rgb) / .72);
+  --line: rgb(var(--ink-rgb) / .45);
   --soft: var(--tint);
   --on: var(--ink);     /* switched on, selected: segments lit */
   --hi: var(--ink);     /* values, playhead */

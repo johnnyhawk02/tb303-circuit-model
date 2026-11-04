@@ -16,3 +16,29 @@ otabs.addEventListener('keydown', (e) => {
   showSec(t[(i + d + t.length) % t.length].dataset.sec, true); e.preventDefault();
 });
 showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.get('optTab', 'midi') : 'midi');
+
+// ---------- Options › Colours: the LCD's glass and ink. Each theme is a set of colour tokens in lcd.css ([data-lcd=…]);
+// orange is the default. The choice is saved and put on <html> by a line in the page head before the styles, so it never flashes ----------
+(() => {
+  const THEMES = [['orange', 'Orange'], ['amber', 'Amber'], ['lime', 'Lime'], ['blue', 'Blue'], ['red', 'Red'], ['grey', 'Grey']];
+  const box = document.getElementById('lcd-swatches'), root = document.documentElement;
+  const cur = () => THEMES.some(([k]) => k === root.dataset.lcd) ? root.dataset.lcd : 'orange';
+  const mark = () => { for (const b of box.children) { const on = b.dataset.lcd === cur(); b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1; } };
+  const pick = (k, focus) => {
+    if (k === 'orange') delete root.dataset.lcd; else root.dataset.lcd = k;
+    store.set('lcdTheme', k); mark(); if (focus) box.querySelector(`[data-lcd="${k}"]`).focus();
+  };
+  for (const [k, name] of THEMES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'sw'; b.dataset.lcd = k; b.setAttribute('role', 'radio');
+    b.innerHTML = `<span>${name}</span><i class="bars" aria-hidden="true"></i>`;
+    box.append(b);
+  }
+  box.addEventListener('click', (e) => { const b = e.target.closest('[data-lcd]'); if (b) pick(b.dataset.lcd); });
+  box.addEventListener('keydown', (e) => {
+    const d = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1, ArrowDown: 1 }[e.key]; if (!d) return;
+    const i = THEMES.findIndex(([k]) => k === cur());
+    pick(THEMES[(i + d + THEMES.length) % THEMES.length][0], true); e.preventDefault(); e.stopPropagation();
+  });
+  mark();
+})();
