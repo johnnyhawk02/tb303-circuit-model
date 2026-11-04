@@ -1,0 +1,64 @@
+name: Plugin (VST3 / AU)
+on:
+  push:
+    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'irs/**', '.github/workflows/plugin.yml']
+  pull_request:
+    paths: ['plugin/**', 'tb303-model.js', 'patterns.json', 'irs/**', '.github/workflows/plugin.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: plugin-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  # The plugin's engine must sound exactly like the web app's. This renders the same scenario with
+  # tb303-model.js and with plugin/Source/dsp/TB303Model.h and compares them sample for sample.
+  # If it fails after a change to tb303-model.js, port that change to TB303Model.h.
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: g++ -O2 -std=c++17 -ffp-contract=off -DSCENARIO="\"$PWD/plugin/tests/scenario.json\"" plugin/tests/render.cpp -o render
+      - run: node plugin/tests/render.js js.f32 && ./render cpp.f32 && node plugin/tests/compare.js js.f32 cpp.f32 -60
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Configure (universal: Apple silicon + Intel)"
+        run: cmake -S plugin -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      - name: Build
+        run: cmake --build build --config Release --target TB303CircuitModel_VST3 TB303CircuitModel_AU TB303CircuitModel_Standalone -j 4
+      - name: Sign (ad hoc) and package
+        run: |
+          A="build/TB303CircuitModel_artefacts/Release"
+          mkdir -p out/plugins/VST3 out/plugins/Components out/app
+          cp -R "$A/VST3/TB303 Circuit Model.vst3" out/plugins/VST3/
+          cp -R "$A/AU/TB303 Circuit Model.component" out/plugins/Components/
+          cp -R "$A/Standalone/TB303 Circuit Model.app" out/app/
+          for b in "out/plugins/VST3/TB303 Circuit Model.vst3" "out/plugins/Components/TB303 Circuit Model.component" "out/app/TB303 Circuit Model.app"; do
+            codesign --force --deep --sign - "$b"
+          done
+          lipo -info "out/plugins/VST3/TB303 Circuit Model.vst3/Contents/MacOS/TB303 Circuit Model"
+          mkdir dist
+          (cd out/plugins && ditto -c -k . ../../dist/TB303-Circuit-Model-plugins.zip)
+          (cd out/app && ditto -c -k --keepParent "TB303 Circuit Model.app" ../../dist/TB303-Circuit-Model-app.zip)
+          cp plugin/INSTALL.txt dist/
+      - name: Validate (pluginval)
+        run: |
+          curl -sSL -o pv.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip
+          unzip -q pv.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 8 --validate-in-process "out/plugins/VST3/TB303 Circuit Model.vst3"
+      - name: Validate (auval)
+        continue-on-error: true
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "out/plugins/Components/TB303 Circuit Model.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aumu T3cm Jhwk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TB303-Circuit-Model-macOS
+          path: dist/
