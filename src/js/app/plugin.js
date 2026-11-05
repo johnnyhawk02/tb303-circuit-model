@@ -14,6 +14,9 @@ if (tbPlugin) {
     } else if (m.type === 'fx' && m.name in state.fx) {
       if (state.fx[m.name] === !!m.value) return;
       state.fx[m.name] = !!m.value; preview.setFx(m.name, state.fx[m.name]); renderFx();
+    } else if (m.type === 'slot' && m.n >= 0 && m.n < 8) { // the DAW's Pattern parameter
+      if (m.n !== sel.n) loadSlot('A', m.n);
+      return;
     } else if (m.type === 'wave' && (m.value === 'saw' || m.value === 'square')) {
       if (state.wave === m.value) return;
       state.wave = m.value; preview.waveform = m.value; drawWave();

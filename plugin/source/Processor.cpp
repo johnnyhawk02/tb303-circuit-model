@@ -30,6 +30,9 @@ TB303Processor::TB303Processor()
     TB_PARAM_FX (TB_ADD_FX)
 #undef TB_ADD_FX
     add (Param::Wave, "wave", "wave", new juce::AudioParameterBool (juce::ParameterID { "wave", 1 }, "Square wave", false));
+    add (Param::Slot, "pattern", "slot", new juce::AudioParameterInt (juce::ParameterID { "pattern", 1 }, "Pattern", 1, 8, 1));
+    slotParam = params.back().get();
+    startTimerHz (20);
 }
 
 TB303Processor::~TB303Processor() {
@@ -102,10 +105,12 @@ void TB303Processor::handleUiMessage (const juce::var& m) {
         return;
     }
     if (type == "save") { if (onSave) onSave (m["name"].toString(), m["text"].toString()); return; }
-    Msg msg; std::string key;
-    if (!parse (m, msg, key)) return;
-    { std::lock_guard<std::mutex> g (snapshotLock); snapshot[key] = m; }
-    {
+    std::string key;
+    Msg msg;
+    if (type == "slot") key = "slot";
+    else if (!parse (m, msg, key)) return;
+    else {
+        { std::lock_guard<std::mutex> g (snapshotLock); snapshot[key] = m; }
         std::lock_guard<std::mutex> g (queueLock);
         queue.push_back (std::move (msg));
     }
@@ -114,6 +119,7 @@ void TB303Processor::handleUiMessage (const juce::var& m) {
     if (it != paramByKey.end()) {
         Param& P = *it->second; const float v = msgValue (P, m);
         P.ui = v;
+        if (P.kind == Param::Slot) slotApplied = v;
         if (std::isfinite (v) && v != P.p->getValue()) {
             P.applied.store (v);
             if (!P.gesture) { P.p->beginChangeGesture(); P.gesture = true; }
@@ -125,6 +131,7 @@ void TB303Processor::handleUiMessage (const juce::var& m) {
 
 float TB303Processor::msgValue (const Param& P, const juce::var& m) {
     const juce::var v = m["value"];
+    if (P.kind == Param::Slot) { const double n = (double) m["n"]; return n >= 0 && n < 8 ? P.p->convertTo0to1 ((float) (std::floor (n) + 1)) : NAN; }
     if (P.kind == Param::Wave) return v.toString() == "square" ? 1.f : 0.f;
     if (P.kind == Param::Fx) return (bool) v ? 1.f : 0.f;
     return (v.isDouble() || v.isInt() || v.isInt64()) ? juce::jlimit (0.f, 1.f, (float) (double) v) : NAN;
@@ -132,7 +139,8 @@ float TB303Processor::msgValue (const Param& P, const juce::var& m) {
 
 juce::var TB303Processor::paramMessage (const Param& P, float v) const {
     juce::DynamicObject::Ptr o = new juce::DynamicObject();
-    if (P.kind == Param::Wave) { o->setProperty ("type", "wave"); o->setProperty ("value", v >= 0.5f ? "square" : "saw"); }
+    if (P.kind == Param::Slot) { o->setProperty ("type", "slot"); o->setProperty ("n", juce::roundToInt (P.p->convertFrom0to1 (v)) - 1); }
+    else if (P.kind == Param::Wave) { o->setProperty ("type", "wave"); o->setProperty ("value", v >= 0.5f ? "square" : "saw"); }
     else if (P.kind == Param::Fx) { o->setProperty ("type", "fx"); o->setProperty ("name", juce::String (P.name)); o->setProperty ("value", v >= 0.5f); }
     else { o->setProperty ("type", "knob"); o->setProperty ("name", juce::String (P.name)); o->setProperty ("value", (double) v); }
     return juce::var (o.get());
@@ -143,6 +151,7 @@ juce::var TB303Processor::paramMessage (const Param& P, float v) const {
 void TB303Processor::overlayParams() {
     for (auto& Pp : params) {
         const Param& P = *Pp; const float v = P.p->getValue();
+        if (P.kind == Param::Slot) continue;
         auto s = snapshot.find (P.key);
         if (s != snapshot.end() && msgValue (P, s->second) == v) continue;
         if (s == snapshot.end() && P.kind != Param::Knob && v < 0.5f) continue; // off by default
@@ -153,6 +162,11 @@ void TB303Processor::overlayParams() {
 void TB303Processor::setParamsFromSnapshot() {
     for (auto& Pp : params) {
         Param& P = *Pp; float v;
+        if (P.kind == Param::Slot) {
+            v = P.p->convertTo0to1 ((float) (currentSlot() + 1)); slotApplied = v; P.ui = NAN;
+            if (v != P.p->getValue()) P.p->setValueNotifyingHost (v);
+            continue;
+        }
         {
             std::lock_guard<std::mutex> g (snapshotLock);
             auto s = snapshot.find (P.key);
@@ -164,9 +178,70 @@ void TB303Processor::setParamsFromSnapshot() {
     }
 }
 
-void TB303Processor::uiOpened() { for (auto& P : params) P->ui = P->p->getValue(); }
+void TB303Processor::uiOpened() { pageOpen = true; for (auto& P : params) P->ui = P->p->getValue(); }
 
-void TB303Processor::endGestures() { for (auto& P : params) if (P->gesture) { P->p->endChangeGesture(); P->gesture = false; } }
+void TB303Processor::endGestures() { pageOpen = false; for (auto& P : params) if (P->gesture) { P->p->endChangeGesture(); P->gesture = false; } }
+
+int TB303Processor::currentSlot() const {
+    std::lock_guard<std::mutex> g (snapshotLock);
+    auto it = instStore.find ("tb303.bankSel");
+    if (it == instStore.end()) return 0;
+    const auto v = juce::JSON::parse (it->second);
+    const int n = (int) v["n"];
+    return v["g"].toString() == "A" && n >= 0 && n < 8 ? n : 0;
+}
+
+// with the window shut, the Pattern parameter loads the slot the way the page's loadSlot does
+void TB303Processor::timerCallback() {
+    if (pageOpen || !slotParam) return;
+    const float v = slotParam->p->getValue();
+    if (v == slotApplied) return;
+    slotApplied = v;
+    const int n = juce::roundToInt (slotParam->p->convertFrom0to1 (v)) - 1;
+    if (n != currentSlot()) loadSlotNatively (n);
+}
+
+void TB303Processor::loadSlotNatively (int n) {
+    juce::String banksJson, chainJson;
+    {
+        std::lock_guard<std::mutex> g (snapshotLock);
+        if (auto it = instStore.find ("tb303.banks"); it != instStore.end()) banksJson = it->second;
+        if (auto it = instStore.find ("tb303.chain"); it != instStore.end()) chainJson = it->second;
+    }
+    if (auto* ch = juce::JSON::parse (chainJson).getArray(); ch && ch->size() >= 2) return; // a chain plays several slots: leave it
+    const juce::var slot = juce::JSON::parse (banksJson)[juce::Identifier ("A" + juce::String (n + 1))];
+    juce::Array<juce::var> steps;
+    if (auto* a = slot["pattern"].getArray(); a && a->size() >= 1 && a->size() <= 64)
+        for (auto& st : *a) {
+            juce::DynamicObject::Ptr o = new juce::DynamicObject();
+            o->setProperty ("code", juce::jlimit (0, 59, (int) st["code"])); o->setProperty ("gate", (bool) st["gate"]);
+            o->setProperty ("accent", (bool) st["accent"]); o->setProperty ("slide", (bool) st["slide"]);
+            steps.add (juce::var (o.get()));
+        }
+    if (steps.isEmpty()) // an empty slot is a blank 16-step pattern
+        for (int i = 0; i < 16; i++) {
+            juce::DynamicObject::Ptr o = new juce::DynamicObject();
+            o->setProperty ("code", 24); o->setProperty ("gate", false); o->setProperty ("accent", false); o->setProperty ("slide", false);
+            steps.add (juce::var (o.get()));
+        }
+    const double sh = slot["shuffle"].isDouble() || slot["shuffle"].isInt() ? (double) slot["shuffle"] : 0.0;
+    double gt = slot["gate"].isDouble() || slot["gate"].isInt() ? (double) slot["gate"] : 0.5;
+    if (!(gt >= 0.1 && gt <= 0.95)) gt = 0.5;
+    auto msg = [] (std::initializer_list<std::pair<const char*, juce::var>> kv) {
+        juce::DynamicObject::Ptr o = new juce::DynamicObject(); for (const auto& [k, v] : kv) o->setProperty (k, v); return juce::var (o.get());
+    };
+    juce::String sessionJson;
+    { std::lock_guard<std::mutex> g (snapshotLock); if (auto it = instStore.find ("tb303.session"); it != instStore.end()) sessionJson = it->second; }
+    if (auto sess = juce::JSON::parse (sessionJson); auto* so = sess.getDynamicObject()) { // the page restores its pattern from the session
+        so->setProperty ("pattern", juce::var (steps)); so->setProperty ("shuffle", sh); so->setProperty ("gate", gt);
+        handleUiMessage (msg ({ { "type", "store" }, { "key", "tb303.session" }, { "value", juce::JSON::toString (sess, true) } }));
+    }
+    juce::DynamicObject::Ptr sel = new juce::DynamicObject(); sel->setProperty ("g", "A"); sel->setProperty ("n", n);
+    handleUiMessage (msg ({ { "type", "store" }, { "key", "tb303.bankSel" }, { "value", juce::JSON::toString (juce::var (sel.get()), true) } }));
+    handleUiMessage (msg ({ { "type", "store" }, { "key", "tb303.pattern" }, { "value", juce::JSON::toString (juce::var (steps), true) } }));
+    handleUiMessage (msg ({ { "type", "groove" }, { "shuffle", sh }, { "gate", gt } }));
+    handleUiMessage (msg ({ { "type", "pattern" }, { "value", juce::var (steps) } }));
+}
 
 void TB303Processor::uiTick (const std::function<void (const juce::var&)>& toPage) {
     const double now = juce::Time::getMillisecondCounterHiRes();
@@ -194,6 +269,7 @@ juce::var TB303Processor::pageInitData() const {
         const_cast<TB303Processor*> (this)->overlayParams();
         for (const auto& [k, m] : snapshot) if (paramByKey.count (k)) eng.add (m);
     }
+    if (slotParam) eng.add (paramMessage (*slotParam, slotParam->p->getValue()));
     o->setProperty ("engine", eng);
     return juce::var (o.get());
 }
@@ -349,7 +425,8 @@ void TB303Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
     for (auto& m : inbox) apply (e, m, false);
     inbox.clear();
     for (auto& Pp : params) { // DAW automation
-        Param& P = *Pp; const float v = P.p->getValue();
+        Param& P = *Pp; if (P.kind == Param::Slot) continue;
+        const float v = P.p->getValue();
         if (v == P.applied.load (std::memory_order_relaxed)) continue;
         P.applied.store (v, std::memory_order_relaxed);
         if (P.kind == Param::Knob) e.knob (P.name, v);

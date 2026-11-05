@@ -29,6 +29,15 @@ int main (int argc, char** argv) {
         std::printf ("%d parameters\n", ps.size());
         for (int i : { 0, 1, 8, 75, ps.size() - 1 }) if (i < ps.size()) std::printf ("  %s = %s\n", ps[i]->getName (40).toRawUTF8(), ps[i]->getCurrentValueAsText().toRawUTF8());
         inst->setPlayConfigDetails (0, 2, 48000, 512); inst->prepareToPlay (48000, 512);
+        if (argc > 3) { // a saved state, then the Pattern parameter to slot 3 with the window shut
+            const String st = File (argv[3]).loadFileAsString();
+            XmlElement x ("VST3PluginState"); MemoryBlock raw (st.toRawUTF8(), st.getNumBytesAsUTF8());
+            x.createNewChildElement ("IComponent")->addTextElement (raw.toBase64Encoding());
+            MemoryBlock wrapped; AudioProcessor::copyXmlToBinary (x, wrapped);
+            inst->setStateInformation (wrapped.getData(), (int) wrapped.getSize()); pump (300);
+            for (auto* q : ps) if (q->getName (20) == "Pattern") { std::printf ("Pattern was %s\n", q->getCurrentValueAsText().toRawUTF8()); q->setValueNotifyingHost (q->getValueForText ("3")); }
+            pump (300);
+        }
         ps[1]->setValueNotifyingHost (0.9f); ps[ps.size() - 1]->setValueNotifyingHost (1.f);
         AudioBuffer<float> b (2, 512); MidiBuffer mb; inst->processBlock (b, mb);
         MemoryBlock st; inst->getStateInformation (st);
