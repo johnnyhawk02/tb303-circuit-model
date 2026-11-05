@@ -431,34 +431,25 @@ html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
 .top .bpm-read output#bpm-val { width: calc(3ch + 20px); min-width: 0; font-variant-numeric: tabular-nums; }
 .kn .val, .md .val, .sld output, .fx output, output { font-variant-numeric: tabular-nums; }
 
-/* ---- Colourful mode (Johnny, Nov 2026: Options › Colours › Mode). Mono is every theme above, one ink on one glass.
-   Colourful puts the grey glass underneath and inks a few things in the other themes' colours, deepened so they read on
-   grey like printed colour filters on a real LCD: each FX unit's On button and routing block (every dial and slider stays ink, Johnny), the page tabs, the play
-   light, the slide and accent rows and the step and pattern markers. Text and lines stay in the grey theme's ink.
-   data-lcdmode=colour goes on <html> (the page head puts it back before the styles load) ---- */
+/* ---- Grey + colour mode (Johnny, Nov 2026: Options › Colours › Mode; the default since v124). Mono is every theme above,
+   one ink on one glass. Grey + colour puts the grey glass underneath and uses the chosen theme as the one accent colour,
+   deepened so it reads on grey like a printed colour filter on a real LCD (grey itself means no accent): the FX On buttons and
+   routing blocks, the selected page tab, the play light, the pattern in use, the step being played, slides and accents.
+   Every dial and slider, all text and lines stay in the grey theme's ink (Johnny). data-lcdmode=colour goes on <html>; the
+   page head puts it there unless tb303.lcdMode says mono ---- */
 :root[data-lcdmode=colour] { --glass: #d3d6cc; --ink: #121410; --panel-rgb: 211 214 204; --ink-rgb: 18 20 16; --shade-rgb: 64 68 58; --light-rgb: 248 250 242;
-  --hl1-rgb: 250 252 245; --hl2-rgb: 246 248 240; --dk1-rgb: 44 46 40; --dk2-rgb: 38 40 34; --dk3-rgb: 28 30 24;
-  --c-orange: #d0600a; --c-amber: #b58300; --c-lime: #4e8a16; --c-blue: #2a63ae; --c-red: #c2352a; }
-[data-lcdmode=colour] #fx-fold, [data-lcdmode=colour] .route-dia [data-u=fold] { --ac: var(--c-lime); }
-[data-lcdmode=colour] #fx-rat, [data-lcdmode=colour] .route-dia [data-u=rat] { --ac: var(--c-red); }
-[data-lcdmode=colour] #fx-dly, [data-lcdmode=colour] .route-dia [data-u=dly] { --ac: var(--c-blue); }
-[data-lcdmode=colour] #fx-cmp, [data-lcdmode=colour] .route-dia [data-u=cmp] { --ac: var(--c-amber); }
-[data-lcdmode=colour] #fx-lex, [data-lcdmode=colour] .route-dia [data-u=lex] { --ac: var(--c-orange); }
-/* FX: each unit's On button and its block in the routing diagram */
-[data-lcdmode=colour] .fxb .onoff[aria-pressed=true] { background: var(--ac, var(--ink)); border-color: var(--ac, var(--ink)); }
-[data-lcdmode=colour] .route-dia .rb[data-u] rect { stroke: var(--ac); }
-[data-lcdmode=colour] .route-dia .rb.on[data-u] rect { fill: var(--ac); }
-/* page tabs: the chosen one fills with its own colour */
-[data-lcdmode=colour] .mtabs [data-pane=seq] { --ac: var(--c-orange); } [data-lcdmode=colour] .mtabs [data-pane=mods] { --ac: var(--c-lime); }
-[data-lcdmode=colour] .mtabs [data-pane=fx] { --ac: var(--c-blue); } [data-lcdmode=colour] .mtabs [data-pane=tune] { --ac: var(--c-amber); }
-[data-lcdmode=colour] .mtabs button[aria-selected=true] { background: var(--ac); border-color: var(--ac); color: var(--glass); }
-/* the play light, the pattern in use, the step being played, slides and accents */
-[data-lcdmode=colour] .play[aria-pressed=true] { background: var(--c-lime); border-color: var(--c-lime); }
-[data-lcdmode=colour] .slots button[aria-pressed=true] { background: var(--c-orange); }
-[data-lcdmode=colour] .seq .hd.cur { background: var(--c-orange); }
-[data-lcdmode=colour] .seq [data-t=slide].on { background: var(--c-blue); }
-[data-lcdmode=colour] .seq [data-t=accent].on { background: var(--c-red); }
-/* Options › Colours: the Mono / Colourful switch over the swatches; in Colourful the glass is grey, so the swatches rest */
+  --hl1-rgb: 250 252 245; --hl2-rgb: 246 248 240; --dk1-rgb: 44 46 40; --dk2-rgb: 38 40 34; --dk3-rgb: 28 30 24; --accent: #d0600a; }
+:root[data-lcdmode=colour][data-lcd=amber] { --accent: #b58300; }
+:root[data-lcdmode=colour][data-lcd=lime] { --accent: #4e8a16; }
+:root[data-lcdmode=colour][data-lcd=blue] { --accent: #2a63ae; }
+:root[data-lcdmode=colour][data-lcd=red] { --accent: #c2352a; }
+:root[data-lcdmode=colour][data-lcd=grey] { --accent: var(--ink); }
+[data-lcdmode=colour] .fxb .onoff[aria-pressed=true], [data-lcdmode=colour] .mtabs button[aria-selected=true],
+[data-lcdmode=colour] .play[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--glass); }
+[data-lcdmode=colour] .route-dia .rb.on[data-u] rect { stroke: var(--accent); }
+[data-lcdmode=colour] .route-dia .rb.on[data-u] rect { fill: var(--accent); }
+[data-lcdmode=colour] .slots button[aria-pressed=true], [data-lcdmode=colour] .seq .hd.cur,
+[data-lcdmode=colour] .seq [data-t=slide].on, [data-lcdmode=colour] .seq [data-t=accent].on { background: var(--accent); }
+/* Options › Colours: the Mono / Grey + colour switch over the swatches (the swatch picks the glass in Mono, the accent in Grey + colour) */
 .lcd-mode { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; font-size: var(--fs-m); text-transform: lowercase; }
 html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
-[data-lcdmode=colour] #lcd-swatches button.sw { opacity: .35; }
