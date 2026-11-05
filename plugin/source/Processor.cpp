@@ -281,7 +281,7 @@ std::optional<juce::WebBrowserComponent::Resource> TB303Processor::getResource (
     int size = 0; const char* data = findResource (file, size);
     if (!data) return std::nullopt;
     const juce::String ext = file.fromLastOccurrenceOf (".", false, false).toLowerCase();
-    const juce::String mime = ext == "html" ? "text/html; charset=utf-8" : ext == "json" ? "application/json; charset=utf-8" : ext == "ttf" ? "font/ttf"
+    const juce::String mime = ext == "html" ? "text/html; charset=utf-8" : ext == "json" ? "application/json; charset=utf-8" : ext == "ttf" ? "font/ttf" : ext == "woff2" ? "font/woff2"
                             : ext == "flac" ? "audio/flac" : "application/octet-stream";
     std::vector<std::byte> bytes ((size_t) size);
     std::memcpy (bytes.data(), data, (size_t) size);
