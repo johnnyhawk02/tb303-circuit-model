@@ -26,8 +26,45 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
   const mark = () => { for (const b of box.children) { const on = b.dataset.lcd === cur(); b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1; } };
   const pick = (k, focus) => {
     if (k === 'orange') delete root.dataset.lcd; else root.dataset.lcd = k;
-    store.set('lcdTheme', k); mark(); if (focus) box.querySelector(`[data-lcd="${k}"]`).focus();
+    store.set('lcdTheme', k); mark(); applyLook(); if (focus) box.querySelector(`[data-lcd="${k}"]`).focus();
   };
+
+  // Brightness, saturation, dirt, grain, glow: saved as tb303.lcdLook (the slider values) and tb303.lcdVars (the CSS
+  // variables they make, which the page head puts back before the styles load). At the stock values nothing is set at all.
+  const LOOK0 = { bright: 0, sat: 100, dirt: 100, grain: 100, glow: 100 };
+  const look = { ...LOOK0, ...store.get('lcdLook', {}) };
+  const VARS = ['--glass', '--panel-rgb', '--dirt', '--grain', '--glow'];
+  const hex2hsl = (h) => {
+    const n = parseInt(h.replace('#', ''), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    if (!d) return [0, 0, l];
+    const s = d / (1 - Math.abs(2 * l - 1));
+    const hh = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [hh * 60, s, l];
+  };
+  const hsl2rgb = (h, s, l) => {
+    const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return [r, g, b].map(v => Math.round((v + m) * 255));
+  };
+  function applyLook() {
+    for (const v of VARS) root.style.removeProperty(v);
+    const vars = {};
+    if (look.bright !== 0 || look.sat !== 100) {
+      const [h, s0, l0] = hex2hsl(getComputedStyle(root).getPropertyValue('--glass').trim());
+      const b = look.bright / 100, s = Math.min(1, s0 * look.sat / 100), l = b > 0 ? l0 + (1 - l0) * b * .8 : l0 * (1 + b * .8);
+      const rgb = hsl2rgb(h, s, l);
+      vars['--glass'] = '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join(''); vars['--panel-rgb'] = rgb.join(' ');
+    }
+    for (const k of ['dirt', 'grain', 'glow']) if (look[k] !== 100) vars['--' + k] = String(look[k] / 100);
+    for (const k in vars) root.style.setProperty(k, vars[k]);
+    store.set('lcdLook', look); store.set('lcdVars', vars);
+  }
+  const lookBox = document.getElementById('lcd-look');
+  const show = () => { for (const i of lookBox.querySelectorAll('input')) { const k = i.dataset.look; i.value = look[k]; i.nextElementSibling.textContent = k === 'bright' ? (look[k] > 0 ? '+' : '') + look[k] : look[k] + '%'; i.dispatchEvent(new Event('input', { bubbles: true })); } };
+  lookBox.addEventListener('input', (e) => { const i = e.target; if (!i.dataset?.look || !e.isTrusted) return; look[i.dataset.look] = +i.value; applyLook(); show(); });
+  document.getElementById('lcd-look-reset').onclick = () => { Object.assign(look, LOOK0); applyLook(); show(); };
+  show();
   for (const [k, name] of THEMES) {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'sw'; b.dataset.lcd = k; b.setAttribute('role', 'radio');
@@ -41,4 +78,12 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
     pick(THEMES[(i + d + THEMES.length) % THEMES.length][0], true); e.preventDefault(); e.stopPropagation();
   });
   mark();
+
+  // Mono / Grey + colour: Mono is the chosen theme as one ink on one glass; Grey + colour (the default) lays the grey glass
+  // under it and uses the chosen theme as the one accent colour (lcd.css, [data-lcdmode=colour]). Saved as tb303.lcdMode
+  const modeBox = document.getElementById('lcd-mode');
+  const markMode = () => { for (const b of modeBox.children) b.setAttribute('aria-pressed', b.dataset.mode === (root.dataset.lcdmode === 'colour' ? 'colour' : 'mono')); };
+  const setMode = (m) => { if (m === 'colour') root.dataset.lcdmode = 'colour'; else delete root.dataset.lcdmode; store.set('lcdMode', m); markMode(); applyLook(); };
+  modeBox.addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
+  markMode();
 })();

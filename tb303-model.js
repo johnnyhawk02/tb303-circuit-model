@@ -1068,6 +1068,54 @@ class DigitalDelay {
   }
 }
 
+// Flanger after the Boss BF-2: a 1024-stage bucket brigade (MN3207) clocked by a VCO (MN3102), so the delay is
+// 1024 / (2 f_clk). The clock runs from about 500 kHz down to 40 kHz, which is 1 to 12.8 ms; the clock is linear in the
+// control voltage, so the delay sweeps as 1/f and lingers at the long end. Manual sets the voltage, the triangle LFO
+// sweeps around it (Depth, Rate), Res feeds the BBD output back to its input through a soft clip. The BBD sits between
+// two fixed 8 kHz low-pass filters (anti-alias and reconstruction), and the output is the dry and delayed signals mixed
+// equally, which gives the comb. Chorus mode: no feedback, longer delays and a shallower sweep. Estimated from the
+// BF-2 service notes' block diagram; the BBD's sample-and-hold grit and noise are not modelled.
+const FLG_STAGES = 1024, FLG_FHI = 500e3, FLG_FLO = 40e3, FLG_LPF = 8000;
+const flgRate = (p) => 0.1 * Math.pow(100, p); // 0.1-10 Hz
+const flgMs = (v) => 1000 * FLG_STAGES / (2 * (FLG_FHI - v * (FLG_FHI - FLG_FLO)));
+class BF2Flanger {
+  constructor(fs) {
+    this.fs = fs; this.buf = new Float32Array(Math.ceil(fs * 0.016) + 4); this.w = 0; this.ph = 0; this.y = 0; this.g = 0.62;
+    const K = Math.tan(Math.PI * Math.min(FLG_LPF, 0.45 * fs) / fs), Q = Math.SQRT1_2, n = 1 / (1 + K / Q + K * K);
+    this.b0 = K * K * n; this.a1 = 2 * (K * K - 1) * n; this.a2 = (1 - K / Q + K * K) * n;
+    this.i1 = 0; this.i2 = 0; this.j1 = 0; this.j2 = 0; this.o1 = 0; this.o2 = 0; this.p1 = 0; this.p2 = 0;
+  }
+  derive(k) {
+    this.chorus = k.flgmode >= 0.5;
+    this.inc = flgRate(k.flgrate) / this.fs;
+    this.man = k.flgman; this.dep = k.flgdep;
+    this.fb = this.chorus ? 0 : 0.9 * k.flgres;
+    this.g = this.chorus ? 0.72 : 0.62; // the equal mix, raised so switching it on keeps roughly the dry loudness (the comb and the 8 kHz filter take about 3 dB)
+  }
+  run(x) {
+    this.ph += this.inc; if (this.ph >= 1) this.ph -= 1;
+    const tri = this.ph < 0.5 ? 4 * this.ph - 1 : 3 - 4 * this.ph;
+    let v = this.chorus ? 0.55 + 0.45 * this.man + 0.15 * this.dep * tri : this.man + 0.5 * this.dep * tri;
+    v = v < 0 ? 0 : v > 1 ? 1 : v;
+    const d = FLG_STAGES / (2 * (FLG_FHI - v * (FLG_FHI - FLG_FLO))) * this.fs;
+    // anti-alias filter into the BBD, with the feedback
+    const u = x + this.fb * Math.tanh(this.y);
+    const a = this.b0 * (u + 2 * this.i1 + this.i2) - this.a1 * this.j1 - this.a2 * this.j2;
+    this.i2 = this.i1; this.i1 = u; this.j2 = this.j1; this.j1 = a;
+    const b = this.buf, N = b.length;
+    b[this.w] = a;
+    let r = this.w - d; if (r < 0) r += N;
+    const i = Math.floor(r), f = r - i, j = i + 1 === N ? 0 : i + 1;
+    const z = b[i] + (b[j] - b[i]) * f;
+    this.w = this.w + 1 === N ? 0 : this.w + 1;
+    // reconstruction filter after it
+    const y = this.b0 * (z + 2 * this.o1 + this.o2) - this.a1 * this.p1 - this.a2 * this.p2;
+    this.o2 = this.o1; this.o1 = z; this.p2 = this.p1; this.p1 = y;
+    this.y = y;
+    return this.g * (x + y);
+  }
+}
+
 // Sidechain on the effect returns, after the Kilohearts Compactor (a limiter/ducker that works at sample
 // level). The key is the dry synth. Two controls: Amount and Release. Amount sets both how deep the duck
 // goes (0 = off, about 70% = full duck) and how sensitive it is (the key level that ducks fully goes from
@@ -1123,13 +1171,15 @@ class TB303Voice {
       sprprog: 2 / 3, sprdwell: 0.4, sprdecay: 0.5, sprtension: 0.5, sprtone: 0.5, sprlo: 0.4, sprmix: 0.5,
       cnvprog: 0, cnvpre: 0.2, cnvdecay: 1, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
       cmpamt: 0.4, cmprel: 0.14142,
-      dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35, fxorder: 0, fxret: 0 };
-    this.fx = { rat: false, lex: false, dly: false, fold: false }; // rat switches the drive slot (RAT, DS-1 or TS808)
+      dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35, fxorder: 0, fxret: 0,
+      flgman: 0.5, flgdep: 0.5, flgrate: 0.3, flgres: 0.5, flgmode: 0 };
+    this.fx = { rat: false, lex: false, dly: false, fold: false, flg: false }; // rat switches the drive slot (RAT, DS-1 or TS808)
     this.bpm = 128;
     this.ds = new BossDS1(this.fs); this.ts = new TubeScreamer(this.fs); this.b259 = new Buchla259(this.fs); this.drvT = 0;
     this.lex = new Lexicon224(sampleRate);
     this.plate = new DattorroPlate(sampleRate); this.spring = new SpringReverb(sampleRate); this.conv = new ConvReverb(sampleRate); this.revT = 0;
     this.dly = new DigitalDelay(sampleRate);
+    this.flg = new BF2Flanger(sampleRate);
     this.cmp = new Compactor(sampleRate);
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
@@ -1166,7 +1216,7 @@ class TB303Voice {
 
   _derive() {
     const c = this.c, k = this.knobs;
-    this.cmp.derive(k); this.dly.derive(k, this.bpm);
+    this.cmp.derive(k); this.dly.derive(k, this.bpm); this.flg.derive(k);
     // noise: density * sqrt(bandwidth) at the oversampled rate gives the rms per sample
     const nb = Math.sqrt(this.fs / 2) * c.NOISE;
     this.nVcf = c.EN_VCF * nb; this.nOta = c.EN_OTA * nb; this.nOut = c.EN_OUT * nb;
@@ -1541,6 +1591,7 @@ class TB303Voice {
   // from y, summed with y, then the output soft clip. Routed in parallel (both fed from y), or in series: the second
   // one is fed y plus the first one's return (in mono), and both returns are heard.
   _fxOut(y, out, outR, n) {
+    if (this.fx.flg) y = this.flg.run(y); // the flanger, on the synth ahead of the returns and the dry path
     const lex = this.fx.lex ? this.rev : null, dly = this.fx.dly ? this.dly : null;
     let wl = 0, wr = 0;
     if (lex && dly && this.retMode === 1) { // delay into reverb
@@ -1569,12 +1620,12 @@ class TB303Voice {
   // Decaying filter and envelope states eventually reach subnormal floats, which run many times
   // slower on most CPUs (CPU climbed 3x over 15 s of silence). Snap anything that small to zero once
   // per block. 1e-150 is far below any audible level and far below every component value.
-  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.plate, 0); flushTiny(this.spring, 0); flushTiny(this.conv, 0); flushTiny(this.dly, 0); flushTiny(this.cmp, 0); flushTiny(this.ds.s, 0); flushTiny(this.ts.s, 0); flushTiny(this.b259.s, 0); }
+  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.plate, 0); flushTiny(this.spring, 0); flushTiny(this.conv, 0); flushTiny(this.dly, 0); flushTiny(this.flg, 0); flushTiny(this.cmp, 0); flushTiny(this.ds.s, 0); flushTiny(this.ts.s, 0); flushTiny(this.b259.s, 0); }
 
   // out is mono, or the left channel when outR is given
   process(out, start = 0, end = out.length, outR) {
     this._flush();
-    const fx = this.fx.lex || this.fx.dly;
+    const fx = this.fx.lex || this.fx.dly || this.fx.flg;
     for (let n = start; n < end; n++) {
       let y = 0;
       for (let o = 0; o < this.os; o++) y = this._decimate(this._tick());
@@ -1595,7 +1646,7 @@ class TB303Voice {
 // it only decides what value the voice sees each 32-sample tick. Discrete controls switch at once.
 class ParamSlew {
   constructor(voice, fs, tau = 0.015) { this.v = voice; this.fs = fs; this.tau = tau; this.t = new Map(); }
-  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name === 'drvtype' || name === 'fxorder' || name === 'fxret' || name.startsWith('LEX_'); }
+  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name === 'drvtype' || name === 'fxorder' || name === 'fxret' || name === 'flgmode' || name.startsWith('LEX_'); }
   set(kind, name, value) {
     const v = this.v;
     if (ParamSlew.instant(kind, name) || !isFinite(value)) { this.t.delete(kind + name); kind === 'k' ? v.setKnob(name, value) : v.setComponent(name, value); return; }
@@ -1639,8 +1690,8 @@ class DeClick {
     const v = this.v;
     if (!this.on) { v.process(out, start, end, outR); this.t += end - start; return; }
     // run the voice dry and do the returns here, after the fade, so a retrigger never dips the reverb or delay tails
-    const lex = v.fx.lex, dly = v.fx.dly, fx = lex || dly;
-    v.fx.lex = v.fx.dly = false; v.process(out, start, end); v.fx.lex = lex; v.fx.dly = dly;
+    const lex = v.fx.lex, dly = v.fx.dly, flg = v.fx.flg, fx = lex || dly || flg;
+    v.fx.lex = v.fx.dly = v.fx.flg = false; v.process(out, start, end); v.fx.lex = lex; v.fx.dly = dly; v.fx.flg = flg;
     const D = this.D, F = this.F, L = this.bufL, ev = this.ev;
     for (let n = start; n < end; n++, this.t++) {
       let y = L[this.w]; L[this.w] = out[n]; this.w = this.w + 1 === D ? 0 : this.w + 1;

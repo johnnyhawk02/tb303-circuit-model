@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
-<script>try { const t = JSON.parse(localStorage.getItem('tb303.lcdTheme')); if (typeof t === 'string') document.documentElement.dataset.lcd = t; } catch {}</script>
+<script>try { const r = document.documentElement, t = JSON.parse(localStorage.getItem('tb303.lcdTheme')), v = JSON.parse(localStorage.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (JSON.parse(localStorage.getItem('tb303.lcdMode')) !== 'mono') r.dataset.lcdmode = 'colour'; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
 <style>
 /*@css*/
 </style>
@@ -42,7 +42,6 @@
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
     </div>
-    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button><button type="button" role="menuitem" data-fn="install" id="fn-install" title="Install the synth as an app, so it opens in its own window and works offline">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" title="Undo the last change to a pattern" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
     <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
@@ -60,8 +59,7 @@
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- controls above the roll (the pattern and what you do to it) and below it (a long Length slider, then step length,
-           shift and transpose); Generate lives in the Randomise menu (key G) -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (long Length and Step len sliders); Generate lives in the Randomise menu (key G) -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
@@ -103,9 +101,7 @@
       <div class="sq-foot"><div class="sq-foot-rows">
       <div class="sq-row sq-side">
         <label class="sld len"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
-        <label class="sld"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
-        <label class="sld spr" title="Drag to rotate the pattern; springs back to centre"><span>Shift</span><input type="range" data-a="shift" min="-16" max="16" step="1" value="0" aria-label="Shift pattern by steps"><output id="o-shift">0</output></label>
-        <label class="sld spr" title="Drag to transpose the pattern; springs back to centre"><span>Transpose</span><input type="range" data-a="tr" min="-12" max="12" step="1" value="0" aria-label="Transpose pattern by semitones"><output id="o-tr">0</output></label>
+        <label class="sld len"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
       </div></div>
         <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
         <div class="nudge dpad" role="group" aria-label="Move the notes">
@@ -135,7 +131,6 @@
     <div class="sq-row tu-foot">
       <span class="rlab">root</span>
       <div class="seg slots" id="tu-root" role="group" aria-label="Root of the temperament"><button type="button" data-r="0" aria-pressed="false">c</button><button type="button" data-r="1" aria-pressed="false">c♯</button><button type="button" data-r="2" aria-pressed="false">d</button><button type="button" data-r="3" aria-pressed="false">d♯</button><button type="button" data-r="4" aria-pressed="false">e</button><button type="button" data-r="5" aria-pressed="false">f</button><button type="button" data-r="6" aria-pressed="false">f♯</button><button type="button" data-r="7" aria-pressed="false">g</button><button type="button" data-r="8" aria-pressed="false">g♯</button><button type="button" data-r="9" aria-pressed="false">a</button><button type="button" data-r="10" aria-pressed="false">a♯</button><button type="button" data-r="11" aria-pressed="false">b</button></div>
-      <span class="hint tu-note">±100 cents a note, every octave · shift for fine · double-click for 0</span>
     </div>
   </div>
 
@@ -158,6 +153,7 @@
       <div class="fxh"><span class="fxname">Compactor</span><span class="fxsub">ducks the returns under the synth</span></div>
       <div class="fxknobs" id="fx-cmp-knobs"></div>
     </section>
+    <div class="fx-row2">
     <section class="fxb blk-lex" id="fx-lex" aria-label="Reverb">
       <div class="fxh lex-head">
         <button type="button" class="onoff" id="fx-lex-on" aria-pressed="false">Off</button>
@@ -166,10 +162,14 @@
         <div class="fn rmenu tmenu" id="rev-prog" data-label="Program"></div>
       </div>
       <div class="fxknobs" id="fx-lex-knobs"></div>
-      <p class="hint lex-note" id="lex-note"></p>
     </section>
+    <section class="fxb" id="fx-flg" aria-label="Flanger">
+      <div class="fxh"><button type="button" class="onoff" id="fx-flg-on" aria-pressed="false">Off</button>
+        <div class="seg cmp-mode" id="flg-mode" role="radiogroup" aria-label="Flanger mode"><button type="button" role="radio" data-m="0">Flanger</button><button type="button" role="radio" data-m="1">Chorus</button></div></div>
+      <div class="fxknobs" id="fx-flg-knobs"></div>
+    </section>
+    </div>
     <section class="fxb blk-route" id="fx-route" aria-label="FX routing">
-      <span class="fxname">routing</span>
       <svg class="route-dia" id="route-dia" viewBox="0 0 560 60" role="group" aria-label="Signal path through the effects. Click a block to switch it on or off."></svg>
       <div class="route-ctl">
         <div class="seg" id="route-order" role="radiogroup" aria-label="Folder and drive order"><button type="button" role="radio" data-v="0" title="The folder first, then the drive pedal (the stock order)">fold → drive</button><button type="button" role="radio" data-v="1" title="The drive pedal first, then the folder: folds the clipped wave">drive → fold</button></div>
@@ -191,9 +191,19 @@
       <dl class="readouts" id="midi-map"></dl>
     </section>
     <section class="osec" id="osec-colours" role="tabpanel" aria-label="Colours" hidden>
+      <div class="lcd-mode"><span>mode</span><div class="seg" id="lcd-mode" role="group" aria-label="Screen colour mode"><button type="button" data-mode="mono" aria-pressed="false">Mono</button><button type="button" data-mode="colour" aria-pressed="true">Grey + colour</button></div></div>
       <div class="lcd-swatches" id="lcd-swatches" role="radiogroup" aria-label="Screen colour"></div>
+      <div class="lcd-look" id="lcd-look">
+        <label class="sld"><span>Brightness</span><input type="range" data-look="bright" min="-50" max="50" step="1" value="0" aria-label="Screen brightness"><output>0</output></label>
+        <label class="sld"><span>Saturation</span><input type="range" data-look="sat" min="0" max="200" step="1" value="100" aria-label="Screen saturation"><output>100%</output></label>
+        <label class="sld"><span>Dirt</span><input type="range" data-look="dirt" min="0" max="200" step="1" value="100" aria-label="Dirt on the glass"><output>100%</output></label>
+        <label class="sld"><span>Grain</span><input type="range" data-look="grain" min="0" max="250" step="1" value="100" aria-label="Pixel grain"><output>100%</output></label>
+        <label class="sld"><span>Glow</span><input type="range" data-look="glow" min="0" max="200" step="1" value="100" aria-label="Glow round the segments"><output>100%</output></label>
+        <button type="button" id="lcd-look-reset">Reset</button>
+      </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
+      <div class="opt-install"><button type="button" id="opt-install">Install app</button><span id="opt-install-msg" role="status"></span></div>
       <div class="notes">
         <p><strong>Source.</strong> Roland main board schematic, Feb 19 1982, with unclear values read from the TD-3 clone sheet. Parts on neither sheet are estimates. Running at <span id="rate">2× oversampling</span>.</p>
         <p><strong>Pitch and VCO.</strong> A 6-bit R-2R ladder from 5.333 V gives 1/12 V per step. An exponential current charges C33 from 5.5 V to 12 V, then resets, smoothed with a polyBLEP.</p>

@@ -176,7 +176,7 @@ void RouteView::paint(juce::Graphics& g) {
     const int ret = juce::jlimit(0, 2, (int)std::lround(get("fxret")));
     static const char* dn[3] = { "rat", "ds-1", "ts808" }, *rn[4] = { "224", "plate", "spring", "conv" };
     const juce::String drv = dn[juce::jlimit(0, 2, (int)std::lround(get("drvtype")))], rev = rn[juce::jlimit(0, 3, (int)std::lround(get("revtype")))];
-    const float W = 70, H = 18, Y = 24;
+    const float W = 62, H = 18, Y = 24;
     g.setColour(ink);
     auto ln = [&](std::initializer_list<juce::Point<float>> pts) {
         juce::Path p; bool first = true;
@@ -198,24 +198,25 @@ void RouteView::paint(juce::Graphics& g) {
         if (id) hits.push_back({ r, id });
     };
     txt("303", 0, Y, 30, juce::Justification::centredLeft, ink, 15);
-    ln({ { 28, Y }, { 40, Y } }); arr(40, Y);
-    const char* p0 = swap ? "fx_rat" : "fx_fold", *p1 = swap ? "fx_fold" : "fx_rat";
-    blk(p0, swap ? drv : "folder", 40, Y, swap ? rat : fold); ln({ { 110, Y }, { 124, Y } }); arr(124, Y);
-    blk(p1, swap ? "folder" : drv, 124, Y, swap ? fold : rat);
-    const float sx = 214, mx = 404, cx = 412, ox = 500;
-    ln({ { 194, Y }, { sx, Y } }); g.fillEllipse(sx - 2.5f, Y - 2.5f, 5, 5);
+    struct Pre { const char* id; juce::String label; bool on; };
+    const bool flgOn = get("fx_flg") >= 0.5f;
+    const Pre pre[3] = { swap ? Pre { "fx_rat", drv, rat } : Pre { "fx_fold", "folder", fold }, swap ? Pre { "fx_fold", "folder", fold } : Pre { "fx_rat", drv, rat },
+                         Pre { "fx_flg", get("flgmode") >= 0.5f ? "chorus" : "flanger", flgOn } };
+    for (int i = 0; i < 3; ++i) { const float x = 36.0f + i * 74; ln({ { x - (i ? 12.0f : 8.0f), Y }, { x, Y } }); arr(x, Y); blk(pre[i].id, pre[i].label, x, Y, pre[i].on); }
+    const float sx = 270, cx = 428, ox = 506;
+    ln({ { 246, Y }, { sx, Y } }); g.fillEllipse(sx - 2.5f, Y - 2.5f, 5, 5);
     if (ret == 0) {
-        const float yt = 12, yb = 46, x = 270;
-        ln({ { sx, Y }, { sx + 18, Y }, { sx + 18, yt }, { x, yt } }); arr(x, yt); ln({ { sx + 18, Y }, { sx + 18, yb }, { x, yb } }); arr(x, yb);
+        const float yt = 12, yb = 46, x = 304, mx = 390;
+        ln({ { sx, Y }, { sx + 14, Y }, { sx + 14, yt }, { x, yt } }); arr(x, yt); ln({ { sx + 14, Y }, { sx + 14, yb }, { x, yb } }); arr(x, yb);
         blk("fx_dly", "delay", x, yt, dly); blk("fx_lex", rev, x, yb, lex);
-        ln({ { x + W, yt }, { mx - 14, yt }, { mx - 14, Y }, { cx, Y } }); ln({ { x + W, yb }, { mx - 14, yb }, { mx - 14, Y } }); arr(cx, Y);
+        ln({ { x + W, yt }, { mx, yt }, { mx, Y }, { cx, Y } }); ln({ { x + W, yb }, { mx, yb }, { mx, Y } }); arr(cx, Y);
     } else {
         const bool d1 = ret == 1;
-        ln({ { sx, Y }, { 236, Y } }); arr(236, Y);
-        blk(d1 ? "fx_dly" : "fx_lex", d1 ? juce::String("delay") : rev, 236, Y, d1 ? dly : lex);
-        ln({ { 306, Y }, { 324, Y } }); arr(324, Y);
-        blk(d1 ? "fx_lex" : "fx_dly", d1 ? rev : juce::String("delay"), 324, Y, d1 ? lex : dly);
-        ln({ { 394, Y }, { cx, Y } }); arr(cx, Y);
+        ln({ { sx, Y }, { 280, Y } }); arr(280, Y);
+        blk(d1 ? "fx_dly" : "fx_lex", d1 ? juce::String("delay") : rev, 280, Y, d1 ? dly : lex);
+        ln({ { 342, Y }, { 352, Y } }); arr(352, Y);
+        blk(d1 ? "fx_lex" : "fx_dly", d1 ? rev : juce::String("delay"), 352, Y, d1 ? lex : dly);
+        ln({ { 414, Y }, { cx, Y } }); arr(cx, Y);
     }
     blk(nullptr, "cmp", cx, Y, dly || lex);
     ln({ { cx + W, Y }, { ox - 7, Y } }); arr(ox - 7, Y);
@@ -942,7 +943,7 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     auto onBtn = [&](ui::Section& sec, const char* id) { auto b = std::make_unique<ui::Toggle>(s, id, "On"); sec.setHeaderButton(b.get()); owned.push_back(std::move(b)); };
     auto setParam = [this](const char* id, float plain) { if (auto* p = proc.apvts.getParameter(id)) p->setValueNotifyingHost(p->convertTo0to1(plain)); };
     // the Buchla 259 folder, ahead of the drive slot
-    onBtn(fold, "fx_fold"); fold.sub = "Buchla 259"; addKnobs(fold, { "fldtimbre", "fldsym", "fldlevel" }, 70);
+    onBtn(fold, "fx_fold"); addKnobs(fold, { "fldtimbre", "fldsym", "fldlevel" }, 70);
     {
         auto* kt = dynamic_cast<ui::Knob*>(owned[owned.size() - 3].get()), *ks = dynamic_cast<ui::Knob*>(owned[owned.size() - 2].get());
         kt->valueText = [kv] { const double p = kv("fldtimbre"); return juce::String(0.5 + 9.5 * p * p, 1) + " V"; };
@@ -965,10 +966,10 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
         kd->valueText = [this, kv] { return U("gain ×") + juce::String(juce::roundToInt(1 + (proc.partValue(P::RAT_RD) * audioTaper(kv("dist")) + 1) * (1 / proc.partValue(P::RAT_RG1) + 1 / proc.partValue(P::RAT_RG2)))); };
         kf->valueText = [this, kv] { return TB303Processor::formatPart(std::round(1 / (2 * juce::MathConstants<double>::pi * (proc.partValue(P::RAT_RF) + 100e3 * kv("filter")) * proc.partValue(P::RAT_CFLT))), "Hz"); };
     }
-    onBtn(dly, "fx_dly"); dly.sub = "tempo synced, tone on the repeats"; addKnobs(dly, { "dlytime", "dlyfb", "dlylo", "dlyhi", "dlymix" }, 70);
+    onBtn(dly, "fx_dly"); addKnobs(dly, { "dlytime", "dlyfb", "dlylo", "dlyhi", "dlymix" }, 70);
     const char* dm[2] = { "Ping-pong", "Mono" };
     for (int i = 0; i < 2; ++i) { dlyMode[i].setButtonText(dm[i]); dlyMode[i].onClick = [setParam, i] { setParam("dlypp", i == 0 ? 1.0f : 0.0f); }; dly.addHeaderItem(&dlyMode[1 - i], 74); }
-    cmp.sub = "ducks the returns, keyed by the synth"; addKnobs(cmp, { "cmpamt", "cmprel" }, 70);
+    addKnobs(cmp, { "cmpamt", "cmprel" }, 70);
     onBtn(lex, "fx_lex");
     addKnobs(lex, { "lexbass", "lexmid", "lexxover", "lextreble", "lexdepth", "lexdiff", "lexpre", "lexme", "lexpitch", "lexmix" }, 74, &lexKnobs);
     // the reverb slot's other units share the section: only the selected unit's dials show
@@ -990,9 +991,8 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     };
     lex.addHeaderItem(&progMenuBtn, 260);
     lexNote.setColour(juce::Label::textColourId, ui::dim); lexNote.setFont(ui::lcd(11.0f)); lexNote.setJustificationType(juce::Justification::topLeft);
-    fxPage.addAndMakeVisible(lexNote);
+    // no note under the reverb (Johnny: extra text does not help when making music); lexNote is kept but never shown
     // routing: folder/drive order and how the delay and reverb returns connect, over a small block diagram
-    route.sub = "click a block to switch it";
     orderMenuBtn.setTooltip("Folder and drive order");
     orderMenuBtn.onClick = [this, kv] { showTypeMenu(orderMenuBtn, "fxorder", { "Folder > Drive", "Drive > Folder" }, kv("fxorder") >= 0.5f ? 1 : 0); };
     retMenuBtn.setTooltip("Delay and reverb: side by side, or one feeding the other");
@@ -1001,7 +1001,13 @@ TB303Editor::TB303Editor(TB303Processor& p) : juce::AudioProcessorEditor(p), pro
     routeView.get = [kv](const char* id) { return kv(id); };
     routeView.toggle = [setParam, kv](const char* id) { setParam(id, kv(id) >= 0.5f ? 0.0f : 1.0f); };
     route.add(&routeView, 520);
-    for (auto* c : { &fold, &rat, &dly, &cmp, &lex, &route }) fxPage.addAndMakeVisible(c);
+    // flanger after the Boss BF-2, with its flanger / chorus switch in the header
+    onBtn(flg, "fx_flg"); addKnobs(flg, { "flgman", "flgdep", "flgrate", "flgres" }, 70);
+    {
+        const char* fm[2] = { "Flanger", "Chorus" };
+        for (int i = 0; i < 2; ++i) { flgMode[i].setButtonText(fm[i]); flgMode[i].onClick = [setParam, i] { setParam("flgmode", (float)i); }; flg.addHeaderItem(&flgMode[1 - i], 66); }
+    }
+    for (auto* c : { &fold, &rat, &dly, &cmp, &lex, &route, &flg }) fxPage.addAndMakeVisible(c);
     addChildComponent(fxPage);
 
     // ---- circuit, board ----
@@ -1289,7 +1295,7 @@ void TB303Editor::timerCallback() {
         for (auto& k : knobs) k->refresh();
         partsUndo.setEnabled(proc.canUndoParts());
         if (tab == 1) for (auto& c : mods.getChildren()) c->repaint();
-        if (tab == 2) for (auto* c : { &fold, &rat, &dly, &cmp, &lex, &route }) for (auto* ch : c->getChildren()) ch->repaint();
+        if (tab == 2) for (auto* c : { &fold, &rat, &dly, &cmp, &lex, &route, &flg }) for (auto* ch : c->getChildren()) ch->repaint();
         {
             static const char* on[2] = { "Folder > Drive", "Drive > Folder" }, *rn[3] = { "Parallel", "Delay > Reverb", "Reverb > Delay" };
             orderMenuBtn.setButtonText(juce::String(on[Kn[K::fxorder] >= 0.5 ? 1 : 0]) + U("  ▾"));
@@ -1351,6 +1357,7 @@ void TB303Editor::timerCallback() {
         note << " Program names, control ranges and converter specs follow Lexicon; the algorithms are estimates built on Dattorro's plate.";
         lexNote.setText(note, juce::dontSendNotification);
         }
+        { const int fm = Kn[K::flgmode] >= 0.5 ? 1 : 0; for (int i = 0; i < 2; ++i) flgMode[i].setToggleState(i == fm, juce::dontSendNotification); }
         const int pp = Kn[K::dlypp] >= 0.5 ? 0 : 1;
         for (int i = 0; i < 2; ++i) dlyMode[i].setToggleState(i == pp, juce::dontSendNotification);
         // Monitor readouts (knobs.js readouts())
@@ -1376,7 +1383,7 @@ void TB303Editor::timerCallback() {
     }
     const bool cmpLit = Kn[0] >= 0 && (proc.apvts.getRawParameterValue("fx_lex")->load() > 0.5f || proc.apvts.getRawParameterValue("fx_dly")->load() > 0.5f);
     if (cmp.lit != cmpLit) { cmp.lit = cmpLit; cmp.repaint(); }
-    for (auto [sec, id] : { std::pair<ui::Section*, const char*> { &fold, "fx_fold" }, { &rat, "fx_rat" }, { &dly, "fx_dly" }, { &lex, "fx_lex" } }) {
+    for (auto [sec, id] : { std::pair<ui::Section*, const char*> { &fold, "fx_fold" }, { &rat, "fx_rat" }, { &dly, "fx_dly" }, { &lex, "fx_lex" }, { &flg, "fx_flg" } }) {
         const bool on = proc.apvts.getRawParameterValue(id)->load() > 0.5f;
         if (sec->lit != on) { sec->lit = on; sec->repaint(); }
     }
@@ -1492,7 +1499,7 @@ void TB303Editor::resized() {
         r1.removeFromLeft(8); route.setBounds(r1); // routing in the room at the right of the first row
         pg.removeFromTop(8);
         auto r2 = pg.removeFromTop(100);
-        dly.setBounds(r2.removeFromLeft(560)); r2.removeFromLeft(8); cmp.setBounds(r2.removeFromLeft(240));
+        dly.setBounds(r2.removeFromLeft(560)); r2.removeFromLeft(8); cmp.setBounds(r2.removeFromLeft(200)); r2.removeFromLeft(8); flg.setBounds(r2);
         pg.removeFromTop(8);
         lex.setBounds(pg.removeFromTop(140));
         lexNote.setBounds(pg.reduced(4, 2));

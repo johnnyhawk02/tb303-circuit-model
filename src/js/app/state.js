@@ -65,6 +65,12 @@ const KNOBS = [
   { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
   { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.4, fx: 'cmp' },
   { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.14142, fx: 'cmp' }, // 20 ms
+  // Flanger after the Boss BF-2 (fx.flg switches it on), on the synth ahead of the returns; flgmode: flanger or chorus
+  { id: 'flgman',    name: 'Manual',    ref: '1–12.8 ms',  def: 0.5,  fx: 'flg' },
+  { id: 'flgdep',    name: 'Depth',     ref: 'sweep',      def: 0.5,  fx: 'flg' },
+  { id: 'flgrate',   name: 'Rate',      ref: '0.1–10 Hz',  def: 0.3,  fx: 'flg' },
+  { id: 'flgres',    name: 'Res',       ref: 'feedback',   def: 0.5,  fx: 'flg' },
+  { id: 'flgmode',   name: 'Mode',      ref: 'flanger/chorus', def: 0, fx: 'flg', hidden: true },
   // FX routing (the block diagram on the FX page): folder/drive order, and how the delay and reverb returns connect
   { id: 'fxorder',   name: 'Order',     ref: 'folder→drive / drive→folder', def: 0, fx: 'route', hidden: true },
   { id: 'fxret',     name: 'Returns',   ref: 'parallel / delay→reverb / reverb→delay', def: 0, fx: 'route', hidden: true },
@@ -107,7 +113,7 @@ if (store.get('partsVersion', 0) === 3) {
 }
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
-  wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false, fold: false }, shuffle: 0, gate: 0.5,
+  wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false, fold: false, flg: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
   tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
@@ -123,7 +129,7 @@ function cleanSettings(x) {
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
-  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex, dly: !!x.fx.dly, fold: !!x.fx.fold };
+  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex, dly: !!x.fx.dly, fold: !!x.fx.fold, flg: !!x.fx.flg };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
@@ -139,7 +145,7 @@ function snapshot() {
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
-  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly, fold: !!sess.fx.fold };
+  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly, fold: !!sess.fx.fold, flg: !!sess.fx.flg };
   if (sess.tune) state.tune = sess.tune;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;

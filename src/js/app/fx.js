@@ -6,18 +6,6 @@ const REV_PROGS = {
   spring: ['sprprog', SPRING_PROGRAMS.map((P, i) => [i + 1, P.short, P.name])],
   conv: ['cnvprog', CNV_PROGRAMS.map((P, i) => [i + 1, P.short, P.name])],
 };
-const REV_NOTES = {
-  plate: (q) => `Jon Dattorro's published plate (JAES 1997): four input diffusers into a figure-eight tank with modulated allpasses. ${q.P.name}: every delay scaled ×${q.P.size}. Damping is the high cut inside the tank, Bandwidth the one before it.`,
-  spring: (q) => `A dispersive spring model after Välimäki, Parker and Abel (JAES 2010): each spring is a delay loop through ${SPRING_STAGES} stretched allpasses, so every echo smears into the falling drip. ${q.P.name}, transit ${q.P.ms.join(' / ')} ms. Dwell drives the tank, Tension lengthens the chirp.`,
-  conv: (q) => {
-    if (q.P.ir) {
-      const m = irMeta?.irs.find(x => x.id === q.P.ir);
-      return (m ? `${m.character} ${m.credit}, ${m.licence}. ` : irFailed ? 'The impulse responses could not be loaded. ' : 'Recorded impulse response; it loads when audio starts. ') +
-        'Length trims the response (full at the top). Partitioned FFT convolution, one 512-sample block late, which is the shortest predelay.';
-    }
-    return `Partitioned FFT convolution with a generated impulse response: seeded noise with the highs dying first${q.P.er.length ? ', a build-up and early reflections' : ''}. ${q.P.gate ? 'Decay sets the gate length. ' : ''}The wet signal is one 512-sample block late, which is the shortest predelay.`;
-  },
-};
 // ---------- type menus: the drive pedal, the reverb unit and its program, picked from dropdowns (Johnny), styled like Randomise ▾ ----------
 // el: an empty .tmenu div; items: [{ name, tip }]; pick(i) runs when one is chosen. setTypeItems swaps the list (the
 // program menu changes with the unit); drawTypeMenu ticks the current one and shows it on the button.
@@ -83,7 +71,6 @@ function drawLex() {
   }
   const sel = revProg(state.knobs[pk], list.length);
   drawTypeMenu(progs, sel);
-  const note = document.getElementById('lex-note');
   if (T.id === 'conv') { loadIRMeta(); loadIRs(); }
   if (T.id !== 'lex') {
     const q = { plate: plateParams, spring: springParams, conv: convParams }[T.id](state.knobs);
@@ -91,18 +78,10 @@ function drawLex() {
       knobEls[k.id].name.textContent = k.id === 'cnvdecay' ? (q.P.gate ? 'Gate' : q.P.ir ? 'Length' : 'Decay') : k.name;
       knobEls[k.id].val.textContent = knobText(k.id, state.knobs[k.id]);
     }
-    note.textContent = REV_NOTES[T.id](q);
     return;
   }
   const q = lexParams(state.knobs), chorus = q.P.alg === 'chorus';
   for (const k of KNOBS) if (k.fx === 'lex' && !k.rev && knobEls[k.id]) { const e = knobEls[k.id]; e.name.textContent = (chorus && LEX_CHORUS_NAMES[k.id]) || k.name; e.val.textContent = knobText(k.id, state.knobs[k.id]); }
-  const m = preview.lex.memoryUse(), c = state.parts;
-  const shrunk = !chorus && m.scale < q.P.size - 1e-3 ? ` Shrunk to ${Math.round(m.scale / q.P.size * 100)}% to fit.` : '';
-  note.textContent = (chorus
-    ? 'Eight voices, four a side, each delay wandering at random. The first four knobs are the voice-pair levels; Diffusion acts on pairs 3 and 4.'
-    : `Predelay ${q.P.pre[0]}–${q.P.pre[1]} ms on this program.`) +
-    ` ${(c.LEX_FS / 1000).toFixed(1)} kHz, ${Math.round(c.LEX_BITS)}-bit converters, ${m.words.toLocaleString()} of ${m.of.toLocaleString()} words.${shrunk}` +
-    ' Program names, control ranges and converter specs follow Lexicon; the algorithms are estimates built on Dattorro\'s Griesinger-style plate. Parts are in Options under 224.';
 }
 
 // ---------- drive slot: ProCo RAT, Boss DS-1, Ibanez TS808 (fx.rat switches it on, drvtype picks the pedal) ----------
@@ -121,7 +100,7 @@ function drawDrv() {
 drawDrv();
 
 // ---------- effects ----------
-const FX_UNITS = ['fold', 'rat', 'dly', 'lex'];
+const FX_UNITS = ['fold', 'rat', 'flg', 'dly', 'lex'];
 function renderFx() {
   for (const n of FX_UNITS) {
     const b = document.getElementById('fx-' + n + '-on');
@@ -129,13 +108,20 @@ function renderFx() {
     document.getElementById('fx-' + n).classList.toggle('on', !!state.fx[n]);
   }
   document.getElementById('fx-cmp').classList.toggle('on', !!(state.fx.lex || state.fx.dly)); // the Compactor acts on the returns
-  drawDlyMode(); drawDrv(); drawRoute();
+  drawDlyMode(); drawFlgMode(); drawDrv(); drawRoute();
 }
 // Delay mode: ping-pong or mono (stored as the dlypp knob)
 const dlyModeEl = document.getElementById('dly-mode');
 function drawDlyMode() {
   const pp = state.knobs.dlypp >= 0.5 ? 1 : 0; for (const b of dlyModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === pp);
 }
+// Flanger mode: flanger or chorus (the flgmode knob). A function declaration with no top-level consts, so drawKnob can call it early
+function drawFlgMode() {
+  const el = document.getElementById('flg-mode'); if (!el) return;
+  const m = state.knobs.flgmode >= 0.5 ? 1 : 0; for (const b of el.children) b.setAttribute('aria-checked', +b.dataset.m === m);
+  if (knobEls.flgres) knobEls.flgres.wrap.classList.toggle('dim', m === 1); // no feedback in chorus mode
+}
+document.getElementById('flg-mode').addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) setKnob('flgmode', +b.dataset.m); });
 dlyModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('dlypp', +b.dataset.m); drawDlyMode(); } });
 for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
@@ -154,26 +140,26 @@ function drawRoute() {
     for (const b of document.getElementById(id).children) b.setAttribute('aria-checked', Math.round(+b.dataset.v * (id === 'route-ret' ? 2 : 1)) === v);
   const drv = ['rat', 'ds-1', 'ts808'][Math.max(0, Math.min(2, Math.round((k.drvtype || 0) * 2)))];
   const rev = REV_TYPES[revType(k)].short.toLowerCase();
-  const W = 70, H = 18, Y = 24; // block size, main row centre
+  const W = 62, H = 18, Y = 24; // block size, main row centre
   const blk = (unit, label, x, y, on, tip) => `<g class="rb${on ? ' on' : ''}" data-tip="${tip}"${unit ? ` data-u="${unit}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${label}"` : ''}>` +
     `<rect x="${x}" y="${y - H / 2}" width="${W}" height="${H}" rx="2"/><text x="${x + W / 2}" y="${y + 5}">${label}</text></g>`;
   const ln = (pts) => `<polyline class="rw" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
   const arr = (x, y) => `<path class="ra" d="M${x - 5} ${y - 3.5} L${x} ${y} L${x - 5} ${y + 3.5}Z"/>`;
   const pre = swap ? [['rat', drv, fx.rat, 'Drive'], ['fold', 'folder', fx.fold, 'Folder']] : [['fold', 'folder', fx.fold, 'Folder'], ['rat', drv, fx.rat, 'Drive']];
-  let h = `<text class="rt" x="0" y="${Y + 5}">303</text>` + ln([[28, Y], [40, Y]]) + arr(40, Y);
-  h += blk(pre[0][0], pre[0][1], 40, Y, pre[0][2], pre[0][3] + ': click to switch on or off') + ln([[110, Y], [124, Y]]) + arr(124, Y);
-  h += blk(pre[1][0], pre[1][1], 124, Y, pre[1][2], pre[1][3] + ': click to switch on or off');
-  const sx = 214, mx = 404, cx = 412, ox = 500; // split, merge, Compactor, sum
-  h += ln([[194, Y], [sx, Y]]) + `<circle class="rn" cx="${sx}" cy="${Y}" r="2.5"/>`;
-  const dlyB = (x, y) => blk('dly', 'delay', x, y, fx.dly, 'Delay: click to switch on or off'), revB = (x, y) => blk('lex', rev, x, y, fx.lex, 'Reverb: click to switch on or off');
+  pre.push(['flg', k.flgmode >= 0.5 ? 'chorus' : 'flanger', fx.flg, 'Flanger']);
+  let h = `<text class="rt" x="0" y="${Y + 5}">303</text>`;
+  pre.forEach(([u, label, on, tip], i) => { const x = 36 + i * 74; h += ln([[x - 10 - (i ? 0 : -2), Y], [x, Y]]) + arr(x, Y) + blk(u, label, x, Y, on, tip); });
+  const sx = 270, cx = 428, ox = 506; // split, Compactor, sum
+  h += ln([[246, Y], [sx, Y]]) + `<circle class="rn" cx="${sx}" cy="${Y}" r="2.5"/>`;
+  const dlyB = (x, y) => blk('dly', 'delay', x, y, fx.dly, 'Delay'), revB = (x, y) => blk('lex', rev, x, y, fx.lex, 'Reverb');
   if (ret === 0) { // side by side
-    const yt = 12, yb = 46, x = 270;
-    h += ln([[sx, Y], [sx + 18, Y], [sx + 18, yt], [x, yt]]) + arr(x, yt) + ln([[sx + 18, Y], [sx + 18, yb], [x, yb]]) + arr(x, yb);
+    const yt = 12, yb = 46, x = 304, mx = 390;
+    h += ln([[sx, Y], [sx + 14, Y], [sx + 14, yt], [x, yt]]) + arr(x, yt) + ln([[sx + 14, Y], [sx + 14, yb], [x, yb]]) + arr(x, yb);
     h += dlyB(x, yt) + revB(x, yb);
-    h += ln([[x + W, yt], [mx - 14, yt], [mx - 14, Y], [cx, Y]]) + ln([[x + W, yb], [mx - 14, yb], [mx - 14, Y]]) + arr(cx, Y);
+    h += ln([[x + W, yt], [mx, yt], [mx, Y], [cx, Y]]) + ln([[x + W, yb], [mx, yb], [mx, Y]]) + arr(cx, Y);
   } else { // one into the other
     const [a, b] = ret === 1 ? [dlyB, revB] : [revB, dlyB];
-    h += ln([[sx, Y], [236, Y]]) + arr(236, Y) + a(236, Y) + ln([[306, Y], [324, Y]]) + arr(324, Y) + b(324, Y) + ln([[394, Y], [cx, Y]]) + arr(cx, Y);
+    h += ln([[sx, Y], [280, Y]]) + arr(280, Y) + a(280, Y) + ln([[342, Y], [352, Y]]) + arr(352, Y) + b(352, Y) + ln([[414, Y], [cx, Y]]) + arr(cx, Y);
   }
   h += blk('', 'cmp', cx, Y, fx.lex || fx.dly, 'Compactor: ducks the delay and reverb returns under the synth');
   h += ln([[cx + W, Y], [ox - 7, Y]]) + arr(ox - 7, Y);

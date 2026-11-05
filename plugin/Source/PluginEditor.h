@@ -282,7 +282,8 @@ private:
     juce::Label syncLabel;
     // mods + fx
     juce::Component modsPage, fxPage;
-    ui::Section mods { "Mods" }, fold { "Folder" }, rat { "Drive" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" }, route { "Routing" };
+    ui::Section mods { "Mods" }, fold { "Folder" }, rat { "Drive" }, dly { "Delay" }, cmp { "Compactor" }, lex { "Reverb" }, route { "Routing" }, flg { "Flanger" };
+    juce::TextButton flgMode[2];
     ui::RouteView routeView; juce::TextButton orderMenuBtn, retMenuBtn;
     juce::TextButton dlyMode[2];
     // the reverb unit's program (224 P1-P9, plate sizes, spring tanks, Conv IRs), also a dropdown
