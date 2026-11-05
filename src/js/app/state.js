@@ -117,7 +117,26 @@ const state = {
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
   tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
+  seqs: {}, // per-control step sequencers (ctlseq.js), by control: 'k:cutoff' for a knob, 'p:KT' for a part dial
 };
+// a control's step sequencer: on, 2-64 steps, slew 0-100%, speed (each step 1, 2 ... 128 sixteenths), depth 0-100% of the
+// control's range, and 64 steps, each an offset -1..1 of the depth (in twentieths) from the control's own setting
+const CSEQ_MAX = 64, CSEQ_SPEEDS = [1, 2, 4, 8, 16, 32, 64, 128];
+const cseqOff = (x) => Math.round(Math.max(-1, Math.min(1, +x || 0)) * 20) / 20;
+const newCtlSeq = () => ({ on: true, len: 16, slew: 0, step: 1, depth: 50, vals: new Array(CSEQ_MAX).fill(0) });
+function cleanSeqs(x) {
+  const out = {};
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return out;
+  for (const [key, q] of Object.entries(x)) {
+    const m = /^([kp]):(.+)$/.exec(key); if (!m || !q || typeof q !== 'object') continue;
+    if (m[1] === 'k' ? !KNOBS.some(k => k.id === m[2] && !k.hidden) : !(m[2] in COMPONENTS) || COMPONENTS[m[2]].fixed) continue;
+    const vals = Array.isArray(q.vals) ? q.vals : [];
+    out[key] = { on: !!q.on, len: Math.max(2, Math.min(CSEQ_MAX, (q.len | 0) || 16)), slew: Math.max(0, Math.min(100, Math.round((+q.slew || 0) / 5) * 5)),
+      step: CSEQ_SPEEDS.includes(q.step) ? q.step : 1, depth: typeof q.depth === 'number' ? Math.max(0, Math.min(100, Math.round(q.depth / 5) * 5)) : 50,
+      vals: Array.from({ length: CSEQ_MAX }, (_, i) => cseqOff(vals[i])) };
+  }
+  return out;
+}
 for (const k in COMPONENTS) state.parts[k] = COMPONENTS[k].v;
 // a part differs from stock (works for parts whose stock value is 0)
 function partChanged(k, v = state.parts[k]) { const d = COMPONENTS[k].v; return Math.abs(v - d) > (d ? 1e-6 * Math.abs(d) : 1e-9); }
@@ -134,19 +153,21 @@ function cleanSettings(x) {
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
   if (typeof x.gate === 'number' && x.gate >= 0.1 && x.gate <= 0.95) out.gate = x.gate;
+  if (x.seqs) { const q = cleanSeqs(x.seqs); if (Object.keys(q).length) out.seqs = q; }
   if (Array.isArray(x.tune) && x.tune.length === 12) out.tune = x.tune.map(c => typeof c === 'number' && isFinite(c) ? Math.round(Math.min(100, Math.max(-100, c)) * 10) / 10 : 0);
   return out;
 }
 function snapshot() {
   const parts = {};
   for (const k in COMPONENTS) if (!COMPONENTS[k].fixed && partChanged(k)) parts[k] = state.parts[k];
-  return { knobs: { ...state.knobs }, parts, ...(state.tune.some(c => c) && { tune: [...state.tune] }), wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
+  return { knobs: { ...state.knobs }, parts, ...(state.tune.some(c => c) && { tune: [...state.tune] }), ...(Object.keys(state.seqs).length && { seqs: JSON.parse(JSON.stringify(state.seqs)) }), wave: state.wave, fx: { ...state.fx }, bpm: state.bpm, shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) };
 }
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
   if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly, fold: !!sess.fx.fold, flg: !!sess.fx.flg };
   if (sess.tune) state.tune = sess.tune;
+  if (sess.seqs) state.seqs = sess.seqs;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
 }
