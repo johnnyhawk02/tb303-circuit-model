@@ -8,7 +8,7 @@
   root.classList.add('fit');
   const fit = () => {
     const vw = visualViewport?.width || innerWidth, vh = visualViewport?.height || innerHeight;
-    const pad = Math.min(vw, vh) < 600 ? 4 : 16; // a phone needs every pixel
+    const pad = root.hasAttribute('data-plugin') ? 0 : Math.min(vw, vh) < 600 ? 4 : 16; // a phone needs every pixel; the plug-in window is the screen
     const k = Math.min((vw - pad) / W, (vh - pad) / H, 2.2);
     root.style.setProperty('--k', k.toFixed(4));
   };

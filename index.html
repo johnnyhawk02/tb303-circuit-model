@@ -822,6 +822,8 @@ input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-sele
 *:focus, *:focus-visible { outline: none !important; }
 .route-dia .rb[data-u]:focus-visible rect { stroke-width: 1.5; stroke-dasharray: 3 2; }
 .route-dia .rb.on[data-u]:focus-visible rect { stroke-dasharray: none; }
+/* the plug-in window is exactly the screen's shape: no dark case or bezel round it (Johnny: "it just takes up space") */
+html[data-plugin].fit .main { border: 0; border-radius: 0; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -5595,7 +5597,15 @@ if (tbPlugin) {
     if (m.type === 'step') markStep(m.step);
     else if (m.type === 'bpm') { if (typeof m.value === 'number' && isFinite(m.value)) { state.bpm = Math.round(m.value * 100) / 100; bpmVal.textContent = state.bpm; } }
     else if (m.type === 'midi' && Array.isArray(m.data)) onMidi({ data: m.data });
+    // Cmd+C / Cmd+V / Cmd+Z, which the DAW's Edit menu would otherwise take: replayed as the keydown the page listens for
+    else if (m.type === 'key' && /^[a-z]$/.test(m.key)) {
+      (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: m.key, code: 'Key' + m.key.toUpperCase(), metaKey: true, shiftKey: !!m.shift, bubbles: true, cancelable: true }));
+    }
   });
+  // while a text field has focus, Cmd+C / Cmd+V are the field's own
+  const textField = (t) => !!t?.closest?.('input[type=text], input[type=number], input[type=search], input:not([type]), textarea, [contenteditable=""], [contenteditable=true]');
+  document.addEventListener('focusin', (e) => send({ type: 'typing', on: textField(e.target) }));
+  document.addEventListener('focusout', () => send({ type: 'typing', on: false }));
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
   send({ type: 'wave', value: state.wave }); sendTune(); sendPattern(); sendGroove();
@@ -5614,7 +5624,7 @@ if (tbPlugin) {
   root.classList.add('fit');
   const fit = () => {
     const vw = visualViewport?.width || innerWidth, vh = visualViewport?.height || innerHeight;
-    const pad = Math.min(vw, vh) < 600 ? 4 : 16; // a phone needs every pixel
+    const pad = root.hasAttribute('data-plugin') ? 0 : Math.min(vw, vh) < 600 ? 4 : 16; // a phone needs every pixel; the plug-in window is the screen
     const k = Math.min((vw - pad) / W, (vh - pad) / H, 2.2);
     root.style.setProperty('--k', k.toFixed(4));
   };

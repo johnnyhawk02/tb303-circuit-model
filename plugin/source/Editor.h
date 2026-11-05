@@ -1,6 +1,7 @@
 // The plug-in's window: the web app's own page in a web view, scaled to fit like the web app (fit.js), 1000 x 647.
 #pragma once
 #include "Processor.h"
+#include "KeyMonitor.h"
 
 class TB303Editor : public juce::AudioProcessorEditor, private juce::Timer {
 public:
@@ -14,7 +15,7 @@ public:
         proc.onSave = [this] (const juce::String& name, const juce::String& text) { saveFile (name, text); };
         startTimerHz (30);
     }
-    ~TB303Editor() override { proc.onStateLoaded = nullptr; proc.onSave = nullptr; }
+    ~TB303Editor() override { tbRemoveKeyMonitor (keyMonitor); proc.onStateLoaded = nullptr; proc.onSave = nullptr; }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff181412)); }
     void resized() override { if (browser) browser->setBounds (getLocalBounds()); }
@@ -23,7 +24,8 @@ private:
     TB303Processor& proc;
     std::unique_ptr<juce::WebBrowserComponent> browser;
     std::unique_ptr<juce::FileChooser> chooser;
-    int sentStep = -2; double sentBpm = -1; bool ready = false;
+    int sentStep = -2; double sentBpm = -1; bool ready = false, typing = false;
+    void* keyMonitor = nullptr; bool keyMonitorTried = false;
 
     void makeBrowser() {
         ready = false; sentStep = -2; sentBpm = -1;
@@ -34,6 +36,7 @@ private:
             .withResourceProvider ([this] (const juce::String& url) { return proc.getResource (url); }, juce::URL (root).getOrigin())
             .withInitialisationData ("tb303", proc.pageInitData())
             .withEventListener ("tb303", [this] (const juce::var& m) {
+                if (m["type"].toString() == "typing") { typing = (bool) m["on"]; return; }
                 if (m["type"].toString() == "ready") { ready = true; sentStep = -2; sentBpm = -1; }
                 proc.handleUiMessage (m);
             });
@@ -50,7 +53,20 @@ private:
         return juce::var (o.get());
     }
 
+    // the page's own Cmd+C / Cmd+V / Cmd+Z (copy, paste, undo the pattern); in a text field they stay the field's
+    void watchCmdKeys() {
+        keyMonitorTried = true;
+        auto* peer = getPeer(); if (peer == nullptr) { keyMonitorTried = false; return; }
+        keyMonitor = tbAddKeyMonitor (peer->getNativeHandle(), [this] (const char* key, bool shift) {
+            const juce::String k (key);
+            if (typing || ! ready || ! (k == "c" || k == "v" || k == "z")) return false;
+            emit (obj ({ { "type", "key" }, { "key", k }, { "shift", shift } }));
+            return true;
+        });
+    }
+
     void timerCallback() override {
+        if (! keyMonitorTried) watchCmdKeys();
         if (!ready) { int s, a, b; while (proc.popMidi (s, a, b)) {} return; }
         const int st = proc.uiStep();
         if (st != sentStep) { sentStep = st; emit (obj ({ { "type", "step" }, { "step", st } })); }

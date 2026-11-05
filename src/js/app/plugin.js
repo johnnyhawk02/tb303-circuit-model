@@ -8,7 +8,15 @@ if (tbPlugin) {
     if (m.type === 'step') markStep(m.step);
     else if (m.type === 'bpm') { if (typeof m.value === 'number' && isFinite(m.value)) { state.bpm = Math.round(m.value * 100) / 100; bpmVal.textContent = state.bpm; } }
     else if (m.type === 'midi' && Array.isArray(m.data)) onMidi({ data: m.data });
+    // Cmd+C / Cmd+V / Cmd+Z, which the DAW's Edit menu would otherwise take: replayed as the keydown the page listens for
+    else if (m.type === 'key' && /^[a-z]$/.test(m.key)) {
+      (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: m.key, code: 'Key' + m.key.toUpperCase(), metaKey: true, shiftKey: !!m.shift, bubbles: true, cancelable: true }));
+    }
   });
+  // while a text field has focus, Cmd+C / Cmd+V are the field's own
+  const textField = (t) => !!t?.closest?.('input[type=text], input[type=number], input[type=search], input:not([type]), textarea, [contenteditable=""], [contenteditable=true]');
+  document.addEventListener('focusin', (e) => send({ type: 'typing', on: textField(e.target) }));
+  document.addEventListener('focusout', () => send({ type: 'typing', on: false }));
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
   send({ type: 'wave', value: state.wave }); sendTune(); sendPattern(); sendGroove();
