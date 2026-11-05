@@ -163,8 +163,8 @@
   X(cnvlo, 0.3) \
   X(cnvwidth, 0.6666666666666666) \
   X(cnvmix, 0.5) \
-  X(cmpamt, 0.4) \
-  X(cmprel, 0.14142) \
+  X(cmpamt, 0.3) \
+  X(cmprel, 0.5) \
   X(dlypp, 1.0) \
   X(dlytime, 0.7) \
   X(dlyfb, 0.35) \
@@ -286,8 +286,8 @@ constexpr double B259_W[5] = {-12.0, -27.777, -21.428, 17.647, 36.363};
   X(dlyhi, "Delay high cut", 0.55) \
   X(dlymix, "Delay return", 0.35) \
   X(dlypp, "Delay ping-pong", 1.0) \
-  X(cmpamt, "Compactor amount", 0.4) \
-  X(cmprel, "Compactor release", 0.14142) \
+  X(cmpamt, "Compactor amount", 0.3) \
+  X(cmprel, "Compactor release", 0.5) \
   X(flgman, "Flanger manual", 0.5) \
   X(flgdep, "Flanger depth", 0.5) \
   X(flgrate, "Flanger rate", 0.3) \
