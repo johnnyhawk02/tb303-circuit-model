@@ -42,6 +42,8 @@ function knobText(id, p) {
     case 'dsdist': return '×' + Math.round(1 + PEDAL_PARTS.DS_VR1 * p / PEDAL_PARTS.DS_R13);                    // op-amp stage gain
     case 'tsdrive': return '×' + Math.round(1 + (PEDAL_PARTS.TS_R6 + PEDAL_PARTS.TS_P1 * Math.pow(p, 2.74)) / PEDAL_PARTS.TS_R4);
     case 'fldtimbre': return (0.5 + 9.5 * p * p).toFixed(1) + ' V';   // peak at the folding cells for a full-level note
+    case 'flgman': return flgMs(state.knobs.flgmode >= 0.5 ? 0.55 + 0.45 * p : p).toFixed(1) + ' ms'; // the BBD delay at the centre of the sweep
+    case 'flgrate': { const f = flgRate(p); return (f < 1 ? f.toFixed(2) : f.toFixed(1)) + ' Hz'; }
     case 'fldsym': { const v = (p - 0.5) * 4; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' V'; }
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
@@ -148,7 +150,8 @@ function drawKnob(id) {
   }
   if (REV_IDS.has(id)) drawLex();
   if (id === 'drvtype') drawDrv();
-  if (id === 'drvtype' || id === 'revtype' || id === 'fxorder' || id === 'fxret') drawRoute();
+  if (id === 'flgmode') { drawFlgMode(); if (knobEls.flgman) knobEls.flgman.val.textContent = knobText('flgman', state.knobs.flgman); }
+  if (id === 'flgmode' || id === 'drvtype' || id === 'revtype' || id === 'fxorder' || id === 'fxret') drawRoute();
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;

@@ -837,6 +837,53 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Flanger after the Boss BF-2 (as BF2Flanger in tb303-model.js): 1024-stage BBD, clock 500 kHz to 40 kHz (1 to 12.8 ms),
+// triangle LFO, feedback through a soft clip, fixed 8 kHz filters either side, dry and delayed mixed equally.
+constexpr double FLG_STAGES = 1024, FLG_FHI = 500e3, FLG_FLO = 40e3, FLG_LPF = 8000;
+inline double flgRate(double p) { return 0.1 * std::pow(100.0, p); }
+inline double flgMs(double v) { return 1000 * FLG_STAGES / (2 * (FLG_FHI - v * (FLG_FHI - FLG_FLO))); }
+class BF2Flanger {
+public:
+    explicit BF2Flanger(double fs) : fs(fs) {
+        buf.assign((size_t)std::ceil(fs * 0.016) + 4, 0.0f);
+        const double K = std::tan(PI * std::min(FLG_LPF, 0.45 * fs) / fs), Q = 0.7071067811865476, n = 1 / (1 + K / Q + K * K);
+        b0 = K * K * n; a1 = 2 * (K * K - 1) * n; a2 = (1 - K / Q + K * K) * n;
+    }
+    void derive(const Knobs& k) {
+        chorus = k[K::flgmode] >= 0.5;
+        inc = flgRate(k[K::flgrate]) / fs;
+        man = k[K::flgman]; dep = k[K::flgdep];
+        fb = chorus ? 0 : 0.9 * k[K::flgres];
+        g = chorus ? 0.72 : 0.62;
+    }
+    double run(double x) {
+        ph += inc; if (ph >= 1) ph -= 1;
+        const double tri = ph < 0.5 ? 4 * ph - 1 : 3 - 4 * ph;
+        double v = chorus ? 0.55 + 0.45 * man + 0.15 * dep * tri : man + 0.5 * dep * tri;
+        v = v < 0 ? 0 : v > 1 ? 1 : v;
+        const double d = FLG_STAGES / (2 * (FLG_FHI - v * (FLG_FHI - FLG_FLO))) * fs;
+        const double u = x + fb * std::tanh(y);
+        const double a = b0 * (u + 2 * i1 + i2) - a1 * j1 - a2 * j2;
+        i2 = i1; i1 = u; j2 = j1; j1 = a;
+        float* b = buf.data(); const int N = (int)buf.size();
+        b[w] = (float)a;
+        double r = w - d; if (r < 0) r += N;
+        const double fl = std::floor(r); const int i = (int)fl; const double f = r - fl; const int j = i + 1 == N ? 0 : i + 1;
+        const double z = b[i] + ((double)b[j] - b[i]) * f;
+        w = w + 1 == N ? 0 : w + 1;
+        const double o = b0 * (z + 2 * o1 + o2) - a1 * p1 - a2 * p2;
+        o2 = o1; o1 = z; p2 = p1; p1 = o;
+        y = o;
+        return g * (x + o);
+    }
+    void flush() { auto f = [](double& x) { if (x != 0 && x < 1e-150 && x > -1e-150) x = 0; }; f(y); f(i1); f(i2); f(j1); f(j2); f(o1); f(o2); f(p1); f(p2); f(ph); }
+private:
+    double fs; std::vector<float> buf; int w = 0;
+    double ph = 0, y = 0, g = 0.62, inc = 0, man = 0, dep = 0, fb = 0, b0 = 0, a1 = 0, a2 = 0;
+    double i1 = 0, i2 = 0, j1 = 0, j2 = 0, o1 = 0, o2 = 0, p1 = 0, p2 = 0; bool chorus = false;
+};
+
+// ---------------------------------------------------------------------------------------------------
 // Sidechain ducker on the effect returns, after the Kilohearts Compactor (our reading of its controls).
 // Two controls: Amount (duck depth and the key level that ducks fully) and Release. Lookahead 3 ms,
 // linear key law, no hold, peak detector are fixed. Same as Compactor in tb303-model.js.
@@ -1082,7 +1129,7 @@ constexpr int RAT_OS = 2; // the RAT runs at 2x the voice rate (4x the host rate
 class Voice {
 public:
     Voice(double sampleRate, uint32_t noiseSeed = 0x9e3779b9u)
-        : fsOut(sampleRate), fs(sampleRate * 2), h(1 / (sampleRate * 2)), ds(sampleRate * 2), ts(sampleRate * 2), b259(sampleRate * 2), lex(sampleRate), plate(sampleRate), spring(sampleRate), conv(sampleRate), dly(sampleRate), cmp(sampleRate) {
+        : fsOut(sampleRate), fs(sampleRate * 2), h(1 / (sampleRate * 2)), ds(sampleRate * 2), ts(sampleRate * 2), b259(sampleRate * 2), lex(sampleRate), plate(sampleRate), spring(sampleRate), conv(sampleRate), dly(sampleRate), cmp(sampleRate), flg(sampleRate) {
         for (int i = 0; i < P::COUNT; ++i) c[i] = parts()[i].v;
         // the JS voice's own constructor defaults; the app (and the plugin) then sends the panel values
         const double kd[K::COUNT] = { 0.5, 0.35, 0.7, 0.6, 0.3, 0.7, 0.8, 0.5, 0.4, 0.5,
@@ -1092,7 +1139,9 @@ public:
             0, 0.5, 0.2, 0.45, 0.6, 0.75, 0.35, 0.88, 0.5, 0.5,
             2.0 / 3, 0.4, 0.5, 0.5, 0.5, 0.4, 0.5,
             0, 0.2, 1, 0.7, 0.3, 2.0 / 3, 0.5,
-            0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 };
+            0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+            0, 0,                    // fxorder, fxret
+            0.5, 0.5, 0.3, 0.5, 0 }; // flgman, flgdep, flgrate, flgres, flgmode
         for (int i = 0; i < K::COUNT; ++i) knobs[i] = kd[i];
         rng = noiseSeed;
         cvTarget = dacVoltage(33, c[P::VREF], c[P::R_DAC], c[P::R2_DAC]);
@@ -1104,12 +1153,12 @@ public:
 
     Parts c {};
     Knobs knobs {};
-    bool fxRat = false, fxLex = false, fxDly = false, fxFold = false; // fxRat switches the drive slot (RAT, DS-1 or TS808)
+    bool fxRat = false, fxLex = false, fxDly = false, fxFold = false, fxFlg = false; // fxRat switches the drive slot (RAT, DS-1 or TS808)
     bool square = false;
     double bpm = 128;
     BossDS1 ds; TubeScreamer ts; Buchla259 b259; int drvT = 0;
     bool fxSwap = false; int retMode = 0; // FX routing: drive before folder; returns 0 parallel, 1 delay->reverb, 2 reverb->delay
-    Lexicon224 lex; DattorroPlate plate; SpringReverb spring; ConvReverb conv; DigitalDelay dly; Compactor cmp;
+    Lexicon224 lex; DattorroPlate plate; SpringReverb spring; ConvReverb conv; DigitalDelay dly; Compactor cmp; BF2Flanger flg;
     int revT = 0;
     // the unit on the reverb slot (fxLex switches it on)
     void revRun(double y, double& wl, double& wr) {
@@ -1130,7 +1179,7 @@ public:
 
     void derive() {
         const Knobs& k = knobs;
-        cmp.derive(k); dly.derive(k, bpm);
+        cmp.derive(k); dly.derive(k, bpm); flg.derive(k);
         const double nb = std::sqrt(fs / 2) * c[P::NOISE];
         nVcf = c[P::EN_VCF] * nb; nOta = c[P::EN_OTA] * nb; nOut = c[P::EN_OUT] * nb;
         noiseOn = nVcf + nOta + nOut > 0;
@@ -1197,6 +1246,7 @@ public:
 
     // the effects after the dry signal y
     void fxOut(double y, float* out, float* outR, int n) {
+        if (fxFlg) y = flg.run(y); // the flanger, on the synth ahead of the returns and the dry path
         double wl = 0, wr = 0;
         if (fxLex && fxDly && retMode == 1) { // delay into reverb
             dly.run(y); wl += dly.l; wr += dly.r;
@@ -1220,13 +1270,13 @@ public:
         f(sq.hp); f(sq.hpIn); f(rt.hin); f(rt.xin); f(rt.h1); f(rt.h2); f(rt.x1); f(rt.fb); f(rt.y); f(rt.hc); f(rt.xc); f(rt.v); f(rt.f); f(rt.xp); f(rt.dco); f(rt.dci);
         for (auto& s : decim) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
         for (auto& s : ratLP) { f(s.x1); f(s.x2); f(s.y1); f(s.y2); }
-        if (fxLex) lex.flush(); plate.flush(); spring.flush(); conv.flush(); dly.flush(); cmp.flush(); ds.flush(); ts.flush(); b259.flush();
+        if (fxLex) lex.flush(); plate.flush(); spring.flush(); conv.flush(); dly.flush(); flg.flush(); cmp.flush(); ds.flush(); ts.flush(); b259.flush();
     }
 
     // out is mono, or the left channel when outR is given
     void process(float* out, int start, int end, float* outR) {
         flush();
-        const bool fx = fxLex || fxDly;
+        const bool fx = fxLex || fxDly || fxFlg;
         for (int n = start; n < end; n++) {
             double y = 0;
             for (int o = 0; o < 2; o++) y = decimate(tick());
@@ -1535,7 +1585,7 @@ private:
 class ParamSlew {
 public:
     ParamSlew(Voice& v, double fs, double tau = 0.015) : v(v), fs(fs), tau(tau) {}
-    static bool instant(bool isKnob, int i) { return isKnob ? (i == K::lexprog || i == K::revtype || i == K::plateprog || i == K::sprprog || i == K::cnvprog || i == K::drvtype || i == K::fxorder || i == K::fxret) : i >= P::LEX_FS; }
+    static bool instant(bool isKnob, int i) { return isKnob ? (i == K::lexprog || i == K::revtype || i == K::plateprog || i == K::sprprog || i == K::cnvprog || i == K::drvtype || i == K::fxorder || i == K::fxret || i == K::flgmode) : i >= P::LEX_FS; }
     void set(bool isKnob, int i, double value) {
         if (instant(isKnob, i) || !std::isfinite(value)) {
             erase(isKnob, i);
@@ -1584,8 +1634,8 @@ public:
     void noteOff() { if (v.gate && offs) mark(); v.noteOff(); }
     void process(float* out, int start, int end, float* outR) {
         if (!on) { v.process(out, start, end, outR); t += end - start; return; }
-        const bool lex = v.fxLex, dly = v.fxDly, fx = lex || dly;
-        v.fxLex = v.fxDly = false; v.process(out, start, end, nullptr); v.fxLex = lex; v.fxDly = dly;
+        const bool lex = v.fxLex, dly = v.fxDly, flg = v.fxFlg, fx = lex || dly || flg;
+        v.fxLex = v.fxDly = v.fxFlg = false; v.process(out, start, end, nullptr); v.fxLex = lex; v.fxDly = dly; v.fxFlg = flg;
         for (int n = start; n < end; n++, t++) {
             double y = bufL[(size_t)w]; bufL[(size_t)w] = out[n]; w = w + 1 == D ? 0 : w + 1;
             const int64_t tt = t - D;

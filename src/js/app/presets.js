@@ -6,7 +6,7 @@ function applySound(x) {
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
   state.wave = c.wave || 'saw';
   state.tune = c.tune || new Array(12).fill(0); sendTune();
-  state.fx = c.fx || { rat: false, lex: false, dly: false, fold: false };
+  state.fx = c.fx || { rat: false, lex: false, dly: false, fold: false, flg: false };
   for (const n in state.fx) { preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] }); }
   renderFx();
   for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); send({ type: 'knob', name: k.id, value: state.knobs[k.id] }); }

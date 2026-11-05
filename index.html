@@ -754,6 +754,12 @@ html.fit .blk-lex { padding-top: 14px; }
 [data-lcd=grey] { --glass: #d3d6cc; --ink: #121410; --panel-rgb: 211 214 204; --ink-rgb: 18 20 16; --shade-rgb: 64 68 58; --light-rgb: 248 250 242;
   --hl1-rgb: 250 252 245; --hl2-rgb: 246 248 240; --dk1-rgb: 44 46 40; --dk2-rgb: 38 40 34; --dk3-rgb: 28 30 24; }
 
+/* the reverb and the flanger share the second row; the flanger's mode switch is its title */
+.fx-row2 { grid-column: 1 / -1; display: flex; align-items: stretch; border-top: 1px solid var(--rulec); }
+.fx-row2 .blk-lex { flex: 1; min-width: 0; border-top: 0; }
+html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
+.kn.dim { opacity: .4; }
+
 /* readouts keep their width as the value changes (Johnny: controls moved when a value went from one to two figures) */
 .trim .tval { min-width: 8ch; text-align: center; }
 .top .bpm-read output#bpm-val { width: calc(3ch + 20px); min-width: 0; font-variant-numeric: tabular-nums; }
@@ -928,6 +934,7 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
       <div class="fxh"><span class="fxname">Compactor</span><span class="fxsub">ducks the returns under the synth</span></div>
       <div class="fxknobs" id="fx-cmp-knobs"></div>
     </section>
+    <div class="fx-row2">
     <section class="fxb blk-lex" id="fx-lex" aria-label="Reverb">
       <div class="fxh lex-head">
         <button type="button" class="onoff" id="fx-lex-on" aria-pressed="false">Off</button>
@@ -937,6 +944,12 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
       </div>
       <div class="fxknobs" id="fx-lex-knobs"></div>
     </section>
+    <section class="fxb" id="fx-flg" aria-label="Flanger">
+      <div class="fxh"><button type="button" class="onoff" id="fx-flg-on" aria-pressed="false">Off</button>
+        <div class="seg cmp-mode" id="flg-mode" role="radiogroup" aria-label="Flanger mode"><button type="button" role="radio" data-m="0">Flanger</button><button type="button" role="radio" data-m="1">Chorus</button></div></div>
+      <div class="fxknobs" id="fx-flg-knobs"></div>
+    </section>
+    </div>
     <section class="fxb blk-route" id="fx-route" aria-label="FX routing">
       <svg class="route-dia" id="route-dia" viewBox="0 0 560 60" role="group" aria-label="Signal path through the effects. Click a block to switch it on or off."></svg>
       <div class="route-ctl">
@@ -2058,6 +2071,54 @@ class DigitalDelay {
   }
 }
 
+// Flanger after the Boss BF-2: a 1024-stage bucket brigade (MN3207) clocked by a VCO (MN3102), so the delay is
+// 1024 / (2 f_clk). The clock runs from about 500 kHz down to 40 kHz, which is 1 to 12.8 ms; the clock is linear in the
+// control voltage, so the delay sweeps as 1/f and lingers at the long end. Manual sets the voltage, the triangle LFO
+// sweeps around it (Depth, Rate), Res feeds the BBD output back to its input through a soft clip. The BBD sits between
+// two fixed 8 kHz low-pass filters (anti-alias and reconstruction), and the output is the dry and delayed signals mixed
+// equally, which gives the comb. Chorus mode: no feedback, longer delays and a shallower sweep. Estimated from the
+// BF-2 service notes' block diagram; the BBD's sample-and-hold grit and noise are not modelled.
+const FLG_STAGES = 1024, FLG_FHI = 500e3, FLG_FLO = 40e3, FLG_LPF = 8000;
+const flgRate = (p) => 0.1 * Math.pow(100, p); // 0.1-10 Hz
+const flgMs = (v) => 1000 * FLG_STAGES / (2 * (FLG_FHI - v * (FLG_FHI - FLG_FLO)));
+class BF2Flanger {
+  constructor(fs) {
+    this.fs = fs; this.buf = new Float32Array(Math.ceil(fs * 0.016) + 4); this.w = 0; this.ph = 0; this.y = 0; this.g = 0.62;
+    const K = Math.tan(Math.PI * Math.min(FLG_LPF, 0.45 * fs) / fs), Q = Math.SQRT1_2, n = 1 / (1 + K / Q + K * K);
+    this.b0 = K * K * n; this.a1 = 2 * (K * K - 1) * n; this.a2 = (1 - K / Q + K * K) * n;
+    this.i1 = 0; this.i2 = 0; this.j1 = 0; this.j2 = 0; this.o1 = 0; this.o2 = 0; this.p1 = 0; this.p2 = 0;
+  }
+  derive(k) {
+    this.chorus = k.flgmode >= 0.5;
+    this.inc = flgRate(k.flgrate) / this.fs;
+    this.man = k.flgman; this.dep = k.flgdep;
+    this.fb = this.chorus ? 0 : 0.9 * k.flgres;
+    this.g = this.chorus ? 0.72 : 0.62; // the equal mix, raised so switching it on keeps roughly the dry loudness (the comb and the 8 kHz filter take about 3 dB)
+  }
+  run(x) {
+    this.ph += this.inc; if (this.ph >= 1) this.ph -= 1;
+    const tri = this.ph < 0.5 ? 4 * this.ph - 1 : 3 - 4 * this.ph;
+    let v = this.chorus ? 0.55 + 0.45 * this.man + 0.15 * this.dep * tri : this.man + 0.5 * this.dep * tri;
+    v = v < 0 ? 0 : v > 1 ? 1 : v;
+    const d = FLG_STAGES / (2 * (FLG_FHI - v * (FLG_FHI - FLG_FLO))) * this.fs;
+    // anti-alias filter into the BBD, with the feedback
+    const u = x + this.fb * Math.tanh(this.y);
+    const a = this.b0 * (u + 2 * this.i1 + this.i2) - this.a1 * this.j1 - this.a2 * this.j2;
+    this.i2 = this.i1; this.i1 = u; this.j2 = this.j1; this.j1 = a;
+    const b = this.buf, N = b.length;
+    b[this.w] = a;
+    let r = this.w - d; if (r < 0) r += N;
+    const i = Math.floor(r), f = r - i, j = i + 1 === N ? 0 : i + 1;
+    const z = b[i] + (b[j] - b[i]) * f;
+    this.w = this.w + 1 === N ? 0 : this.w + 1;
+    // reconstruction filter after it
+    const y = this.b0 * (z + 2 * this.o1 + this.o2) - this.a1 * this.p1 - this.a2 * this.p2;
+    this.o2 = this.o1; this.o1 = z; this.p2 = this.p1; this.p1 = y;
+    this.y = y;
+    return this.g * (x + y);
+  }
+}
+
 // Sidechain on the effect returns, after the Kilohearts Compactor (a limiter/ducker that works at sample
 // level). The key is the dry synth. Two controls: Amount and Release. Amount sets both how deep the duck
 // goes (0 = off, about 70% = full duck) and how sensitive it is (the key level that ducks fully goes from
@@ -2113,13 +2174,15 @@ class TB303Voice {
       sprprog: 2 / 3, sprdwell: 0.4, sprdecay: 0.5, sprtension: 0.5, sprtone: 0.5, sprlo: 0.4, sprmix: 0.5,
       cnvprog: 0, cnvpre: 0.2, cnvdecay: 1, cnvtone: 0.7, cnvlo: 0.3, cnvwidth: 2 / 3, cnvmix: 0.5,
       cmpamt: 0.4, cmprel: 0.14142,
-      dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35, fxorder: 0, fxret: 0 };
-    this.fx = { rat: false, lex: false, dly: false, fold: false }; // rat switches the drive slot (RAT, DS-1 or TS808)
+      dlypp: 1, dlytime: 0.7, dlyfb: 0.35, dlylo: 0.3, dlyhi: 0.55, dlymix: 0.35, fxorder: 0, fxret: 0,
+      flgman: 0.5, flgdep: 0.5, flgrate: 0.3, flgres: 0.5, flgmode: 0 };
+    this.fx = { rat: false, lex: false, dly: false, fold: false, flg: false }; // rat switches the drive slot (RAT, DS-1 or TS808)
     this.bpm = 128;
     this.ds = new BossDS1(this.fs); this.ts = new TubeScreamer(this.fs); this.b259 = new Buchla259(this.fs); this.drvT = 0;
     this.lex = new Lexicon224(sampleRate);
     this.plate = new DattorroPlate(sampleRate); this.spring = new SpringReverb(sampleRate); this.conv = new ConvReverb(sampleRate); this.revT = 0;
     this.dly = new DigitalDelay(sampleRate);
+    this.flg = new BF2Flanger(sampleRate);
     this.cmp = new Compactor(sampleRate);
     this.rt = { hin: 0, xin: 0, h1: 0, h2: 0, x1: 0, fb: 0, y: 0, hc: 0, xc: 0, v: 0, f: 0, xp: 0, dco: 0, dci: 0 };
     this.waveform = 'saw';
@@ -2156,7 +2219,7 @@ class TB303Voice {
 
   _derive() {
     const c = this.c, k = this.knobs;
-    this.cmp.derive(k); this.dly.derive(k, this.bpm);
+    this.cmp.derive(k); this.dly.derive(k, this.bpm); this.flg.derive(k);
     // noise: density * sqrt(bandwidth) at the oversampled rate gives the rms per sample
     const nb = Math.sqrt(this.fs / 2) * c.NOISE;
     this.nVcf = c.EN_VCF * nb; this.nOta = c.EN_OTA * nb; this.nOut = c.EN_OUT * nb;
@@ -2531,6 +2594,7 @@ class TB303Voice {
   // from y, summed with y, then the output soft clip. Routed in parallel (both fed from y), or in series: the second
   // one is fed y plus the first one's return (in mono), and both returns are heard.
   _fxOut(y, out, outR, n) {
+    if (this.fx.flg) y = this.flg.run(y); // the flanger, on the synth ahead of the returns and the dry path
     const lex = this.fx.lex ? this.rev : null, dly = this.fx.dly ? this.dly : null;
     let wl = 0, wr = 0;
     if (lex && dly && this.retMode === 1) { // delay into reverb
@@ -2559,12 +2623,12 @@ class TB303Voice {
   // Decaying filter and envelope states eventually reach subnormal floats, which run many times
   // slower on most CPUs (CPU climbed 3x over 15 s of silence). Snap anything that small to zero once
   // per block. 1e-150 is far below any audible level and far below every component value.
-  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.plate, 0); flushTiny(this.spring, 0); flushTiny(this.conv, 0); flushTiny(this.dly, 0); flushTiny(this.cmp, 0); flushTiny(this.ds.s, 0); flushTiny(this.ts.s, 0); flushTiny(this.b259.s, 0); }
+  _flush() { flushTiny(this, 0); if (this.lex) flushTiny(this.lex, 0); flushTiny(this.plate, 0); flushTiny(this.spring, 0); flushTiny(this.conv, 0); flushTiny(this.dly, 0); flushTiny(this.flg, 0); flushTiny(this.cmp, 0); flushTiny(this.ds.s, 0); flushTiny(this.ts.s, 0); flushTiny(this.b259.s, 0); }
 
   // out is mono, or the left channel when outR is given
   process(out, start = 0, end = out.length, outR) {
     this._flush();
-    const fx = this.fx.lex || this.fx.dly;
+    const fx = this.fx.lex || this.fx.dly || this.fx.flg;
     for (let n = start; n < end; n++) {
       let y = 0;
       for (let o = 0; o < this.os; o++) y = this._decimate(this._tick());
@@ -2585,7 +2649,7 @@ class TB303Voice {
 // it only decides what value the voice sees each 32-sample tick. Discrete controls switch at once.
 class ParamSlew {
   constructor(voice, fs, tau = 0.015) { this.v = voice; this.fs = fs; this.tau = tau; this.t = new Map(); }
-  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name === 'drvtype' || name === 'fxorder' || name === 'fxret' || name.startsWith('LEX_'); }
+  static instant(kind, name) { return name.endsWith('prog') || name === 'revtype' || name === 'drvtype' || name === 'fxorder' || name === 'fxret' || name === 'flgmode' || name.startsWith('LEX_'); }
   set(kind, name, value) {
     const v = this.v;
     if (ParamSlew.instant(kind, name) || !isFinite(value)) { this.t.delete(kind + name); kind === 'k' ? v.setKnob(name, value) : v.setComponent(name, value); return; }
@@ -2629,8 +2693,8 @@ class DeClick {
     const v = this.v;
     if (!this.on) { v.process(out, start, end, outR); this.t += end - start; return; }
     // run the voice dry and do the returns here, after the fade, so a retrigger never dips the reverb or delay tails
-    const lex = v.fx.lex, dly = v.fx.dly, fx = lex || dly;
-    v.fx.lex = v.fx.dly = false; v.process(out, start, end); v.fx.lex = lex; v.fx.dly = dly;
+    const lex = v.fx.lex, dly = v.fx.dly, flg = v.fx.flg, fx = lex || dly || flg;
+    v.fx.lex = v.fx.dly = v.fx.flg = false; v.process(out, start, end); v.fx.lex = lex; v.fx.dly = dly; v.fx.flg = flg;
     const D = this.D, F = this.F, L = this.bufL, ev = this.ev;
     for (let n = start; n < end; n++, this.t++) {
       let y = L[this.w]; L[this.w] = out[n]; this.w = this.w + 1 === D ? 0 : this.w + 1;
@@ -2794,6 +2858,12 @@ const KNOBS = [
   { id: 'dlypp',     name: 'Ping-pong', ref: 'mono/ping-pong', def: 1, fx: 'dly', hidden: true },
   { id: 'cmpamt',    name: 'Amount',    ref: 'depth + key', def: 0.4, fx: 'cmp' },
   { id: 'cmprel',    name: 'Release',   ref: '0–1 s',      def: 0.14142, fx: 'cmp' }, // 20 ms
+  // Flanger after the Boss BF-2 (fx.flg switches it on), on the synth ahead of the returns; flgmode: flanger or chorus
+  { id: 'flgman',    name: 'Manual',    ref: '1–12.8 ms',  def: 0.5,  fx: 'flg' },
+  { id: 'flgdep',    name: 'Depth',     ref: 'sweep',      def: 0.5,  fx: 'flg' },
+  { id: 'flgrate',   name: 'Rate',      ref: '0.1–10 Hz',  def: 0.3,  fx: 'flg' },
+  { id: 'flgres',    name: 'Res',       ref: 'feedback',   def: 0.5,  fx: 'flg' },
+  { id: 'flgmode',   name: 'Mode',      ref: 'flanger/chorus', def: 0, fx: 'flg', hidden: true },
   // FX routing (the block diagram on the FX page): folder/drive order, and how the delay and reverb returns connect
   { id: 'fxorder',   name: 'Order',     ref: 'folder→drive / drive→folder', def: 0, fx: 'route', hidden: true },
   { id: 'fxret',     name: 'Returns',   ref: 'parallel / delay→reverb / reverb→delay', def: 0, fx: 'route', hidden: true },
@@ -2836,7 +2906,7 @@ if (store.get('partsVersion', 0) === 3) {
 }
 const state = {
   knobs: Object.fromEntries(KNOBS.map(k => [k.id, k.def])),
-  wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false, fold: false }, shuffle: 0, gate: 0.5,
+  wave: 'saw', bpm: 128, fx: { rat: false, lex: false, dly: false, fold: false, flg: false }, shuffle: 0, gate: 0.5,
   pattern: store.get('pattern', null) || EXAMPLE.map(s => ({ ...s })),
   parts: {},
   tune: new Array(12).fill(0), // cents, C..B, every octave (tuning.js)
@@ -2852,7 +2922,7 @@ function cleanSettings(x) {
   for (const k of KNOBS) { const v = x.knobs?.[k.id]; if (typeof v === 'number' && v >= 0 && v <= 1) out.knobs[k.id] = v; }
   for (const k in COMPONENTS) { const v = x.parts?.[k]; if (typeof v === 'number' && isFinite(v) && v >= 0 && !COMPONENTS[k].fixed) out.parts[k] = k === 'NOISE' ? Math.min(v, COMPONENTS.NOISE.range[1]) : v; }
   if (x.wave === 'saw' || x.wave === 'square') out.wave = x.wave;
-  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex, dly: !!x.fx.dly, fold: !!x.fx.fold };
+  if (x.fx && typeof x.fx === 'object') out.fx = { rat: !!x.fx.rat, lex: !!x.fx.lex, dly: !!x.fx.dly, fold: !!x.fx.fold, flg: !!x.fx.flg };
   if (typeof x.bpm === 'number' && x.bpm >= 60 && x.bpm <= 200) out.bpm = Math.round(x.bpm);
   if (Array.isArray(x.pattern) && x.pattern.length >= 1 && x.pattern.length <= 64) out.pattern = x.pattern.map(st => ({
     code: Math.min(59, Math.max(0, (st && st.code) | 0)), gate: !!st?.gate, accent: !!st?.accent, slide: !!st?.slide }));
@@ -2868,7 +2938,7 @@ function snapshot() {
 { // restore last session
   const sess = cleanSettings(store.get('session', null));
   Object.assign(state.knobs, sess.knobs); Object.assign(state.parts, sess.parts);
-  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly, fold: !!sess.fx.fold };
+  if (sess.fx) state.fx = { rat: !!sess.fx.rat, lex: !!sess.fx.lex, dly: !!sess.fx.dly, fold: !!sess.fx.fold, flg: !!sess.fx.flg };
   if (sess.tune) state.tune = sess.tune;
   if (sess.wave) state.wave = sess.wave; if (sess.bpm) state.bpm = sess.bpm; if (sess.pattern) state.pattern = sess.pattern;
   if (sess.shuffle != null) state.shuffle = sess.shuffle; if (sess.gate != null) state.gate = sess.gate;
@@ -3683,6 +3753,8 @@ function knobText(id, p) {
     case 'dsdist': return '×' + Math.round(1 + PEDAL_PARTS.DS_VR1 * p / PEDAL_PARTS.DS_R13);                    // op-amp stage gain
     case 'tsdrive': return '×' + Math.round(1 + (PEDAL_PARTS.TS_R6 + PEDAL_PARTS.TS_P1 * Math.pow(p, 2.74)) / PEDAL_PARTS.TS_R4);
     case 'fldtimbre': return (0.5 + 9.5 * p * p).toFixed(1) + ' V';   // peak at the folding cells for a full-level note
+    case 'flgman': return flgMs(state.knobs.flgmode >= 0.5 ? 0.55 + 0.45 * p : p).toFixed(1) + ' ms'; // the BBD delay at the centre of the sweep
+    case 'flgrate': { const f = flgRate(p); return (f < 1 ? f.toFixed(2) : f.toFixed(1)) + ' Hz'; }
     case 'fldsym': { const v = (p - 0.5) * 4; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' V'; }
     default: {
       if (id.startsWith('lex')) return lexText(id, p);
@@ -3789,7 +3861,8 @@ function drawKnob(id) {
   }
   if (REV_IDS.has(id)) drawLex();
   if (id === 'drvtype') drawDrv();
-  if (id === 'drvtype' || id === 'revtype' || id === 'fxorder' || id === 'fxret') drawRoute();
+  if (id === 'flgmode') { drawFlgMode(); if (knobEls.flgman) knobEls.flgman.val.textContent = knobText('flgman', state.knobs.flgman); }
+  if (id === 'flgmode' || id === 'drvtype' || id === 'revtype' || id === 'fxorder' || id === 'fxret') drawRoute();
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;
@@ -4804,7 +4877,7 @@ function drawDrv() {
 drawDrv();
 
 // ---------- effects ----------
-const FX_UNITS = ['fold', 'rat', 'dly', 'lex'];
+const FX_UNITS = ['fold', 'rat', 'flg', 'dly', 'lex'];
 function renderFx() {
   for (const n of FX_UNITS) {
     const b = document.getElementById('fx-' + n + '-on');
@@ -4812,13 +4885,20 @@ function renderFx() {
     document.getElementById('fx-' + n).classList.toggle('on', !!state.fx[n]);
   }
   document.getElementById('fx-cmp').classList.toggle('on', !!(state.fx.lex || state.fx.dly)); // the Compactor acts on the returns
-  drawDlyMode(); drawDrv(); drawRoute();
+  drawDlyMode(); drawFlgMode(); drawDrv(); drawRoute();
 }
 // Delay mode: ping-pong or mono (stored as the dlypp knob)
 const dlyModeEl = document.getElementById('dly-mode');
 function drawDlyMode() {
   const pp = state.knobs.dlypp >= 0.5 ? 1 : 0; for (const b of dlyModeEl.children) b.setAttribute('aria-checked', +b.dataset.m === pp);
 }
+// Flanger mode: flanger or chorus (the flgmode knob). A function declaration with no top-level consts, so drawKnob can call it early
+function drawFlgMode() {
+  const el = document.getElementById('flg-mode'); if (!el) return;
+  const m = state.knobs.flgmode >= 0.5 ? 1 : 0; for (const b of el.children) b.setAttribute('aria-checked', +b.dataset.m === m);
+  if (knobEls.flgres) knobEls.flgres.wrap.classList.toggle('dim', m === 1); // no feedback in chorus mode
+}
+document.getElementById('flg-mode').addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) setKnob('flgmode', +b.dataset.m); });
 dlyModeEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) { setKnob('dlypp', +b.dataset.m); drawDlyMode(); } });
 for (const n of FX_UNITS) document.getElementById('fx-' + n + '-on').onclick = () => {
   state.fx[n] = !state.fx[n]; preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] });
@@ -4837,26 +4917,26 @@ function drawRoute() {
     for (const b of document.getElementById(id).children) b.setAttribute('aria-checked', Math.round(+b.dataset.v * (id === 'route-ret' ? 2 : 1)) === v);
   const drv = ['rat', 'ds-1', 'ts808'][Math.max(0, Math.min(2, Math.round((k.drvtype || 0) * 2)))];
   const rev = REV_TYPES[revType(k)].short.toLowerCase();
-  const W = 70, H = 18, Y = 24; // block size, main row centre
+  const W = 62, H = 18, Y = 24; // block size, main row centre
   const blk = (unit, label, x, y, on, tip) => `<g class="rb${on ? ' on' : ''}" data-tip="${tip}"${unit ? ` data-u="${unit}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${label}"` : ''}>` +
     `<rect x="${x}" y="${y - H / 2}" width="${W}" height="${H}" rx="2"/><text x="${x + W / 2}" y="${y + 5}">${label}</text></g>`;
   const ln = (pts) => `<polyline class="rw" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
   const arr = (x, y) => `<path class="ra" d="M${x - 5} ${y - 3.5} L${x} ${y} L${x - 5} ${y + 3.5}Z"/>`;
   const pre = swap ? [['rat', drv, fx.rat, 'Drive'], ['fold', 'folder', fx.fold, 'Folder']] : [['fold', 'folder', fx.fold, 'Folder'], ['rat', drv, fx.rat, 'Drive']];
-  let h = `<text class="rt" x="0" y="${Y + 5}">303</text>` + ln([[28, Y], [40, Y]]) + arr(40, Y);
-  h += blk(pre[0][0], pre[0][1], 40, Y, pre[0][2], pre[0][3] + ': click to switch on or off') + ln([[110, Y], [124, Y]]) + arr(124, Y);
-  h += blk(pre[1][0], pre[1][1], 124, Y, pre[1][2], pre[1][3] + ': click to switch on or off');
-  const sx = 214, mx = 404, cx = 412, ox = 500; // split, merge, Compactor, sum
-  h += ln([[194, Y], [sx, Y]]) + `<circle class="rn" cx="${sx}" cy="${Y}" r="2.5"/>`;
-  const dlyB = (x, y) => blk('dly', 'delay', x, y, fx.dly, 'Delay: click to switch on or off'), revB = (x, y) => blk('lex', rev, x, y, fx.lex, 'Reverb: click to switch on or off');
+  pre.push(['flg', k.flgmode >= 0.5 ? 'chorus' : 'flanger', fx.flg, 'Flanger']);
+  let h = `<text class="rt" x="0" y="${Y + 5}">303</text>`;
+  pre.forEach(([u, label, on, tip], i) => { const x = 36 + i * 74; h += ln([[x - 10 - (i ? 0 : -2), Y], [x, Y]]) + arr(x, Y) + blk(u, label, x, Y, on, tip); });
+  const sx = 270, cx = 428, ox = 506; // split, Compactor, sum
+  h += ln([[246, Y], [sx, Y]]) + `<circle class="rn" cx="${sx}" cy="${Y}" r="2.5"/>`;
+  const dlyB = (x, y) => blk('dly', 'delay', x, y, fx.dly, 'Delay'), revB = (x, y) => blk('lex', rev, x, y, fx.lex, 'Reverb');
   if (ret === 0) { // side by side
-    const yt = 12, yb = 46, x = 270;
-    h += ln([[sx, Y], [sx + 18, Y], [sx + 18, yt], [x, yt]]) + arr(x, yt) + ln([[sx + 18, Y], [sx + 18, yb], [x, yb]]) + arr(x, yb);
+    const yt = 12, yb = 46, x = 304, mx = 390;
+    h += ln([[sx, Y], [sx + 14, Y], [sx + 14, yt], [x, yt]]) + arr(x, yt) + ln([[sx + 14, Y], [sx + 14, yb], [x, yb]]) + arr(x, yb);
     h += dlyB(x, yt) + revB(x, yb);
-    h += ln([[x + W, yt], [mx - 14, yt], [mx - 14, Y], [cx, Y]]) + ln([[x + W, yb], [mx - 14, yb], [mx - 14, Y]]) + arr(cx, Y);
+    h += ln([[x + W, yt], [mx, yt], [mx, Y], [cx, Y]]) + ln([[x + W, yb], [mx, yb], [mx, Y]]) + arr(cx, Y);
   } else { // one into the other
     const [a, b] = ret === 1 ? [dlyB, revB] : [revB, dlyB];
-    h += ln([[sx, Y], [236, Y]]) + arr(236, Y) + a(236, Y) + ln([[306, Y], [324, Y]]) + arr(324, Y) + b(324, Y) + ln([[394, Y], [cx, Y]]) + arr(cx, Y);
+    h += ln([[sx, Y], [280, Y]]) + arr(280, Y) + a(280, Y) + ln([[342, Y], [352, Y]]) + arr(352, Y) + b(352, Y) + ln([[414, Y], [cx, Y]]) + arr(cx, Y);
   }
   h += blk('', 'cmp', cx, Y, fx.lex || fx.dly, 'Compactor: ducks the delay and reverb returns under the synth');
   h += ln([[cx + W, Y], [ox - 7, Y]]) + arr(ox - 7, Y);
@@ -5084,7 +5164,7 @@ function applySound(x) {
   for (const k in COMPONENTS) state.parts[k] = c.parts[k] ?? COMPONENTS[k].v;
   state.wave = c.wave || 'saw';
   state.tune = c.tune || new Array(12).fill(0); sendTune();
-  state.fx = c.fx || { rat: false, lex: false, dly: false, fold: false };
+  state.fx = c.fx || { rat: false, lex: false, dly: false, fold: false, flg: false };
   for (const n in state.fx) { preview.setFx(n, state.fx[n]); send({ type: 'fx', name: n, value: state.fx[n] }); }
   renderFx();
   for (const k of KNOBS) { preview.setKnob(k.id, state.knobs[k.id]); send({ type: 'knob', name: k.id, value: state.knobs[k.id] }); }
