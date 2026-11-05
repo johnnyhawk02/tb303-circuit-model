@@ -125,7 +125,7 @@ input[type=checkbox] { accent-color: var(--ink); }
 
 /* ---- v63: the Elixir Synth screen treatment, in orange: black bezel on the dark case, a faded-patch veil over the glass,
    a soft glow round every lit pixel, a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
-:root { --dirt: 1; --grain: 1; --glow: 1; --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
+:root { --dirt: 0; --grain: 1; --glow: 1; --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
   --hl1-rgb: 255 228 175; --hl2-rgb: 255 222 170; --dk1-rgb: 70 28 5; --dk2-rgb: 60 22 4; --dk3-rgb: 45 15 0; }
 html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815) fixed; }
 .main { border: 5px solid #0b0c0a; border-radius: 10px;
