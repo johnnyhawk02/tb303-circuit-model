@@ -1,7 +1,7 @@
 // ---------- preset auto-namer ----------
 // A name is either two or three real words, or one made-up word: alien syllables spliced with a spice.
 // Big word pools (acid gear, weather, rocks, creatures, desserts, cosmos, Greek, spices...) so names rarely repeat.
-// A last pass turns each s into z 60% of the time. The plug-in's autoName (plugin/Source/SeqModel.cpp) mirrors this.
+// A last pass turns each s into z 60% of the time.
 const NAMER = (() => {
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
   const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);

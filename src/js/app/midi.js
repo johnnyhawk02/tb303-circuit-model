@@ -1,6 +1,5 @@
 // ---------- MIDI: CC 1 onwards, any channel ----------
 // CC 1-8 are the main panel's dials left to right (Key track sits after Reso), CC 9 the Filter trim, then the Mods page.
-// The plug-in's ccMap() (PluginProcessor.cpp) uses the same order.
 const voiceCc = (k) => ({ name: k.name, set: (t) => setKnob(k.id, t) });
 const MIDI_MAP = [...KNOBS.filter(k => !k.fx).flatMap(k => k.id === 'resonance'
     ? [voiceCc(k), { name: 'Key track', set: (t) => setPartT('KT', t, true) }] : [voiceCc(k)]),

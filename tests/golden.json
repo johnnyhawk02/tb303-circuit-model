@@ -1,9 +1,9 @@
 {
-  "plugin/tests/scenario.json": {
+  "tests/scenario.json": {
     "sha256": "ffe2943673cc4bb031c02c27bc0cd84101e264d7db065e868836f367368a87a3",
     "rmsDb": -9.78
   },
-  "plugin/tests/scenario-44k.json": {
+  "tests/scenario-44k.json": {
     "sha256": "e6ad46241501579a319561021e15791ccb049115e0ca5026f6ac084215a937c4",
     "rmsDb": -23.39
   }

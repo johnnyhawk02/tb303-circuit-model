@@ -456,6 +456,3 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
 /* Options › About: Install app at the top (moved from the Functions menu, which is gone) */
 .opt-install { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .opt-install #opt-install-msg { color: var(--mute); }
-
-/* the plug-in (plugin/, plugin.js): the host plays, stops and sets the tempo, and there is no app to install */
-html.plugin #play, html.plugin .top .bpm, html.plugin .opt-install { display: none; }
