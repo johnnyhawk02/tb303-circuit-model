@@ -2,7 +2,7 @@
 // the editor watches key presses in its own window and hands them to the page (plugin.js) as keydowns.
 #pragma once
 #include <functional>
-#if JUCE_MAC
+#if defined(__APPLE__)   // not JUCE_MAC: KeyMonitor.mm includes no JUCE header
 void* tbAddKeyMonitor (void* nsView, std::function<bool (const char* key, bool shift)> onCmdKey); // true = swallow it
 void tbRemoveKeyMonitor (void* monitor);
 #else
