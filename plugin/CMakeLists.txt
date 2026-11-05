@@ -41,6 +41,10 @@ set_target_properties(TB303Data PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 juce_generate_juce_header(TB303CircuitModel)
 target_sources(TB303CircuitModel PRIVATE source/Processor.cpp)
+if(APPLE)
+  enable_language(OBJCXX)
+  target_sources(TB303CircuitModel PRIVATE source/KeyMonitor.mm)
+endif()
 target_compile_definitions(TB303CircuitModel PUBLIC
   JUCE_WEB_BROWSER=1 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_USE_FLAC=1
   JUCE_DISPLAY_SPLASH_SCREEN=0)
