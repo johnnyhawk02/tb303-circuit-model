@@ -12,7 +12,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="303">
-<style>@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: block; size-adjust: 72%; src: url(fonts/Silkscreen-Regular.woff2) format('woff2'); }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
 <script>
 // Inside the VST3 plug-in (plugin/) this page is the plug-in's screen: the plug-in hands it its saved storage and takes
 // the engine messages, and the DAW's transport and tempo replace the Play button and Tempo dial. In a browser this is null.
@@ -57,7 +58,7 @@ const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage
   --on: var(--ink);     /* switched on, selected: segments lit */
   --hi: var(--ink);     /* values, playhead */
   --well: var(--tint);  /* inset fields and the step grid */
-  --font-body: "Silkscreen", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-body: "VT323", ui-monospace, "SF Mono", Menlo, monospace;
   --font-mono: var(--font-body);
   --knob: 48px;         /* every dial on the front, the effects and the mods */
   --knob-part: 40px;    /* dials in Options › Circuit */
@@ -857,11 +858,6 @@ html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options
 .gmenu .fn-menu button { position: relative; justify-content: flex-start; }
 .gmenu .fn-menu button[aria-checked=true]::before { content: "✓"; position: absolute; left: 8px; }
 #o-gate { display: inline-block; min-width: 3ch; text-align: right; }
-
-/* Silkscreen pixel font (fonts/Silkscreen-Regular.woff2, OFL). It is much wider than VT323 was, so the @font-face in
-   src/index.html sets size-adjust 72% (every size shrinks, the --fs tokens stay). To go back to VT323: restore the Google
-   Fonts link, the VT323 --font-body in base.css, and drop this block. */
-html.fit .parts-kn .mini { letter-spacing: 0; word-spacing: -.15em; padding: 0 2px; font-size: calc(var(--fs-s) - 1px); }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">

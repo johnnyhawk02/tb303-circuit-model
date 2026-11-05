@@ -1,14 +1,16 @@
-// Makes the plug-in's screen from the web app: the index.html that `node build.js` writes, with no install-app links and
-// the version stamped. The page's font (fonts/Silkscreen-Regular.woff2) is served by the plug-in, so it looks the same offline.
+// Makes the plug-in's screen from the web app: the index.html that `node build.js` writes, with the VT323 font served by
+// the plug-in instead of Google Fonts (so it looks the same offline), no install-app links, and the version stamped.
 //   node plugin/tools/make-page.js <out-dir> [version] [sha]
-// Writes <out-dir>/index.html. The plug-in serves it with irs/irs.json and fonts/Silkscreen-Regular.woff2 (plugin/CMakeLists.txt).
+// Writes <out-dir>/index.html. The plug-in serves it with irs/irs.json and fonts/VT323-Regular.ttf (plugin/CMakeLists.txt).
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '../..');
 const [out, version = 'dev', sha = 'local'] = process.argv.slice(2);
 if (!out) { console.error('usage: node plugin/tools/make-page.js <out-dir> [version] [sha]'); process.exit(2); }
 let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const swap = (re, to, what) => { const n = html; html = html.replace(re, to); if (n === html) throw new Error('make-page: could not find ' + what); };
-if (!html.includes('url(fonts/Silkscreen-Regular.woff2)')) throw new Error('make-page: could not find the Silkscreen @font-face');
+swap(/<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">\n/, '', 'the Google Fonts preconnect');
+swap(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2\?family=VT323[^"]*">/,
+  "<style>@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: block; src: url(fonts/VT323-Regular.ttf) format('truetype'); }</style>", 'the VT323 stylesheet');
 swap(/<link rel="manifest"[^>]*>\n/, '', 'the manifest link');
 html = html.replace(/<link rel="(icon|apple-touch-icon)"[^>]*>\n/g, '');
 const date = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';

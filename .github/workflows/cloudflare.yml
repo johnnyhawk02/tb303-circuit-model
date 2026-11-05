@@ -18,7 +18,7 @@ jobs:
       # build the page from src/ here, so what goes live always matches the source
       - run: node build.js
       # Only the app itself goes live, so the source stays private with the repo.
-      - run: mkdir dist && cp -R index.html sw.js manifest.webmanifest icons irs fonts dist/
+      - run: mkdir dist && cp -R index.html sw.js manifest.webmanifest icons irs dist/
       # stamp the version shown in the top bar: v<deploy number>, with commit and time in its tooltip
       - run: |
           sed -i "s/__BUILD_VERSION__/v${{ github.run_number }}/; s/__BUILD_SHA__/${GITHUB_SHA::7}/; s/__BUILD_DATE__/$(date -u '+%Y-%m-%d %H:%M UTC')/" dist/index.html
