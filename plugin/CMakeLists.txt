@@ -36,7 +36,7 @@ juce_add_binary_data(TB303Data SOURCES
   "${TB_ROOT}/irs/irs.json"
   "${TB_ROOT}/irs/plate140.flac" "${TB_ROOT}/irs/plate140b.flac" "${TB_ROOT}/irs/drumroom.flac" "${TB_ROOT}/irs/silo.flac"
   "${TB_ROOT}/irs/garage.flac" "${TB_ROOT}/irs/musikverein.flac" "${TB_ROOT}/irs/star.flac"
-  "${CMAKE_CURRENT_SOURCE_DIR}/page/VT323-Regular.ttf")
+  "${TB_ROOT}/fonts/Silkscreen-Regular.woff2")
 set_target_properties(TB303Data PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 juce_generate_juce_header(TB303CircuitModel)
