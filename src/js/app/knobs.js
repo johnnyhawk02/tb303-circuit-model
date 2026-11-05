@@ -18,11 +18,20 @@ function knobSVG() {
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path class="trk" d="${SEG_ALL.join('')}"/>
     <path class="arc" d=""/>
+    <path class="hrd" d=""/>
   </svg>`;
 }
 // redraw one dial's ring for a 0-1 position
 function knobDraw(el, p) {
   el.querySelector('.arc').setAttribute('d', arcPath(p));
+}
+// a dial with a step sequencer (ctlseq.js): the ring stays at the dial's own setting, and an ink pointer outside the ring
+// shows where the sequence has moved it (at the setting when stopped); p < 0 hides the pointer
+function knobHeard(el, p) {
+  const h = el.querySelector('.hrd'); if (!h) return;
+  if (p < 0) { h.setAttribute('d', ''); return; }
+  const a = knobAngle(p), pt = (deg, r) => { const t = (deg - 90) * Math.PI / 180; return `${(32 + r * Math.cos(t)).toFixed(2)} ${(32 + r * Math.sin(t)).toFixed(2)}`; };
+  h.setAttribute('d', `M${pt(a, 29.5)}L${pt(a - 11, 40)}L${pt(a + 11, 40)}Z`);
 }
 function knobText(id, p) {
   const c = state.parts;
@@ -144,7 +153,7 @@ function drawKnob(id) {
   if (id === 'dlypp') { drawDlyMode(); return; }
   const p = cseqHeard('k:' + id, state.knobs[id]), k = knobEls[id]; // with a step sequencer running, the value heard
   if (k) {
-    knobDraw(k.el, p);
+    knobDraw(k.el, state.knobs[id]); knobHeard(k.el, cseqOn('k:' + id) ? p : -1);
     k.el.setAttribute('aria-valuenow', Math.round(p * 100));
     k.val.textContent = knobText(id, p);
   }

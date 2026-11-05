@@ -915,7 +915,9 @@ html.fit dialog#options .otabs button { flex: 0 0 96px; width: 96px; padding-lef
    pages, the 16 steps in two rows of 8 (the bar runs up or down from the middle line), the four bars, Randomise / kind / Done.
    A dial with a sequencer switched on gets a small ink square at its top right (dials stay ink, Johnny). */
 .knob { position: relative; }
-.knob.cseq::after { content: ""; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; background: var(--ink); pointer-events: none; }
+.knob.cseq::after { content: "seq"; position: absolute; top: -6px; right: -20px; padding: 0 3px; background: var(--ink); color: var(--glass); font: var(--fs-s)/1.05 var(--font-body);
+  letter-spacing: .04em; text-shadow: none; pointer-events: none; }
+.knob svg .hrd { fill: var(--ink); stroke: none; }
 dialog#cseq { box-sizing: border-box; width: 560px; max-width: none; max-height: none; padding: 16px; margin: 0; position: fixed; inset: auto; left: 50%; top: 50%;
   transform: translate(-50%, -50%) scale(var(--k, 1)); background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 6px;
   box-shadow: 0 10px 30px rgb(0 0 0 / .45); text-shadow: none; font-family: var(--font-body); overflow: visible;
@@ -957,6 +959,7 @@ dialog#cseq input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0
 dialog#cseq .cs-foot { display: flex; gap: 8px; padding-top: 12px; border-top: 2px solid var(--ink); }
 dialog#cseq .cs-foot #cseq-kind { min-width: 96px; text-transform: lowercase; letter-spacing: 0; }
 dialog#cseq .cs-foot #cseq-done { margin-left: auto; min-width: 80px; }
+.trim .knob.cseq::after { right: auto; left: -26px; top: -4px; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -3933,11 +3936,20 @@ function knobSVG() {
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path class="trk" d="${SEG_ALL.join('')}"/>
     <path class="arc" d=""/>
+    <path class="hrd" d=""/>
   </svg>`;
 }
 // redraw one dial's ring for a 0-1 position
 function knobDraw(el, p) {
   el.querySelector('.arc').setAttribute('d', arcPath(p));
+}
+// a dial with a step sequencer (ctlseq.js): the ring stays at the dial's own setting, and an ink pointer outside the ring
+// shows where the sequence has moved it (at the setting when stopped); p < 0 hides the pointer
+function knobHeard(el, p) {
+  const h = el.querySelector('.hrd'); if (!h) return;
+  if (p < 0) { h.setAttribute('d', ''); return; }
+  const a = knobAngle(p), pt = (deg, r) => { const t = (deg - 90) * Math.PI / 180; return `${(32 + r * Math.cos(t)).toFixed(2)} ${(32 + r * Math.sin(t)).toFixed(2)}`; };
+  h.setAttribute('d', `M${pt(a, 29.5)}L${pt(a - 11, 40)}L${pt(a + 11, 40)}Z`);
 }
 function knobText(id, p) {
   const c = state.parts;
@@ -4059,7 +4071,7 @@ function drawKnob(id) {
   if (id === 'dlypp') { drawDlyMode(); return; }
   const p = cseqHeard('k:' + id, state.knobs[id]), k = knobEls[id]; // with a step sequencer running, the value heard
   if (k) {
-    knobDraw(k.el, p);
+    knobDraw(k.el, state.knobs[id]); knobHeard(k.el, cseqOn('k:' + id) ? p : -1);
     k.el.setAttribute('aria-valuenow', Math.round(p * 100));
     k.val.textContent = knobText(id, p);
   }
@@ -4662,9 +4674,9 @@ function fromSlider(k, x) {
   return +v.toPrecision(3);
 }
 function drawPartKnob(k) {
-  const t = COMPONENTS[k].fixed ? 0.5 : cseqHeard('p:' + k, toSlider(k, state.parts[k]) / SL);
+  const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL, h = cseqOn('p:' + k) ? cseqHeard('p:' + k, t) : -1;
   for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
-    knobDraw(el, t);
+    knobDraw(el, t); knobHeard(el, h);
     el.setAttribute('aria-valuenow', Math.round(t * 100));
   }
 }
@@ -5842,6 +5854,7 @@ if (tbPlugin) {
 var cseqRt = {};             // key -> { off, glide }: the offset each running sequencer is at
 var cseqN = -1, cseqLastI = -1; // the 16th count since play started, and the last step message
 var cseqCur = null;          // the control whose pop-up is open: { key, label }
+function cseqOn(key) { return !!state.seqs[key]?.on; }
 function cseqHeard(key, base) {
   const r = cseqRt && cseqRt[key], q = state.seqs[key];
   if (!r || !r.off || !q) return base;
@@ -5858,7 +5871,7 @@ function cseqPush(key) {
   if (key[0] === 'k') {
     const h = cseqHeard(key, state.knobs[id]), k = knobEls[id];
     send({ type: 'knob', name: id, value: h });
-    if (k) { knobDraw(k.el, h); k.val.textContent = knobText(id, h); }
+    if (k) { knobDraw(k.el, state.knobs[id]); knobHeard(k.el, cseqOn(key) ? h : -1); k.val.textContent = knobText(id, h); }
   } else { send({ type: 'component', name: id, value: cseqPartValue(id) }); drawPartKnob(id); }
 }
 function cseqRelease(key) { if (!cseqRt[key]) return; delete cseqRt[key]; cseqPush(key); }
@@ -5933,7 +5946,10 @@ function cseqCtl(t) {
 function cseqMarks() {
   for (const el of document.querySelectorAll('.knob')) {
     const c = el.id === 'bpm' ? null : cseqCtl(el);
-    el.classList.toggle('cseq', !!(c && state.seqs[c.key]?.on));
+    const on = !!(c && cseqOn(c.key));
+    el.classList.toggle('cseq', on);
+    if (c && c.key[0] === 'k') knobHeard(el, on ? cseqHeard(c.key, state.knobs[c.key.slice(2)]) : -1);
+    else if (c) knobHeard(el, on ? cseqHeard(c.key, toSlider(c.key.slice(2), state.parts[c.key.slice(2)]) / SL) : -1);
   }
 }
 // a sound was loaded: its sequencers (or none) replace the old ones
