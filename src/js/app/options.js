@@ -78,4 +78,13 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
     pick(THEMES[(i + d + THEMES.length) % THEMES.length][0], true); e.preventDefault(); e.stopPropagation();
   });
   mark();
+
+  // Mono / Colourful: Mono is the chosen theme as it always was; Colourful lays the grey glass under it and inks a few
+  // controls in the other themes' colours (lcd.css, [data-lcdmode=colour]). Saved as tb303.lcdMode; picking a swatch goes back to Mono
+  const modeBox = document.getElementById('lcd-mode');
+  const markMode = () => { for (const b of modeBox.children) b.setAttribute('aria-pressed', b.dataset.mode === (root.dataset.lcdmode === 'colour' ? 'colour' : 'mono')); };
+  const setMode = (m) => { if (m === 'colour') root.dataset.lcdmode = 'colour'; else delete root.dataset.lcdmode; store.set('lcdMode', m); markMode(); applyLook(); };
+  modeBox.addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
+  box.addEventListener('click', () => { if (root.dataset.lcdmode === 'colour') setMode('mono'); }, true);
+  markMode();
 })();

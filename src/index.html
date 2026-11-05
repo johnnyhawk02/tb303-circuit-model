@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
-<script>try { const r = document.documentElement, t = JSON.parse(localStorage.getItem('tb303.lcdTheme')), v = JSON.parse(localStorage.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
+<script>try { const r = document.documentElement, t = JSON.parse(localStorage.getItem('tb303.lcdTheme')), v = JSON.parse(localStorage.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (JSON.parse(localStorage.getItem('tb303.lcdMode')) === 'colour') r.dataset.lcdmode = 'colour'; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
 <style>
 /*@css*/
 </style>
@@ -185,6 +185,7 @@
       <dl class="readouts" id="midi-map"></dl>
     </section>
     <section class="osec" id="osec-colours" role="tabpanel" aria-label="Colours" hidden>
+      <div class="lcd-mode"><span>mode</span><div class="seg" id="lcd-mode" role="group" aria-label="Screen colour mode"><button type="button" data-mode="mono" aria-pressed="true">Mono</button><button type="button" data-mode="colour" aria-pressed="false">Colourful</button></div></div>
       <div class="lcd-swatches" id="lcd-swatches" role="radiogroup" aria-label="Screen colour"></div>
       <div class="lcd-look" id="lcd-look">
         <label class="sld"><span>Brightness</span><input type="range" data-look="bright" min="-50" max="50" step="1" value="0" aria-label="Screen brightness"><output>0</output></label>
