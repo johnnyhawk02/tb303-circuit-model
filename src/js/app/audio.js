@@ -46,6 +46,7 @@ async function lockLandscape() {
   try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); await screen.orientation?.lock?.('landscape'); } catch {}
 }
 playBtn.onclick = async () => {
+  if (tbPlugin) return; // the DAW's transport plays the plug-in
   lockLandscape();
   if (!ctx) { try { await initAudio(); } catch (e) { status.textContent = 'Audio could not start in this browser'; return; } }
   if (ctx.state === 'suspended') await ctx.resume();
@@ -59,10 +60,10 @@ playBtn.onclick = async () => {
 // spacebar plays and stops, except while typing in a text field
 const typing = (t) => t.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]');
 document.addEventListener('keydown', (e) => {
-  if (e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
+  if (tbPlugin || e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
   e.preventDefault(); playBtn.click();
 }, true);
-document.addEventListener('keyup', (e) => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
+document.addEventListener('keyup', (e) => { if (!tbPlugin && e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
 // Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste the current pattern slot (text fields and selected text keep their normal copy/paste)
 document.addEventListener('keydown', (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.repeat || typing(e.target) || document.getElementById('options').open) return;

@@ -14,7 +14,26 @@
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
-<script>try { const r = document.documentElement, t = JSON.parse(localStorage.getItem('tb303.lcdTheme')), v = JSON.parse(localStorage.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (JSON.parse(localStorage.getItem('tb303.lcdMode')) !== 'mono') r.dataset.lcdmode = 'colour'; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
+<script>
+// Inside the VST3 plug-in (plugin/) this page is the plug-in's screen: the plug-in hands it its saved storage and takes
+// the engine messages, and the DAW's transport and tempo replace the Play button and Tempo dial. In a browser this is null.
+const tbPlugin = (() => {
+  const J = window.__JUCE__, d = J && J.initialisationData && J.initialisationData.tb303 && J.initialisationData.tb303[0];
+  if (!d || !J.backend) return null;
+  document.documentElement.dataset.plugin = '';
+  const emit = (m) => J.backend.emitEvent('tb303', m), data = new Map(Object.entries(d.store || {}));
+  const storage = { // a Storage the plug-in keeps (its own state for this instance, and a library shared by every instance)
+    getItem: (k) => data.has(k) ? data.get(k) : null,
+    setItem: (k, v) => { v = String(v); data.set(k, v); emit({ type: 'store', key: k, value: v }); },
+    removeItem: (k) => { data.delete(k); emit({ type: 'store', key: k, value: null }); },
+    key: (i) => [...data.keys()][i] ?? null,
+    get length() { return data.size; },
+  };
+  return { info: d, storage, send: emit, on: (fn) => J.backend.addEventListener('tb303', fn) };
+})();
+const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage; } catch { return null; } })();
+</script>
+<script>try { const r = document.documentElement, t = JSON.parse(tbStore.getItem('tb303.lcdTheme')), v = JSON.parse(tbStore.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (JSON.parse(tbStore.getItem('tb303.lcdMode')) !== 'mono') r.dataset.lcdmode = 'colour'; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
 <style>
 /* Layout: one quiet instrument page (knobs, transport, steps); everything else lives in the Options sheet.
    Look (v45, from Johnny's SH-101 project): one pane of backlit orange LCD glass in a black bezel on a dark case.
@@ -791,6 +810,9 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
 /* Options › About: Install app at the top (moved from the Functions menu, which is gone) */
 .opt-install { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .opt-install #opt-install-msg { color: var(--mute); }
+
+/* Inside the VST3 plug-in the DAW's transport and tempo run it: no Play button, Tempo dial or Install app */
+html[data-plugin] #play, html[data-plugin] .top .bpm, html[data-plugin] .opt-install { display: none; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -2871,8 +2893,8 @@ const EXAMPLE = [
 ].map(([code, accent, slide, gate]) => ({ code: code || 21, accent: !!accent, slide: !!slide, gate: !!gate }));
 
 const store = {
-  get(k, d) { try { const v = localStorage.getItem('tb303.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('tb303.' + k, JSON.stringify(v)); } catch {} },
+  get(k, d) { try { const v = tbStore.getItem('tb303.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { tbStore.setItem('tb303.' + k, JSON.stringify(v)); } catch {} },
 };
 // v30-v31 briefly used the cleaner schematic's part names (parts version 3); sounds saved then are converted back once
 function unmigrateParts(p) {
@@ -2891,10 +2913,10 @@ function unmigrateTree(o) {
 }
 if (store.get('partsVersion', 0) === 3) {
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i); if (!key.startsWith('tb303.')) continue;
-      const raw = localStorage.getItem(key); if (!raw || !raw.includes('"parts"')) continue;
-      try { localStorage.setItem(key, JSON.stringify(unmigrateTree(JSON.parse(raw)))); } catch {}
+    for (let i = 0; i < tbStore.length; i++) {
+      const key = tbStore.key(i); if (!key.startsWith('tb303.')) continue;
+      const raw = tbStore.getItem(key); if (!raw || !raw.includes('"parts"')) continue;
+      try { tbStore.setItem(key, JSON.stringify(unmigrateTree(JSON.parse(raw)))); } catch {}
     }
   } catch {}
   store.set('partsVersion', 2);
@@ -2945,7 +2967,7 @@ const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 let ctx = null, node = null, analyser = null, fallback = null;
 // the deploy stamps the version; a local build shows 'dev'
 { const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
-const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+const send = (m) => { if (tbPlugin) tbPlugin.send(m); else if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
 // de-click is a playback preference, kept apart from sounds and projects; its switch went with the Options Monitor tab, so a stored setting still holds and the default is on, 1.5 ms
 const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
 function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
@@ -4661,6 +4683,7 @@ async function lockLandscape() {
   try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); await screen.orientation?.lock?.('landscape'); } catch {}
 }
 playBtn.onclick = async () => {
+  if (tbPlugin) return; // the DAW's transport plays the plug-in
   lockLandscape();
   if (!ctx) { try { await initAudio(); } catch (e) { status.textContent = 'Audio could not start in this browser'; return; } }
   if (ctx.state === 'suspended') await ctx.resume();
@@ -4674,10 +4697,10 @@ playBtn.onclick = async () => {
 // spacebar plays and stops, except while typing in a text field
 const typing = (t) => t.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]');
 document.addEventListener('keydown', (e) => {
-  if (e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
+  if (tbPlugin || e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
   e.preventDefault(); playBtn.click();
 }, true);
-document.addEventListener('keyup', (e) => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
+document.addEventListener('keyup', (e) => { if (!tbPlugin && e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
 // Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste the current pattern slot (text fields and selected text keep their normal copy/paste)
 document.addEventListener('keydown', (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.repeat || typing(e.target) || document.getElementById('options').open) return;
@@ -5433,6 +5456,7 @@ function foldPresets(sounds, patterns) {
 }
 foldPresets(loadStore('soundPresets'), loadStore('patternPresets'));
 const download = (name, obj) => {
+  if (tbPlugin) { tbPlugin.send({ type: 'save', name, text: JSON.stringify(obj, null, 2) }); return; } // the plug-in asks where to save it
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
   a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -5523,7 +5547,8 @@ function onMidi(e) {
   midiPending.set(cc, val / 127);
   if (!midiFrame) midiFrame = requestAnimationFrame(() => { midiFrame = 0; for (const [c, t] of midiPending) MIDI_MAP[c - 1].set(t); midiPending.clear(); });
 }
-if (navigator.requestMIDIAccess) {
+if (tbPlugin) document.getElementById('midi-status').textContent = 'In the plug-in, MIDI CC comes from the DAW track, all channels.';
+else if (navigator.requestMIDIAccess) {
   const midiStatus = document.getElementById('midi-status');
   navigator.requestMIDIAccess().then((acc) => {
     const hook = () => { const ins = [...acc.inputs.values()]; for (const i of ins) i.onmidimessage = onMidi;
@@ -5550,6 +5575,25 @@ mtabs.addEventListener('keydown', (e) => {
 showPane(store.get('mainTab', 'seq'));
 
 renderFx(); renderSeq(); renderBank(); renderFrontMods();
+
+// ---------- inside the VST3 plug-in ----------
+// The plug-in runs the same engine in C++ (plugin/engine) and plays it from the DAW's transport and tempo, so there is no
+// Play button or Tempo dial (hidden in lcd.css). This page sends the engine what initAudio sends in a browser, and takes
+// the playing step, the DAW tempo and MIDI CC back.
+if (tbPlugin) {
+  tbPlugin.on((m) => {
+    if (!m) return;
+    if (m.type === 'step') markStep(m.step);
+    else if (m.type === 'bpm') { if (typeof m.value === 'number' && isFinite(m.value)) { state.bpm = Math.round(m.value * 100) / 100; bpmVal.textContent = state.bpm; } }
+    else if (m.type === 'midi' && Array.isArray(m.data)) onMidi({ data: m.data });
+  });
+  for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
+  for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
+  send({ type: 'wave', value: state.wave }); sendTune(); sendPattern(); sendGroove();
+  for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
+  sendDeclick();
+  send({ type: 'ready' });
+}
 
 // ---------- fit the screen to the window (the Elixir Synth way) ----------
 // On a desktop window the screen is a fixed 1000 x 647 pane (the shape of Johnny's MacBook Pro display, 1.545:1),

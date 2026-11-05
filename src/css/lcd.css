@@ -456,3 +456,6 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
 /* Options › About: Install app at the top (moved from the Functions menu, which is gone) */
 .opt-install { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .opt-install #opt-install-msg { color: var(--mute); }
+
+/* Inside the VST3 plug-in the DAW's transport and tempo run it: no Play button, Tempo dial or Install app */
+html[data-plugin] #play, html[data-plugin] .top .bpm, html[data-plugin] .opt-install { display: none; }

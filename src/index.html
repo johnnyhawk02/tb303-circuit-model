@@ -14,7 +14,26 @@
 <meta name="apple-mobile-web-app-title" content="303">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
-<script>try { const r = document.documentElement, t = JSON.parse(localStorage.getItem('tb303.lcdTheme')), v = JSON.parse(localStorage.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (JSON.parse(localStorage.getItem('tb303.lcdMode')) !== 'mono') r.dataset.lcdmode = 'colour'; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
+<script>
+// Inside the VST3 plug-in (plugin/) this page is the plug-in's screen: the plug-in hands it its saved storage and takes
+// the engine messages, and the DAW's transport and tempo replace the Play button and Tempo dial. In a browser this is null.
+const tbPlugin = (() => {
+  const J = window.__JUCE__, d = J && J.initialisationData && J.initialisationData.tb303 && J.initialisationData.tb303[0];
+  if (!d || !J.backend) return null;
+  document.documentElement.dataset.plugin = '';
+  const emit = (m) => J.backend.emitEvent('tb303', m), data = new Map(Object.entries(d.store || {}));
+  const storage = { // a Storage the plug-in keeps (its own state for this instance, and a library shared by every instance)
+    getItem: (k) => data.has(k) ? data.get(k) : null,
+    setItem: (k, v) => { v = String(v); data.set(k, v); emit({ type: 'store', key: k, value: v }); },
+    removeItem: (k) => { data.delete(k); emit({ type: 'store', key: k, value: null }); },
+    key: (i) => [...data.keys()][i] ?? null,
+    get length() { return data.size; },
+  };
+  return { info: d, storage, send: emit, on: (fn) => J.backend.addEventListener('tb303', fn) };
+})();
+const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage; } catch { return null; } })();
+</script>
+<script>try { const r = document.documentElement, t = JSON.parse(tbStore.getItem('tb303.lcdTheme')), v = JSON.parse(tbStore.getItem('tb303.lcdVars')); if (typeof t === 'string') r.dataset.lcd = t; if (JSON.parse(tbStore.getItem('tb303.lcdMode')) !== 'mono') r.dataset.lcdmode = 'colour'; if (v) for (const k in v) r.style.setProperty(k, v[k]); } catch {}</script>
 <style>
 /*@css*/
 </style>

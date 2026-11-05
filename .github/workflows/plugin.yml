@@ -1,0 +1,71 @@
+name: VST3 plug-in
+# Builds the 303 Circuit Model VST3 for macOS (Apple Silicon and Intel) from the same commit the web app deployed.
+#  - after every Cloudflare deploy of main: checks the C++ engine against the web engine, builds, and publishes the zip
+#    on the plugin-latest release, stamped with the web app's version (the deploy's run number)
+#  - on pull requests that touch the engine, the page or the plug-in: the same checks and build, zip as an artifact
+on:
+  workflow_run:
+    workflows: ["Deploy to Cloudflare Pages"]
+    types: [completed]
+  pull_request:
+    paths: ["plugin/**", "tb303-model.js", "src/**", "build.js", "irs/**", ".github/workflows/plugin.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: plugin-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+env:
+  SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+jobs:
+  parity:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.SHA }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: engine tables match tb303-model.js
+        run: node plugin/tools/gen-tables.js --check
+      - name: C++ engine renders what the web engine renders
+        run: node plugin/tests/parity.js
+  mac:
+    needs: parity
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.SHA }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then echo "VER=v${{ github.event.workflow_run.run_number }}" >> "$GITHUB_ENV"
+          else echo "VER=dev-${SHA::7}" >> "$GITHUB_ENV"; fi
+      - name: plug-in page from the web app
+        run: node build.js && node plugin/tools/make-page.js plugin/build/page "$VER" "$SHA"
+      - name: build
+        run: |
+          cmake -S plugin -B plugin/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          cmake --build plugin/build --config Release -j 4
+      - name: sign (ad hoc) and zip
+        run: |
+          cd "plugin/build/TB303CircuitModel_artefacts/Release/VST3"
+          # "./": codesign reads a name that starts with digits ("303 ...") as a process id
+          B="./303 Circuit Model.vst3"
+          codesign --force --sign - --timestamp=none "$B"
+          codesign --verify --deep --strict "$B"
+          lipo -archs "303 Circuit Model.vst3/Contents/MacOS/303 Circuit Model"
+          ditto -c -k --keepParent "303 Circuit Model.vst3" "$GITHUB_WORKSPACE/303-Circuit-Model-VST3-mac.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 303-Circuit-Model-VST3-mac-${{ env.VER }}
+          path: 303-Circuit-Model-VST3-mac.zip
+      - name: publish on the plugin-latest release
+        if: github.event_name != 'pull_request'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release delete plugin-latest --cleanup-tag --yes || true
+          gh release create plugin-latest 303-Circuit-Model-VST3-mac.zip --target "$SHA" --prerelease \
+            --title "303 Circuit Model VST3 $VER" \
+            --notes "The web app $VER as a VST3 for macOS (Apple Silicon and Intel), built from ${SHA::7}. Unzip, put 303 Circuit Model.vst3 in ~/Library/Audio/Plug-Ins/VST3, then run: xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/303\ Circuit\ Model.vst3"

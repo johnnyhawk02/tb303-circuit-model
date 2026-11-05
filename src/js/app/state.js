@@ -83,8 +83,8 @@ const EXAMPLE = [
 ].map(([code, accent, slide, gate]) => ({ code: code || 21, accent: !!accent, slide: !!slide, gate: !!gate }));
 
 const store = {
-  get(k, d) { try { const v = localStorage.getItem('tb303.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('tb303.' + k, JSON.stringify(v)); } catch {} },
+  get(k, d) { try { const v = tbStore.getItem('tb303.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { tbStore.setItem('tb303.' + k, JSON.stringify(v)); } catch {} },
 };
 // v30-v31 briefly used the cleaner schematic's part names (parts version 3); sounds saved then are converted back once
 function unmigrateParts(p) {
@@ -103,10 +103,10 @@ function unmigrateTree(o) {
 }
 if (store.get('partsVersion', 0) === 3) {
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i); if (!key.startsWith('tb303.')) continue;
-      const raw = localStorage.getItem(key); if (!raw || !raw.includes('"parts"')) continue;
-      try { localStorage.setItem(key, JSON.stringify(unmigrateTree(JSON.parse(raw)))); } catch {}
+    for (let i = 0; i < tbStore.length; i++) {
+      const key = tbStore.key(i); if (!key.startsWith('tb303.')) continue;
+      const raw = tbStore.getItem(key); if (!raw || !raw.includes('"parts"')) continue;
+      try { tbStore.setItem(key, JSON.stringify(unmigrateTree(JSON.parse(raw)))); } catch {}
     }
   } catch {}
   store.set('partsVersion', 2);
@@ -157,7 +157,7 @@ const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 let ctx = null, node = null, analyser = null, fallback = null;
 // the deploy stamps the version; a local build shows 'dev'
 { const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
-const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+const send = (m) => { if (tbPlugin) tbPlugin.send(m); else if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
 // de-click is a playback preference, kept apart from sounds and projects; its switch went with the Options Monitor tab, so a stored setting still holds and the default is on, 1.5 ms
 const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
 function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
