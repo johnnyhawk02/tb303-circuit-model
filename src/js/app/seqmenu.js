@@ -1,7 +1,7 @@
 // ---------- Randomise and Tools menus, and pattern key commands ----------
 // Johnny: the pattern buttons live in two menus at the right of the pattern row instead of on the page. Randomise holds
 // the random and alter tools, Shuffle, Generate and Refill; Tools holds Copy, Paste, Double, Clear, Undo, moving the notes
-// and joining the chain. Step len ▾ beside them picks how long each note sounds (key E). Every item has a key, shown in the menu and in the status-line tooltip. Keys are plain letters
+// and joining the chain. Gate ▾ beside them picks how long each note sounds (key E). Every item has a key, shown in the menu and in the status-line tooltip. Keys are plain letters
 // (Shift for the gentler Alter versions) and never clash with 1-8 (pattern slots), Space (play) or Cmd/Ctrl+C/V (copy,
 // paste, handled in audio.js). Keys are ignored while typing in a text field or with Options open.
 (() => {
@@ -41,7 +41,7 @@
     'join': { run: () => FUNCTIONS.join(), code: 'KeyJ' },
     'rm-btn': { run: toggle(0), code: 'KeyR' },
     'tm-btn': { run: toggle(1), code: 'KeyT' },
-    'gm-btn': { run: toggle(2), code: 'KeyE' },     // Step len ▾ (its items are drawn by renderSide in sequencer.js)
+    'gm-btn': { run: toggle(2), code: 'KeyE' },     // Gate ▾ (its items are drawn by renderSide in sequencer.js)
   };
   const keyName = (a) => (a.cmd ? cmd : '') + (a.shift ? shift : '') + (a.label || a.code.slice(3));
   for (const [id, a] of Object.entries(ACTS)) {

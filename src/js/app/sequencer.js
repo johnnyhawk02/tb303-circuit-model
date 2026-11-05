@@ -163,7 +163,7 @@ seq.addEventListener('keydown', (e) => {
 
 // ---------- side controls ----------
 const sideIn = Object.fromEntries([...document.querySelectorAll('.sq-side input[data-a]')].map(el => [el.dataset.a, el]));
-// Step len ▾ (Johnny: out of the slider, into a menu): fixed choices, a tick on the current one; a preset's in-between
+// Gate ▾ (Johnny: the Step len slider, moved into a menu and renamed Gate): fixed choices, a tick on the current one; a preset's in-between
 // value (anything from 10% to 95%) shows as its own ticked row at the top so it is never silently rounded
 const GATES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95];
 function renderSide() {
@@ -171,7 +171,7 @@ function renderSide() {
   const g = Math.round(state.gate * 100), list = GATES.includes(g) ? GATES : [g, ...GATES];
   document.getElementById('o-gate').textContent = g + '%';
   const menu = document.getElementById('gm-menu'), focused = menu.contains(document.activeElement);
-  menu.innerHTML = '<span class="mh">step length</span>' + list.map(v => `<button type="button" role="menuitemradio" aria-checked="${v === g}" data-gate="${v}" title="Each note sounds for ${v}% of its step">${v}%</button>`).join('');
+  menu.innerHTML = '<span class="mh">gate</span>' + list.map(v => `<button type="button" role="menuitemradio" aria-checked="${v === g}" data-gate="${v}" title="Each note sounds for ${v}% of its step">${v}%</button>`).join('');
   if (focused) menu.querySelector('[aria-checked=true]')?.focus();
 }
 document.getElementById('gm-menu').addEventListener('click', (e) => {
@@ -180,7 +180,7 @@ document.getElementById('gm-menu').addEventListener('click', (e) => {
 });
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-// the Length slider (Shift and Transpose went, the cross under the roll does both; Step len is a menu)
+// the Length slider (Shift and Transpose went, the cross under the roll does both; Gate is a menu)
 document.querySelector('.sq-side').addEventListener('input', (e) => {
   const el = e.target.closest('input[data-a]'); if (!el) return;
   const v = +el.value, P = state.pattern;

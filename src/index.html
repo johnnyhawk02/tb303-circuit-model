@@ -79,7 +79,7 @@ const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- controls above the roll (the pattern and what you do to it) and below it (a long Length slider; Step len is a menu beside Tools); Generate lives in the Randomise menu (key G) -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (a long Length slider; Gate is a menu beside Tools); Generate lives in the Randomise menu (key G) -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
@@ -116,8 +116,8 @@ const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage
           <span class="mh">chain</span>
           <button type="button" role="menuitem" data-rm="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button>
         </div></div>
-        <!-- Step len (Johnny): how long each note sounds, picked from a menu like Randomise and Tools; items drawn by renderSide -->
-        <div class="fn rmenu gmenu"><button type="button" id="gm-btn" aria-haspopup="menu" aria-expanded="false" title="How long each note sounds, as a share of the step">Step len <span id="o-gate">50%</span></button><div class="fn-menu" id="gm-menu" role="menu" hidden></div></div>
+        <!-- Gate (Johnny: "call it gate", was the Step len slider): how long each note sounds, picked from a menu like Randomise and Tools; items drawn by renderSide -->
+        <div class="fn rmenu gmenu"><button type="button" id="gm-btn" aria-haspopup="menu" aria-expanded="false" title="Gate: how long each note sounds, as a share of the step">Gate <span id="o-gate">50%</span></button><div class="fn-menu" id="gm-menu" role="menu" hidden></div></div>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
       <div class="sq-foot"><div class="sq-foot-rows">
