@@ -852,6 +852,12 @@ html.fit dialog#options .otabs button[aria-selected=true] { margin-bottom: -2px;
 html.fit dialog#options .otabs button[aria-selected=true]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--glass); }
 html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options .otabs button[aria-selected=true]:active { background: transparent; color: var(--ink); }
 [data-lcdmode=colour].fit .main .mtabs button[aria-selected=true], [data-lcdmode=colour].fit dialog#options .otabs button[aria-selected=true] { box-shadow: inset 0 4px 0 var(--accent); }
+
+/* Gate ▾ (Johnny, was the Step len slider): the note length moved out of its slider into a menu beside Tools; a tick on the current value */
+.gmenu .fn-menu { min-width: 120px; }
+.gmenu .fn-menu button { position: relative; justify-content: flex-start; }
+.gmenu .fn-menu button[aria-checked=true]::before { content: "✓"; position: absolute; left: 8px; }
+#o-gate { display: inline-block; min-width: 3ch; text-align: right; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -895,7 +901,7 @@ html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- controls above the roll (the pattern and what you do to it) and below it (long Length and Step len sliders); Generate lives in the Randomise menu (key G) -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (a long Length slider; Gate is a menu beside Tools); Generate lives in the Randomise menu (key G) -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
@@ -932,12 +938,13 @@ html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options
           <span class="mh">chain</span>
           <button type="button" role="menuitem" data-rm="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button>
         </div></div>
+        <!-- Gate (Johnny: "call it gate", was the Step len slider): how long each note sounds, picked from a menu like Randomise and Tools; items drawn by renderSide -->
+        <div class="fn rmenu gmenu"><button type="button" id="gm-btn" aria-haspopup="menu" aria-expanded="false" title="Gate: how long each note sounds, as a share of the step">Gate <span id="o-gate">50%</span></button><div class="fn-menu" id="gm-menu" role="menu" hidden></div></div>
       </div>
       <div class="seqwrap"><div class="seq" id="seq" role="grid" aria-label="Pattern"></div></div>
       <div class="sq-foot"><div class="sq-foot-rows">
       <div class="sq-row sq-side">
         <label class="sld len"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
-        <label class="sld len"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
       </div></div>
         <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
         <div class="nudge dpad" role="group" aria-label="Move the notes">
@@ -4089,20 +4096,29 @@ seq.addEventListener('keydown', (e) => {
 
 // ---------- side controls ----------
 const sideIn = Object.fromEntries([...document.querySelectorAll('.sq-side input[data-a]')].map(el => [el.dataset.a, el]));
+// Gate ▾ (Johnny: the Step len slider, moved into a menu and renamed Gate): fixed choices, a tick on the current one; a preset's in-between
+// value (anything from 10% to 95%) shows as its own ticked row at the top so it is never silently rounded
+const GATES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95];
 function renderSide() {
   document.getElementById('o-len').textContent = sideIn.len.value = state.pattern.length;
-  sideIn.gate.value = Math.round(state.gate * 100);
-  document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
+  const g = Math.round(state.gate * 100), list = GATES.includes(g) ? GATES : [g, ...GATES];
+  document.getElementById('o-gate').textContent = g + '%';
+  const menu = document.getElementById('gm-menu'), focused = menu.contains(document.activeElement);
+  menu.innerHTML = '<span class="mh">gate</span>' + list.map(v => `<button type="button" role="menuitemradio" aria-checked="${v === g}" data-gate="${v}" title="Each note sounds for ${v}% of its step">${v}%</button>`).join('');
+  if (focused) menu.querySelector('[aria-checked=true]')?.focus();
 }
+document.getElementById('gm-menu').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-gate]'); if (!b) return;
+  state.gate = +b.dataset.gate / 100; sendGroove(); renderSeq(); pushPattern();
+});
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-// sliders: Length and Step len (Shift and Transpose went; the cross under the roll does both)
+// the Length slider (Shift and Transpose went, the cross under the roll does both; Gate is a menu)
 document.querySelector('.sq-side').addEventListener('input', (e) => {
   const el = e.target.closest('input[data-a]'); if (!el) return;
   const v = +el.value, P = state.pattern;
   switch (el.dataset.a) {
     case 'len': while (P.length > v && P.length > 1) tail.unshift(P.pop()); extendTo(v); break;
-    case 'gate': state.gate = v / 100; sendGroove(); break;
   }
   renderSeq(); pushPattern();
 });
@@ -4406,17 +4422,17 @@ document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPatte
 // ---------- Randomise and Tools menus, and pattern key commands ----------
 // Johnny: the pattern buttons live in two menus at the right of the pattern row instead of on the page. Randomise holds
 // the random and alter tools, Shuffle, Generate and Refill; Tools holds Copy, Paste, Double, Clear, Undo, moving the notes
-// and joining the chain. Every item has a key, shown in the menu and in the status-line tooltip. Keys are plain letters
+// and joining the chain. Gate ▾ beside them picks how long each note sounds (key E). Every item has a key, shown in the menu and in the status-line tooltip. Keys are plain letters
 // (Shift for the gentler Alter versions) and never clash with 1-8 (pattern slots), Space (play) or Cmd/Ctrl+C/V (copy,
 // paste, handled in audio.js). Keys are ignored while typing in a text field or with Options open.
 (() => {
   const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   const cmd = mac ? '⌘' : 'Ctrl+', shift = mac ? '⇧' : 'Shift+';
   const click = (sel) => () => { const b = document.querySelector(sel); if (b && !b.disabled) b.click(); };
-  const MENUS = [['rm-btn', 'rm-menu'], ['tm-btn', 'tm-menu']].map(([b, m]) => ({ btn: document.getElementById(b), menu: document.getElementById(m) }));
+  const MENUS = [['rm-btn', 'rm-menu'], ['tm-btn', 'tm-menu'], ['gm-btn', 'gm-menu']].map(([b, m]) => ({ btn: document.getElementById(b), menu: document.getElementById(m) }));
   const open = (M, on) => {
     for (const o of MENUS) if (o !== M || !on) { o.menu.hidden = true; o.btn.setAttribute('aria-expanded', false); }
-    if (on) { M.menu.hidden = false; M.btn.setAttribute('aria-expanded', true); M.menu.querySelector('button:not(:disabled)')?.focus(); }
+    if (on) { M.menu.hidden = false; M.btn.setAttribute('aria-expanded', true); (M.menu.querySelector('[aria-checked=true]') || M.menu.querySelector('button:not(:disabled)'))?.focus(); }
   };
   const toggle = (i) => () => open(MENUS[i], MENUS[i].menu.hidden);
   // each action: what it runs, its key (code, shift, cmd, and a label when the code is not a letter), and the element
@@ -4446,6 +4462,7 @@ document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPatte
     'join': { run: () => FUNCTIONS.join(), code: 'KeyJ' },
     'rm-btn': { run: toggle(0), code: 'KeyR' },
     'tm-btn': { run: toggle(1), code: 'KeyT' },
+    'gm-btn': { run: toggle(2), code: 'KeyE' },     // Gate ▾ (its items are drawn by renderSide in sequencer.js)
   };
   const keyName = (a) => (a.cmd ? cmd : '') + (a.shift ? shift : '') + (a.label || a.code.slice(3));
   for (const [id, a] of Object.entries(ACTS)) {
@@ -4480,7 +4497,7 @@ document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPatte
     const hit = Object.entries(ACTS).find(([, a]) => a.run && a.code === e.code && !!a.shift === e.shiftKey && !!a.cmd === c);
     if (!hit) return;
     e.preventDefault();
-    if (!/^(rm|tm)-btn$/.test(hit[0])) for (const M of MENUS) if (!M.menu.hidden) open(M, false);
+    if (!/^(rm|tm|gm)-btn$/.test(hit[0])) for (const M of MENUS) if (!M.menu.hidden) open(M, false);
     hit[1].run();
   });
 })();

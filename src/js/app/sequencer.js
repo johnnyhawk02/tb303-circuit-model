@@ -163,20 +163,29 @@ seq.addEventListener('keydown', (e) => {
 
 // ---------- side controls ----------
 const sideIn = Object.fromEntries([...document.querySelectorAll('.sq-side input[data-a]')].map(el => [el.dataset.a, el]));
+// Gate ▾ (Johnny: the Step len slider, moved into a menu and renamed Gate): fixed choices, a tick on the current one; a preset's in-between
+// value (anything from 10% to 95%) shows as its own ticked row at the top so it is never silently rounded
+const GATES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95];
 function renderSide() {
   document.getElementById('o-len').textContent = sideIn.len.value = state.pattern.length;
-  sideIn.gate.value = Math.round(state.gate * 100);
-  document.getElementById('o-gate').textContent = Math.round(state.gate * 100) + '%';
+  const g = Math.round(state.gate * 100), list = GATES.includes(g) ? GATES : [g, ...GATES];
+  document.getElementById('o-gate').textContent = g + '%';
+  const menu = document.getElementById('gm-menu'), focused = menu.contains(document.activeElement);
+  menu.innerHTML = '<span class="mh">gate</span>' + list.map(v => `<button type="button" role="menuitemradio" aria-checked="${v === g}" data-gate="${v}" title="Each note sounds for ${v}% of its step">${v}%</button>`).join('');
+  if (focused) menu.querySelector('[aria-checked=true]')?.focus();
 }
+document.getElementById('gm-menu').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-gate]'); if (!b) return;
+  state.gate = +b.dataset.gate / 100; sendGroove(); renderSeq(); pushPattern();
+});
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-// sliders: Length and Step len (Shift and Transpose went; the cross under the roll does both)
+// the Length slider (Shift and Transpose went, the cross under the roll does both; Gate is a menu)
 document.querySelector('.sq-side').addEventListener('input', (e) => {
   const el = e.target.closest('input[data-a]'); if (!el) return;
   const v = +el.value, P = state.pattern;
   switch (el.dataset.a) {
     case 'len': while (P.length > v && P.length > 1) tail.unshift(P.pop()); extendTo(v); break;
-    case 'gate': state.gate = v / 100; sendGroove(); break;
   }
   renderSeq(); pushPattern();
 });
