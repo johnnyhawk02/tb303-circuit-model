@@ -31,8 +31,9 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
 
   // Brightness, saturation, dirt, grain, glow: saved as tb303.lcdLook (the slider values) and tb303.lcdVars (the CSS
   // variables they make, which the page head puts back before the styles load). At the stock values nothing is set at all.
-  const LOOK0 = { bright: 0, sat: 100, dirt: 100, grain: 100, glow: 100 };
+  const LOOK0 = { bright: 0, sat: 100, dirt: 0, grain: 100, glow: 100 }; // clean glass by default (Johnny, v127)
   const look = { ...LOOK0, ...store.get('lcdLook', {}) };
+  if (!store.get('lcdDirt0', false)) { look.dirt = 0; store.set('lcdDirt0', true); } // once: saved looks from before v127 start clean too
   const VARS = ['--glass', '--panel-rgb', '--dirt', '--grain', '--glow'];
   const hex2hsl = (h) => {
     const n = parseInt(h.replace('#', ''), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
@@ -56,7 +57,7 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
       const rgb = hsl2rgb(h, s, l);
       vars['--glass'] = '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join(''); vars['--panel-rgb'] = rgb.join(' ');
     }
-    for (const k of ['dirt', 'grain', 'glow']) if (look[k] !== 100) vars['--' + k] = String(look[k] / 100);
+    for (const k of ['dirt', 'grain', 'glow']) if (look[k] !== LOOK0[k]) vars['--' + k] = String(look[k] / 100);
     for (const k in vars) root.style.setProperty(k, vars[k]);
     store.set('lcdLook', look); store.set('lcdVars', vars);
   }
@@ -64,7 +65,7 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
   const show = () => { for (const i of lookBox.querySelectorAll('input')) { const k = i.dataset.look; i.value = look[k]; i.nextElementSibling.textContent = k === 'bright' ? (look[k] > 0 ? '+' : '') + look[k] : look[k] + '%'; i.dispatchEvent(new Event('input', { bubbles: true })); } };
   lookBox.addEventListener('input', (e) => { const i = e.target; if (!i.dataset?.look || !e.isTrusted) return; look[i.dataset.look] = +i.value; applyLook(); show(); });
   document.getElementById('lcd-look-reset').onclick = () => { Object.assign(look, LOOK0); applyLook(); show(); };
-  show();
+  applyLook(); show();
   for (const [k, name] of THEMES) {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'sw'; b.dataset.lcd = k; b.setAttribute('role', 'radio');
