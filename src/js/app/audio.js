@@ -32,6 +32,7 @@ function makeFallback() {
 }
 let lastStep = -1;
 function markStep(i) {
+  cseqTick(i); // the per-control step sequencers step with the pattern (ctlseq.js)
   const [c, local] = chainPos(i);
   if (c >= 0) { const k = chain[c]; i = k === slotKey(sel.g, sel.n) ? local : -1; if (k !== playingSlot) { playingSlot = k; requestAnimationFrame(renderChain); } }
   else if (playingSlot && i < 0) { playingSlot = ''; requestAnimationFrame(renderChain); }

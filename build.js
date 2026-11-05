@@ -9,7 +9,7 @@
 const fs = require('fs'), path = require('path');
 const src = (...p) => fs.readFileSync(path.join(__dirname, ...p), 'utf8');
 const CSS_ORDER = ['base', 'top', 'panel', 'sequencer', 'options', 'responsive', 'lcd'];
-const APP_ORDER = ['state', 'generate', 'format', 'knobs', 'sequencer', 'banks', 'functions', 'seqmenu', 'parts', 'options', 'audio', 'voice', 'fx', 'tuning', 'namer', 'presets', 'projects', 'midi', 'main', 'plugin', 'fit', 'statusline'];
+const APP_ORDER = ['state', 'generate', 'format', 'knobs', 'sequencer', 'banks', 'functions', 'seqmenu', 'parts', 'options', 'audio', 'voice', 'fx', 'tuning', 'namer', 'presets', 'projects', 'midi', 'main', 'plugin', 'ctlseq', 'fit', 'statusline'];
 const css = CSS_ORDER.map(n => src('src/css', n + '.css').trimEnd()).join('\n\n');
 const app = APP_ORDER.map(n => src('src/js/app', n + '.js').trimEnd()).join('\n\n')
   .replace('/*@patterns*/{}', () => src('patterns.json').trim())

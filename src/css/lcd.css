@@ -555,3 +555,51 @@ html.fit dialog#options .lcd-look .sld { grid-template-columns: 96px minmax(0, 1
    every Options tab as wide as the widest (Colours); labels centred */
 html.fit .main .mtabs button { flex: 0 0 104px; width: 104px; padding-left: 0; padding-right: 0; text-align: center; justify-content: center; }
 html.fit dialog#options .otabs button { flex: 0 0 96px; width: 96px; padding-left: 0; padding-right: 0; text-align: center; justify-content: center; }
+
+/* A dial's own step sequencer (ctlseq.js): long-press or right-click a dial. A card of glass over the dimmed screen, 560 wide
+   in the screen's own units (it scales with the screen, like Options). Head: name, On, the step being painted; then the four
+   pages, the 16 steps in two rows of 8 (the bar runs up or down from the middle line), the four bars, Randomise / kind / Done.
+   A dial with a sequencer switched on gets a small ink square at its top right (dials stay ink, Johnny). */
+.knob { position: relative; }
+.knob.cseq::after { content: ""; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; background: var(--ink); pointer-events: none; }
+dialog#cseq { box-sizing: border-box; width: 560px; max-width: none; max-height: none; padding: 16px; margin: 0; position: fixed; inset: auto; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(var(--k, 1)); background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 6px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / .45); text-shadow: none; font-family: var(--font-body); overflow: visible;
+  background-image: repeating-linear-gradient(0deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px); }
+dialog#cseq[open] { display: grid; gap: 12px; }
+dialog#cseq::backdrop { background: rgb(0 0 0 / .45); }
+dialog#cseq button { height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; text-transform: uppercase; letter-spacing: .06em; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+dialog#cseq .cs-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
+dialog#cseq .cs-head h2 { margin: 0; font: var(--fs-l)/1 var(--font-body); text-transform: lowercase; }
+dialog#cseq .cs-head .onoff { min-width: 52px; }
+dialog#cseq .cs-val { margin-left: auto; font-size: var(--fs-m); font-variant-numeric: tabular-nums; white-space: pre; }
+dialog#cseq .cs-pages { display: flex; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
+dialog#cseq .cs-pages button { flex: 1; height: calc(var(--ctl-h) - 4px); box-shadow: none; letter-spacing: 0; }
+dialog#cseq .cs-pages button[aria-selected=true] { background: var(--ink); color: var(--glass); }
+dialog#cseq .cs-pages button.past:not([aria-selected=true]) { color: rgb(var(--ink-rgb) / .4); }
+dialog#cseq .cs-pages button.now:not([aria-selected=true]) { text-decoration: underline 2px; text-underline-offset: 3px; }
+dialog#cseq .cs-steps { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(2, 92px); gap: 8px; touch-action: none; cursor: crosshair; user-select: none; }
+dialog#cseq .cs-step { position: relative; border: 2px solid var(--ink); border-radius: 2px;
+  background: linear-gradient(var(--ink), var(--ink)) center / 100% 1px no-repeat, var(--ghost); }
+dialog#cseq .cs-step::before { content: attr(data-n); position: absolute; left: 3px; top: 1px; font-size: var(--fs-s); line-height: 1; pointer-events: none; }
+dialog#cseq .cs-step .cs-bar { position: absolute; left: 6px; right: 6px; background: var(--ink);
+  top: calc(50% - max(var(--v, 0), 0) * 50%); height: max(2px, calc(max(var(--v, 0), -1 * var(--v, 0)) * 50%)); margin-top: -1px; }
+dialog#cseq .cs-step.off { opacity: .3; }
+dialog#cseq .cs-step.sel::before { background: var(--ink); color: var(--glass); padding: 0 2px; left: 1px; }
+dialog#cseq .cs-step.now { outline: 3px solid var(--accent, var(--ink)); outline-offset: 1px; }
+dialog#cseq .cs-steps:focus-visible { outline: 2px dashed var(--ink); outline-offset: 4px; }
+dialog#cseq .cs-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; }
+dialog#cseq .sld { grid-template-columns: 56px minmax(0, 1fr) 58px; gap: 8px; margin: 0; font-size: var(--fs-m); }
+dialog#cseq .sld output { font-size: var(--fs-m); text-align: right; }
+dialog#cseq input[type=range] { --f: 0; height: 22px; width: 100%; }
+dialog#cseq input[type=range]::-webkit-slider-runnable-track { height: 16px; margin: 0; border: 0; border-radius: 0; cursor: ew-resize;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#cseq input[type=range]::-moz-range-track { height: 16px; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / round(down, calc(var(--f) * 100%), 8px) 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--ghost) 0 5px, transparent 5px 8px); }
+dialog#cseq input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; margin: 0; background: none; box-shadow: none; }
+dialog#cseq input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0; background: none; }
+dialog#cseq .cs-foot { display: flex; gap: 8px; padding-top: 12px; border-top: 2px solid var(--ink); }
+dialog#cseq .cs-foot #cseq-kind { min-width: 96px; text-transform: lowercase; letter-spacing: 0; }
+dialog#cseq .cs-foot #cseq-done { margin-left: auto; min-width: 80px; }

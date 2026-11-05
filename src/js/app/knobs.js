@@ -142,7 +142,7 @@ for (const k of KNOBS) {
 }
 function drawKnob(id) {
   if (id === 'dlypp') { drawDlyMode(); return; }
-  const p = state.knobs[id], k = knobEls[id];
+  const p = cseqHeard('k:' + id, state.knobs[id]), k = knobEls[id]; // with a step sequencer running, the value heard
   if (k) {
     knobDraw(k.el, p);
     k.el.setAttribute('aria-valuenow', Math.round(p * 100));
@@ -155,7 +155,7 @@ function drawKnob(id) {
 }
 function setKnob(id, p) {
   p = Math.min(1, Math.max(0, p)); state.knobs[id] = p;
-  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: p }); saveSession();
+  preview.setKnob(id, p); drawKnob(id); send({ type: 'knob', name: id, value: cseqHeard('k:' + id, p) }); saveSession();
 }
 
 

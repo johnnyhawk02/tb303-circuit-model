@@ -239,6 +239,28 @@ const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage
   </div>
 </dialog>
 
+<!-- a dial's own step sequencer (ctlseq.js): long-press or right-click a dial -->
+<dialog id="cseq" aria-labelledby="cseq-title">
+  <div class="cs-head">
+    <h2 id="cseq-title"><span id="cseq-name">cutoff</span> seq</h2>
+    <button type="button" class="onoff" id="cseq-on" aria-pressed="true">On</button>
+    <output class="cs-val" id="cseq-val" aria-live="off">step 1  0%</output>
+  </div>
+  <div class="seg cs-pages" id="cseq-pages" role="tablist" aria-label="Step pages"></div>
+  <div class="cs-steps" id="cseq-steps" tabindex="0" role="slider" aria-label="Steps: drag to paint; Left and Right pick a step, Up and Down move it" aria-valuemin="-100" aria-valuemax="100"></div>
+  <div class="cs-bars" id="cseq-bars">
+    <label class="sld"><span>length</span><input type="range" id="cseq-len" min="2" max="64" step="1" aria-label="Sequence length"><output id="cseq-len-out">16</output></label>
+    <label class="sld"><span>slew</span><input type="range" id="cseq-slew" min="0" max="100" step="5" aria-label="Slew: glide to each step"><output id="cseq-slew-out">off</output></label>
+    <label class="sld"><span>speed</span><input type="range" id="cseq-speed" min="0" max="7" step="1" aria-label="Speed: how long each step lasts"><output id="cseq-speed-out">1/16</output></label>
+    <label class="sld"><span>depth</span><input type="range" id="cseq-depth" min="0" max="100" step="5" aria-label="Depth: how far the steps move the dial"><output id="cseq-depth-out">±50%</output></label>
+  </div>
+  <div class="cs-foot">
+    <button type="button" id="cseq-rand">Randomise</button>
+    <button type="button" id="cseq-kind" aria-label="Kind of randomise (click for the next)">random</button>
+    <button type="button" id="cseq-done">Done</button>
+  </div>
+</dialog>
+
 <!-- the voice model: used here for readouts and the fallback engine, and loaded again into the AudioWorklet -->
 <script id="model">
 /*@model*/

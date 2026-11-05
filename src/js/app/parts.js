@@ -16,7 +16,7 @@ function fromSlider(k, x) {
   return +v.toPrecision(3);
 }
 function drawPartKnob(k) {
-  const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL;
+  const t = COMPONENTS[k].fixed ? 0.5 : cseqHeard('p:' + k, toSlider(k, state.parts[k]) / SL);
   for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
     knobDraw(el, t);
     el.setAttribute('aria-valuenow', Math.round(t * 100));
@@ -28,7 +28,7 @@ function applyPart(k, val) {
   if (k === 'KT' || k === 'R_KT') queueMicrotask(drawKeyTrack);
   for (const lab of document.querySelectorAll(`.val[data-k="${k}"]`)) { lab.textContent = fmt(val, COMPONENTS[k].unit); lab.classList.toggle('changed', partChanged(k, val)); }
   drawPartKnob(k);
-  preview.setComponent(k, val); send({ type: 'component', name: k, value: val });
+  preview.setComponent(k, val); send({ type: 'component', name: k, value: cseqPartValue(k) });
   for (const id in knobEls) drawKnob(id); saveSession(); renderFx();
 }
 const partT = (k) => toSlider(k, state.parts[k]) / SL;
