@@ -170,35 +170,13 @@ function renderSide() {
 }
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-// sliders, as in the Shyoy: Length and Step len set values; Shift and Transpose spring back to centre when let go
-let sprBase = null;
-const sprReset = () => { sprBase = null; for (const a of ['shift', 'tr']) { sideIn[a].value = 0; document.getElementById('o-' + a).textContent = '0'; } };
-for (const a of ['shift', 'tr']) {
-  const el = sideIn[a];
-  const grab = () => { if (!sprBase) { pushUndo(); sprBase = state.pattern.map(st => ({ ...st })); } };
-  el.addEventListener('pointerdown', grab); el.addEventListener('focus', grab);
-  el.addEventListener('change', () => { if (el.matches(':focus-visible')) return; sprReset(); });
-  el.addEventListener('pointerup', sprReset); el.addEventListener('pointercancel', sprReset); el.addEventListener('blur', sprReset);
-}
+// sliders: Length and Step len (Shift and Transpose went; the cross under the roll does both)
 document.querySelector('.sq-side').addEventListener('input', (e) => {
   const el = e.target.closest('input[data-a]'); if (!el) return;
   const v = +el.value, P = state.pattern;
   switch (el.dataset.a) {
     case 'len': while (P.length > v && P.length > 1) tail.unshift(P.pop()); extendTo(v); break;
     case 'gate': state.gate = v / 100; sendGroove(); break;
-    case 'shift': {
-      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
-      const n = sprBase.length, k = ((v % n) + n) % n;
-      state.pattern = sprBase.map((_, i) => ({ ...sprBase[(i - k + n) % n] }));
-      renderSeq(); pushPattern(); document.getElementById('o-shift').textContent = (v > 0 ? '+' : '') + v; return;
-    }
-    case 'tr': {
-      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
-      const codes = sprBase.map(st => st.code), lo = Math.min(...codes), hi = Math.max(...codes);
-      const d = Math.max(-lo, Math.min(59 - hi, v));
-      state.pattern = sprBase.map(st => ({ ...st, code: st.code + d }));
-      renderSeq(); pushPattern(); document.getElementById('o-tr').textContent = (d > 0 ? '+' : '') + d; return;
-    }
   }
   renderSeq(); pushPattern();
 });
