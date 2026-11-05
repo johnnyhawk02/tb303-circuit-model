@@ -124,8 +124,8 @@ input[type=checkbox] { accent-color: var(--ink); }
 .switch .thumb, .switch[aria-checked=true] .thumb { background: var(--glass); }
 
 /* ---- v63: the Elixir Synth screen treatment, in orange: black bezel on the dark case, a faded-patch veil over the glass,
-   a soft glow round every lit pixel, a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
-:root { --dirt: 0; --grain: 1; --glow: 1; --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
+   a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
+:root { --dirt: 0; --grain: 1; --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
   --hl1-rgb: 255 228 175; --hl2-rgb: 255 222 170; --dk1-rgb: 70 28 5; --dk2-rgb: 60 22 4; --dk3-rgb: 45 15 0; }
 html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815) fixed; }
 .main { border: 5px solid #0b0c0a; border-radius: 10px;
@@ -135,7 +135,8 @@ html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815)
     radial-gradient(22% 12% at 16% 66%, rgb(var(--panel-rgb) / calc(.38 * var(--dirt))), rgb(var(--panel-rgb) / 0) 100%),
     radial-gradient(14% 9% at 58% 83%, rgb(var(--panel-rgb) / calc(.3 * var(--dirt))), rgb(var(--panel-rgb) / 0) 100%),
     linear-gradient(90deg, rgb(var(--panel-rgb) / 0) 88%, rgb(var(--panel-rgb) / calc(.22 * var(--dirt))) 97%, rgb(var(--panel-rgb) / calc(.1 * var(--dirt)))); }
-.main, .main button, .main .label, .main output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / calc(.42 * var(--glow))); }
+/* no glow round the lit segments (Johnny, 2026-11-05: Glow fixed at 0, slider removed; "it's not really LCD any more") */
+.main, .main button, .main .label, .main output { text-shadow: none; }
 .main button:not(.seg button):not(.tabs button), .main .seg { box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
 .main button:not(.mtabs button) { text-transform: uppercase; letter-spacing: .06em; }
 .main .seq .cell.on, .main input[type=range]::-webkit-slider-thumb { filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
@@ -230,7 +231,7 @@ html.fit .mods { gap: 16px 10px; padding-top: 4px; }
 
 /* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
 html.fit dialog#options { width: 960px; height: 600px; max-width: none; max-height: none; inset: auto; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
-dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / calc(.42 * var(--glow))); }
+dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: none; }
 dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
 dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
 dialog#options .opt-head h2 { font-size: var(--fs-l); }

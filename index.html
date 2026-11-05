@@ -328,13 +328,13 @@ dialog#options::backdrop { background: rgb(var(--ink-rgb) / .3); }
 /* Colours: one swatch per LCD theme, each a small piece of its own glass with its name in its own ink */
 .lcd-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
 dialog#options #osec-colours .lcd-swatches button.sw[data-lcd] { display: grid; justify-items: start; align-content: space-between; gap: 10px; height: 92px; padding: 10px 12px;
-  background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; text-shadow: 0 0 3px rgb(var(--ink-rgb) / .42);
+  background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; text-shadow: none;
   font-size: var(--fs-m); text-transform: lowercase; letter-spacing: .02em; box-shadow: 2px 2.2px 0 rgb(0 0 0 / .25); }
 .lcd-swatches .bars { width: 100%; height: 12px; background: repeating-linear-gradient(90deg, var(--ink) 0 5px, transparent 5px 8px) left / 64% 100% no-repeat,
   repeating-linear-gradient(90deg, rgb(var(--ink-rgb) / .13) 0 5px, transparent 5px 8px); }
 dialog#options #osec-colours .lcd-swatches button.sw[aria-checked=true] { outline: 3px solid var(--fg); outline-offset: 3px; }
 /* the glass itself: brightness and saturation move the theme's glass colour (the ink stays), dirt scales the faded patches,
-   the dark top edge and the vignette, grain the pixel grid, glow the soft halo round every lit segment. 100% is the stock look */
+   the dark top edge and the vignette, grain the pixel grid. 100% is the stock look */
 .lcd-look { display: grid; grid-template-columns: repeat(2, max-content); gap: 10px 48px; align-items: center; justify-content: start; margin-top: 18px; }
 html.fit dialog#options .lcd-look .sld { grid-template-columns: 96px 220px 48px; margin: 0; font-size: var(--fs-m); }
 html.fit dialog#options .lcd-look .sld output { font-size: var(--fs-m); }
@@ -478,8 +478,8 @@ input[type=checkbox] { accent-color: var(--ink); }
 .switch .thumb, .switch[aria-checked=true] .thumb { background: var(--glass); }
 
 /* ---- v63: the Elixir Synth screen treatment, in orange: black bezel on the dark case, a faded-patch veil over the glass,
-   a soft glow round every lit pixel, a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
-:root { --dirt: 0; --grain: 1; --glow: 1; --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
+   a drop shadow behind buttons and bars, and uppercase spaced button labels ---- */
+:root { --dirt: 0; --grain: 1; --panel-rgb: 247 150 47; --ink-rgb: 28 10 0; --shade-rgb: 110 45 0; --light-rgb: 255 226 170;
   --hl1-rgb: 255 228 175; --hl2-rgb: 255 222 170; --dk1-rgb: 70 28 5; --dk2-rgb: 60 22 4; --dk3-rgb: 45 15 0; }
 html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815) fixed; }
 .main { border: 5px solid #0b0c0a; border-radius: 10px;
@@ -489,7 +489,8 @@ html { background: #0b0c0a radial-gradient(120% 80% at 50% 0%, #2a2d28, #161815)
     radial-gradient(22% 12% at 16% 66%, rgb(var(--panel-rgb) / calc(.38 * var(--dirt))), rgb(var(--panel-rgb) / 0) 100%),
     radial-gradient(14% 9% at 58% 83%, rgb(var(--panel-rgb) / calc(.3 * var(--dirt))), rgb(var(--panel-rgb) / 0) 100%),
     linear-gradient(90deg, rgb(var(--panel-rgb) / 0) 88%, rgb(var(--panel-rgb) / calc(.22 * var(--dirt))) 97%, rgb(var(--panel-rgb) / calc(.1 * var(--dirt)))); }
-.main, .main button, .main .label, .main output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / calc(.42 * var(--glow))); }
+/* no glow round the lit segments (Johnny, 2026-11-05: Glow fixed at 0, slider removed; "it's not really LCD any more") */
+.main, .main button, .main .label, .main output { text-shadow: none; }
 .main button:not(.seg button):not(.tabs button), .main .seg { box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
 .main button:not(.mtabs button) { text-transform: uppercase; letter-spacing: .06em; }
 .main .seq .cell.on, .main input[type=range]::-webkit-slider-thumb { filter: drop-shadow(2px 2.2px 0 rgb(var(--shade-rgb) / .17)); }
@@ -584,7 +585,7 @@ html.fit .mods { gap: 16px 10px; padding-top: 4px; }
 
 /* the Options sheet: the same glass treatment as the screen, a fixed size so its tabs never resize it, scaled with the screen */
 html.fit dialog#options { width: 960px; height: 600px; max-width: none; max-height: none; inset: auto; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%) scale(var(--k, 1)); }
-dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: 0 0 3px rgb(var(--ink-rgb) / calc(.42 * var(--glow))); }
+dialog#options, dialog#options button, dialog#options .label, dialog#options output { text-shadow: none; }
 dialog#options button:not(.otabs button):not(#ptabs button):not(.xbtn) { text-transform: uppercase; letter-spacing: .06em; height: var(--ctl-h); padding: 0 10px; font-size: var(--fs-m); line-height: 1; box-shadow: 2px 2.2px 0 rgb(var(--shade-rgb) / .14); }
 dialog#options .otabs button, dialog#options #ptabs button { height: var(--ctl-h); padding: 0 12px; font-size: var(--fs-m); }
 dialog#options .opt-head h2 { font-size: var(--fs-l); }
@@ -1033,7 +1034,6 @@ html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options
         <label class="sld"><span>Saturation</span><input type="range" data-look="sat" min="0" max="200" step="1" value="100" aria-label="Screen saturation"><output>100%</output></label>
         <label class="sld"><span>Dirt</span><input type="range" data-look="dirt" min="0" max="200" step="1" value="0" aria-label="Dirt on the glass"><output>0%</output></label>
         <label class="sld"><span>Grain</span><input type="range" data-look="grain" min="0" max="250" step="1" value="100" aria-label="Pixel grain"><output>100%</output></label>
-        <label class="sld"><span>Glow</span><input type="range" data-look="glow" min="0" max="200" step="1" value="100" aria-label="Glow round the segments"><output>100%</output></label>
         <button type="button" id="lcd-look-reset">Reset</button>
       </div>
     </section>
@@ -4613,11 +4613,13 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
     store.set('lcdTheme', k); mark(); applyLook(); if (focus) box.querySelector(`[data-lcd="${k}"]`).focus();
   };
 
-  // Brightness, saturation, dirt, grain, glow: saved as tb303.lcdLook (the slider values) and tb303.lcdVars (the CSS
+  // Brightness, saturation, dirt, grain: saved as tb303.lcdLook (the slider values) and tb303.lcdVars (the CSS
   // variables they make, which the page head puts back before the styles load). At the stock values nothing is set at all.
   // Dirt starts at 0 (Johnny, 2026-11-05); a look saved before that had dirt 100 as its stock value, so it is reset once
-  const LOOK0 = { bright: 0, sat: 100, dirt: 0, grain: 100, glow: 100 };
+  // Glow was removed (Johnny, 2026-11-05: fixed at 0); a saved look's glow value is dropped and its --glow variable cleared
+  const LOOK0 = { bright: 0, sat: 100, dirt: 0, grain: 100 };
   const look = { ...LOOK0, ...store.get('lcdLook', {}) };
+  delete look.glow;
   const VARS = ['--glass', '--panel-rgb', '--dirt', '--grain', '--glow'];
   const hex2hsl = (h) => {
     const n = parseInt(h.replace('#', ''), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
@@ -4641,11 +4643,12 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
       const rgb = hsl2rgb(h, s, l);
       vars['--glass'] = '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join(''); vars['--panel-rgb'] = rgb.join(' ');
     }
-    for (const k of ['dirt', 'grain', 'glow']) if (look[k] !== LOOK0[k]) vars['--' + k] = String(look[k] / 100);
+    for (const k of ['dirt', 'grain']) if (look[k] !== LOOK0[k]) vars['--' + k] = String(look[k] / 100);
     for (const k in vars) root.style.setProperty(k, vars[k]);
     store.set('lcdLook', look); store.set('lcdVars', vars);
   }
-  if (!store.get('lcdLookV', 0)) { look.dirt = 0; store.set('lcdLookV', 2); applyLook(); }
+  if (!store.get('lcdLookV', 0)) { look.dirt = 0; store.set('lcdLookV', 2); }
+  if (store.get('lcdLookV', 0) < 3) { store.set('lcdLookV', 3); applyLook(); }  // drops glow from saved looks (VARS still clears --glow)
   const lookBox = document.getElementById('lcd-look');
   const show = () => { for (const i of lookBox.querySelectorAll('input')) { const k = i.dataset.look; i.value = look[k]; i.nextElementSibling.textContent = k === 'bright' ? (look[k] > 0 ? '+' : '') + look[k] : look[k] + '%'; i.dispatchEvent(new Event('input', { bubbles: true })); } };
   lookBox.addEventListener('input', (e) => { const i = e.target; if (!i.dataset?.look || !e.isTrusted) return; look[i.dataset.look] = +i.value; applyLook(); show(); });

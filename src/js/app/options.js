@@ -29,11 +29,13 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
     store.set('lcdTheme', k); mark(); applyLook(); if (focus) box.querySelector(`[data-lcd="${k}"]`).focus();
   };
 
-  // Brightness, saturation, dirt, grain, glow: saved as tb303.lcdLook (the slider values) and tb303.lcdVars (the CSS
+  // Brightness, saturation, dirt, grain: saved as tb303.lcdLook (the slider values) and tb303.lcdVars (the CSS
   // variables they make, which the page head puts back before the styles load). At the stock values nothing is set at all.
   // Dirt starts at 0 (Johnny, 2026-11-05); a look saved before that had dirt 100 as its stock value, so it is reset once
-  const LOOK0 = { bright: 0, sat: 100, dirt: 0, grain: 100, glow: 100 };
+  // Glow was removed (Johnny, 2026-11-05: fixed at 0); a saved look's glow value is dropped and its --glow variable cleared
+  const LOOK0 = { bright: 0, sat: 100, dirt: 0, grain: 100 };
   const look = { ...LOOK0, ...store.get('lcdLook', {}) };
+  delete look.glow;
   const VARS = ['--glass', '--panel-rgb', '--dirt', '--grain', '--glow'];
   const hex2hsl = (h) => {
     const n = parseInt(h.replace('#', ''), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
@@ -57,11 +59,12 @@ showSec(document.getElementById('osec-' + store.get('optTab', 'midi')) ? store.g
       const rgb = hsl2rgb(h, s, l);
       vars['--glass'] = '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join(''); vars['--panel-rgb'] = rgb.join(' ');
     }
-    for (const k of ['dirt', 'grain', 'glow']) if (look[k] !== LOOK0[k]) vars['--' + k] = String(look[k] / 100);
+    for (const k of ['dirt', 'grain']) if (look[k] !== LOOK0[k]) vars['--' + k] = String(look[k] / 100);
     for (const k in vars) root.style.setProperty(k, vars[k]);
     store.set('lcdLook', look); store.set('lcdVars', vars);
   }
-  if (!store.get('lcdLookV', 0)) { look.dirt = 0; store.set('lcdLookV', 2); applyLook(); }
+  if (!store.get('lcdLookV', 0)) { look.dirt = 0; store.set('lcdLookV', 2); }
+  if (store.get('lcdLookV', 0) < 3) { store.set('lcdLookV', 3); applyLook(); }  // drops glow from saved looks (VARS still clears --glow)
   const lookBox = document.getElementById('lcd-look');
   const show = () => { for (const i of lookBox.querySelectorAll('input')) { const k = i.dataset.look; i.value = look[k]; i.nextElementSibling.textContent = k === 'bright' ? (look[k] > 0 ? '+' : '') + look[k] : look[k] + '%'; i.dispatchEvent(new Event('input', { bubbles: true })); } };
   lookBox.addEventListener('input', (e) => { const i = e.target; if (!i.dataset?.look || !e.isTrusted) return; look[i.dataset.look] = +i.value; applyLook(); show(); });
