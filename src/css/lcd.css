@@ -321,7 +321,7 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
    every dropdown item (Functions, Randomise, Tools, the FX type and program menus, the preset list) one height,
    one indent and no button shadow; headings lowercase in the Options sheet like the FX units */
 :root { --menu-h: 22px; }
-html.fit .top .fn > button, html.fit .pm .pm-btn, .pm-opt, .pm .pm-q, .pm-foot input[type=text] { font-size: var(--fs-m); }
+html.fit .pm .pm-btn, .pm-opt, .pm .pm-q, .pm-foot input[type=text] { font-size: var(--fs-m); }
 .top .fn > button::after { font-size: inherit; }
 html.fit .pane .seg button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button, html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); }
 html.fit .fn-menu button, html.fit .pane .fn-menu button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit #pane-fx .tmenu .fn-menu button {
@@ -453,3 +453,7 @@ html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
 /* Options › Colours: the Mono / Grey + colour switch over the swatches (the swatch picks the glass in Mono, the accent in Grey + colour) */
 .lcd-mode { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; font-size: var(--fs-m); text-transform: lowercase; }
 html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
+
+/* Options › About: Install app at the top (moved from the Functions menu, which is gone) */
+.opt-install { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.opt-install #opt-install-msg { color: var(--mute); }

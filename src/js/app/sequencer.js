@@ -180,12 +180,8 @@ document.querySelector('.sq-side').addEventListener('input', (e) => {
   }
   renderSeq(); pushPattern();
 });
-// Undo next to the pattern tools: the same undo as Functions › Undo
-{
-  const fu = document.getElementById('fn-undo'), pu = document.getElementById('p-undo');
-  pu.onclick = () => fu.click();
-  new MutationObserver(() => { pu.disabled = fu.disabled; }).observe(fu, { attributes: true, attributeFilter: ['disabled'] });
-}
+// Tools › Undo: pattern undo
+document.getElementById('p-undo').onclick = () => FUNCTIONS.undo();
 // Randomise accents, slides or octaves: each rewrites only its own property on the notes (steps with the gate on) and
 // leaves the notes and the other properties alone; rests are untouched. Again for another roll; Undo puts it back.
 const RND_OCT = [[-1, 3], [0, 5], [1, 2], [2, 0.4], [-2, 0.4]]; // octave lane, weight: mostly 0 and -1, some +1, a rare extreme

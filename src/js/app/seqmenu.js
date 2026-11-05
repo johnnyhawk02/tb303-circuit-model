@@ -49,11 +49,6 @@
     el.title = `${tip} (key ${k})`;
     if (el.closest('.fn-menu')) el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
   }
-  // the Functions menu's Join and Undo are the same actions, so they show the same keys as the Tools items
-  for (const [sel, id] of [['#fn-menu [data-fn="join"]', 'join'], ['#fn-undo', 'p-undo']]) {
-    const el = document.querySelector(sel); if (!el) continue;
-    const k = keyName(ACTS[id]); el.title = `${el.title} (key ${k})`; el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
-  }
   // the cross under the roll shows its keys too
   for (const [sel, ids] of [['.dp-up', ['nu-up', 'nu-oup']], ['.dp-dn', ['nu-dn', 'nu-odn']], ['.dp-lt', ['rot-l']], ['.dp-rt', ['rot-r']]]) {
     const b = document.querySelector(sel); if (b) b.title = `${b.title} (key ${ids.map(id => keyName(ACTS[id])).join(', ')})`;
