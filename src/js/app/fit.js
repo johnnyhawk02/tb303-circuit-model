@@ -1,6 +1,6 @@
 // ---------- fit the screen to the window (the Elixir Synth way) ----------
 // On a desktop window the screen is a fixed 1000 x 647 pane (the shape of Johnny's MacBook Pro display, 1.545:1),
-// scaled as a whole to fill the window with the dark case round it, so every page reads the same at any window size
+// scaled as a whole to fill the window, glass edge to edge (no dark case), so every page reads the same at any window size
 // and nothing moves when you switch tabs. The scale goes on the root, so the Options sheet scales with the screen.
 // Phones and iPads get the same screen, just smaller (Johnny): no separate compact layout.
 (() => {
@@ -8,7 +8,7 @@
   root.classList.add('fit');
   const fit = () => {
     const vw = visualViewport?.width || innerWidth, vh = visualViewport?.height || innerHeight;
-    const pad = root.hasAttribute('data-plugin') ? 0 : Math.min(vw, vh) < 600 ? 4 : 16; // a phone needs every pixel; the plug-in window is the screen
+    const pad = 0; // no case round the screen (Johnny); it was 16, or 4 on a phone
     const k = Math.min((vw - pad) / W, (vh - pad) / H, 2.2);
     root.style.setProperty('--k', k.toFixed(4));
   };

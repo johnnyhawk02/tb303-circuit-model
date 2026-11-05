@@ -468,8 +468,19 @@ input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-sele
 *:focus, *:focus-visible { outline: none !important; }
 .route-dia .rb[data-u]:focus-visible rect { stroke-width: 1.5; stroke-dasharray: 3 2; }
 .route-dia .rb.on[data-u]:focus-visible rect { stroke-dasharray: none; }
-/* the plug-in window is exactly the screen's shape: no dark case or bezel round it (Johnny: "it just takes up space") */
-html[data-plugin].fit .main { border: 0; border-radius: 0; }
+/* No dark case or bezel round the screen, in the app as in the plug-in (Johnny: "it just takes up space"). The 1000x647 screen still
+   scales as a whole (fit.js); the glass is drawn on the whole window instead of the screen box, so any space left over when the
+   window is not the screen's shape is glass too, with no edge between them. To bring the case back, delete this block and set pad in fit.js back. */
+html.fit { background-color: var(--glass);
+  background-image: linear-gradient(170deg, rgb(255 255 255 / .14), rgb(255 255 255 / 0) 38%, rgb(0 0 0 / .05)),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(0 0 0 / calc(.03 * var(--grain))) 0 1px, transparent 1px 3px),
+    radial-gradient(60% 30% at 10% 100%, rgb(var(--hl1-rgb) / .55), rgb(var(--hl1-rgb) / 0) 70%),
+    radial-gradient(50% 28% at 90% 102%, rgb(var(--hl2-rgb) / .4), rgb(var(--hl2-rgb) / 0) 70%),
+    radial-gradient(38% 20% at 70% 30%, rgb(var(--dk1-rgb) / calc(.14 * var(--dirt))), rgb(var(--dk1-rgb) / 0) 70%),
+    linear-gradient(180deg, rgb(var(--dk2-rgb) / calc(.2 * var(--dirt))) 0%, rgb(var(--dk2-rgb) / 0) 22%),
+    radial-gradient(130% 100% at 50% 60%, rgb(0 0 0 / 0) 60%, rgb(var(--dk3-rgb) / calc(.28 * var(--dirt))) 100%);
+  background-attachment: fixed; }
+html.fit .main { border: 0; border-radius: 0; background: none; box-shadow: none; }
 
 /* Proper tabs (Johnny: "more like proper tabs"): the page tabs and the Options tabs are folder tabs on a 2px rule.
    The open tab is clear glass, a little taller, and has no rule under it, so it joins the page below; a bar runs across its top
