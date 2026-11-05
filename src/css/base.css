@@ -21,7 +21,7 @@
   --on: var(--ink);     /* switched on, selected: segments lit */
   --hi: var(--ink);     /* values, playhead */
   --well: var(--tint);  /* inset fields and the step grid */
-  --font-body: "Silkscreen", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-body: "VT323", ui-monospace, "SF Mono", Menlo, monospace;
   --font-mono: var(--font-body);
   --knob: 48px;         /* every dial on the front, the effects and the mods */
   --knob-part: 40px;    /* dials in Options › Circuit */

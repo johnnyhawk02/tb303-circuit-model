@@ -4,7 +4,7 @@ The web app as a VST3 instrument for macOS, built only from the web app in this 
 
 - **Looks the same:** its screen is the web app's own page (`index.html`, made by `node build.js`) in a web view, at the
   same 1000 x 647 size, scaling as the window is resized. The only differences: there is no Play button or Tempo dial,
-  because the DAW's transport and tempo run it, and the Silkscreen font (fonts/) is bundled into the plug-in.
+  because the DAW's transport and tempo run it, and the VT323 font comes from the plug-in instead of Google Fonts.
 - **Sounds the same:** `engine/` is a line-for-line C++ port of `tb303-model.js` (the voice, effects, reverbs,
   knob slew, de-click and step sequencer). `tests/parity.js` renders the two golden sound-lock scenarios in `tests/`
   with both engines and compares them sample by sample; it fails if any sample differs by more than -90 dBFS. At the

@@ -504,8 +504,3 @@ html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options
 .gmenu .fn-menu button { position: relative; justify-content: flex-start; }
 .gmenu .fn-menu button[aria-checked=true]::before { content: "✓"; position: absolute; left: 8px; }
 #o-gate { display: inline-block; min-width: 3ch; text-align: right; }
-
-/* Silkscreen pixel font (fonts/Silkscreen-Regular.woff2, OFL). It is much wider than VT323 was, so the @font-face in
-   src/index.html sets size-adjust 72% (every size shrinks, the --fs tokens stay). To go back to VT323: restore the Google
-   Fonts link, the VT323 --font-body in base.css, and drop this block. */
-html.fit .parts-kn .mini { letter-spacing: 0; word-spacing: -.15em; padding: 0 2px; font-size: calc(var(--fs-s) - 1px); }
