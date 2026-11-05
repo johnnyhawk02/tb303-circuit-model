@@ -817,6 +817,11 @@ html[data-plugin] #play, html[data-plugin] .top .bpm, html[data-plugin] .opt-ins
 /* Screen text is not selectable (a drag or double-click on a label must not highlight it), except where you type. */
 html { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
+
+/* No focus box: pressing a key command (a, space, 1-8...) must not draw a box round the control last clicked. */
+*:focus, *:focus-visible { outline: none !important; }
+.route-dia .rb[data-u]:focus-visible rect { stroke-width: 1.5; stroke-dasharray: 3 2; }
+.route-dia .rb.on[data-u]:focus-visible rect { stroke-dasharray: none; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
