@@ -858,6 +858,53 @@ html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options
 .gmenu .fn-menu button { position: relative; justify-content: flex-start; }
 .gmenu .fn-menu button[aria-checked=true]::before { content: "✓"; position: absolute; left: 8px; }
 #o-gate { display: inline-block; min-width: 3ch; text-align: right; }
+
+/* ---- Spacing pass (Johnny, Nov 2026: "go through every page and ensure good spacing and even look") ----
+   one 16px margin down both sides of the screen (top bar, dials, tabs and every page line up on it, the pages used to sit in a
+   further 16px); every page starts 12px under the tab rule and ends 12px above the bottom edge; the spare height is shared out
+   evenly on each page rather than left as a gap at the bottom. Spacing tokens: --gap-s 6px between controls, --gap-m 12px
+   between rows and from the edges, --gap-l between the FX rows either side of their rules. */
+:root { --gap-s: 6px; --gap-m: 12px; --gap-l: 28px; }
+html.fit .main > .pane { padding: var(--gap-m) 0 0; }
+
+/* top bar: the BPM readout's label centred on the controls like Preset and the version (it sat on the baseline, 2px low);
+   the gear is a borderless icon, so no shadow edge either */
+html.fit .top .bpm-read { align-items: center; }
+html.fit .top .gear { box-shadow: none; }
+
+/* voice panel: Components as a dial cell like the rest: the trim's value on the value row, its dial centred on the dial row, its
+   name on one line on the name row; the heading over the three buttons, which fill the dial height in three even steps */
+html.fit .parts-kn { display: grid; grid-template-columns: 54px minmax(0, 1fr); grid-template-rows: 17px repeat(3, 21px); gap: 3px 6px; align-items: stretch; }
+html.fit .parts-kn .name { grid-column: 2; grid-row: 1; align-self: center; text-align: center; }
+html.fit .parts-kn .trim { grid-column: 1; grid-row: 1 / -1; grid-template-rows: auto minmax(0, 1fr) auto; align-items: center; gap: 0; }
+html.fit .parts-kn .trim .tval { order: -1; min-width: 0; line-height: 17px; }
+html.fit .parts-kn .trim .tname { max-width: none; white-space: nowrap; letter-spacing: 0; line-height: 17px; font-size: var(--fs-s); }
+html.fit .parts-kn .mini { grid-column: 2; height: 21px; }
+html.fit .wave-kn .val { margin-top: 2px; }
+
+/* Sequencer: pattern row, roll, then Length and the cross, the same gap between each; the roll's rows take the spare height */
+#pane-seq { --row-h: 16.4px; }
+html.fit .sq-body { gap: 10px; }
+
+/* Mods: the first row 12px under the tabs like every other page, then the same space between the rows as under the second */
+html.fit .mods { padding-top: 0; row-gap: 64px; align-content: start; }
+
+/* FX: the same space above and below each rule (it was 26px above and 14px below) */
+html.fit .fxpane { row-gap: var(--gap-l); }
+html.fit .blk-lex, html.fit .fxpane .fx-row2 #fx-flg, html.fit .fxpane .fxb.blk-route { padding-top: var(--gap-l); }
+
+/* Options sheet: one gap between the sections of a tab (it was 16, 30 or 34px); the look sliders run the full width in two
+   columns with Reset under them on the same rhythm */
+dialog#options #osec-midi, dialog#options #osec-colours, dialog#options #osec-about { gap: 24px; }
+dialog#options #osec-colours > *, dialog#options #osec-midi > *, dialog#options #osec-about > * { margin-top: 0; margin-bottom: 0; }
+html.fit dialog#options .lcd-look { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 48px; justify-content: stretch; }
+html.fit dialog#options .lcd-look .sld { grid-template-columns: 96px minmax(0, 1fr) 48px; }
+
+/* Preset menu foot: two even rows. Name, dice, Save, Delete; then Import file, Export all, Export favourites, and Sound only at the right */
+.pm-pop .pm-foot::before { content: ""; order: 5; flex: 0 0 100%; height: 0; margin-top: -6px; }
+.pm-pop .pm-foot #prj-name { order: 1; } .pm-pop .pm-foot #prj-roll { order: 2; } .pm-pop .pm-foot #prj-save { order: 3; } .pm-pop .pm-foot #prj-del { order: 4; }
+.pm-pop .pm-foot #prj-import { order: 6; } .pm-pop .pm-foot #prj-export { order: 7; } .pm-pop .pm-foot #prj-exfav { order: 8; }
+.pm-pop .pm-foot .pm-opt { order: 9; margin-left: auto; padding-right: 4px; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
