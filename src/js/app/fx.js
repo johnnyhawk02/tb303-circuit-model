@@ -29,10 +29,13 @@ function typeMenu(el, items, pick) {
   });
   document.addEventListener('pointerdown', (e) => { if (!menu.hidden && !el.contains(e.target)) open(false); });
 }
-function drawTypeMenu(el, t) {
+function drawTypeMenu(el, t, also = []) {
   const items = el.querySelectorAll('.fn-menu button');
   for (const b of items) b.setAttribute('aria-checked', +b.dataset.t === t);
-  if (items[t]) { el.firstElementChild.textContent = items[t].textContent; el.firstElementChild.title = items[t].title; }
+  // the button is as wide as the longest choice (invisible copies of every name stacked under the current one), so
+  // picking a shorter or longer one never moves the controls beside it
+  const esc = (x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  if (items[t]) { el.firstElementChild.innerHTML = `<span class="tm-w"><span>${esc(items[t].textContent)}</span>${[...[...items].map(b => b.textContent), ...also].map(n => `<span aria-hidden="true">${esc(n)}</span>`).join('')}</span>`; el.firstElementChild.title = items[t].title; }
 }
 {
   typeMenu(document.getElementById('rev-type'), REV_TYPES.map(T => ({ name: T.name, tip: T.name })), (i) => setKnob('revtype', i / 3));
@@ -60,6 +63,7 @@ async function loadIRs() {
 }
 const LEX_CHORUS_NAMES = { lexbass: 'Pair 1', lexmid: 'Pair 2', lexxover: 'Pair 3', lextreble: 'Pair 4', lexdepth: 'Wander' };
 let revShown = '';
+const REV_PROG_NAMES = REV_TYPES.map(T => REV_PROGS[T.id][1].map(([n, , name]) => `${T.id === 'lex' ? 'P' : ''}${n} ${name}`)).flat();
 function drawLex() {
   const progs = document.getElementById('rev-prog'); if (!progs || !knobEls.lexmix) return;
   const t = revType(state.knobs), T = REV_TYPES[t], [pk, list] = REV_PROGS[T.id];
@@ -70,7 +74,7 @@ function drawLex() {
     for (const k of KNOBS) if (k.fx === 'lex' && knobEls[k.id]) knobEls[k.id].wrap.hidden = (k.rev || 'lex') !== T.id;
   }
   const sel = revProg(state.knobs[pk], list.length);
-  drawTypeMenu(progs, sel);
+  drawTypeMenu(progs, sel, REV_PROG_NAMES); // as wide as the longest program of any unit, so switching units moves nothing
   if (T.id === 'conv') { loadIRMeta(); loadIRs(); }
   if (T.id !== 'lex') {
     const q = { plate: plateParams, spring: springParams, conv: convParams }[T.id](state.knobs);

@@ -856,7 +856,7 @@ html.fit .main .mtabs button[aria-selected=true]:active, html.fit dialog#options
 .gmenu .fn-menu { min-width: 120px; }
 .gmenu .fn-menu button { position: relative; justify-content: flex-start; }
 .gmenu .fn-menu button[aria-checked=true]::before { content: "✓"; position: absolute; left: 8px; }
-#o-gate { display: inline-block; min-width: 3ch; text-align: right; }
+#o-gate { display: inline-block; min-width: 4ch; text-align: right; }
 
 /* ---- Spacing pass (Johnny, Nov 2026: "go through every page and ensure good spacing and even look") ----
    one 16px margin down both sides of the screen (top bar, dials, tabs and every page line up on it, the pages used to sit in a
@@ -960,6 +960,23 @@ dialog#cseq .cs-foot { display: flex; gap: 8px; padding-top: 12px; border-top: 2
 dialog#cseq .cs-foot #cseq-kind { min-width: 96px; text-transform: lowercase; letter-spacing: 0; }
 dialog#cseq .cs-foot #cseq-done { margin-left: auto; min-width: 80px; }
 .trim .knob.cseq::after { right: auto; left: -26px; top: -4px; }
+
+/* value readouts never move their neighbours (Johnny, "labels cause controls to shift about when the value shown is too
+   wide"): readouts stay on one line (a wrap pushed the dial down a row, mostly while the fallback font shows before VT323
+   loads or offline) and any that changes width sits in a box sized for its widest value. A too-long one spills sideways
+   over empty glass instead of reflowing the row. */
+.kn .val, .md .val, .pk .val, .tu-col .val, .trim .tval, .sld output, .bpm-read output, #cseq-val, .wave-kn .val { white-space: nowrap; }
+/* dial cells: one column the width of the cell, the readout centred in it and free to overhang both sides, so a long
+   value can't widen the column and push the dial off centre */
+.kn:not(.parts-kn):not(.wave-kn), .md { grid-template-columns: minmax(0, 1fr); }
+.kn:not(.parts-kn):not(.wave-kn) > .val, .md > .val { display: flex; justify-content: center; justify-self: stretch; }
+/* the Gate button keeps room for "100%" */
+#o-gate { display: inline-grid; justify-items: end; min-width: 0; }
+#o-gate::after { content: "100%"; visibility: hidden; height: 0; overflow: hidden; }
+/* FX type and program menus: sized for their longest choice (fx.js drawTypeMenu stacks every name in one cell) */
+.tmenu .tm-w { display: inline-grid; justify-items: start; }
+.tmenu .tm-w > span { grid-area: 1 / 1; white-space: nowrap; }
+.tmenu .tm-w > span + span { visibility: hidden; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -5024,10 +5041,13 @@ function typeMenu(el, items, pick) {
   });
   document.addEventListener('pointerdown', (e) => { if (!menu.hidden && !el.contains(e.target)) open(false); });
 }
-function drawTypeMenu(el, t) {
+function drawTypeMenu(el, t, also = []) {
   const items = el.querySelectorAll('.fn-menu button');
   for (const b of items) b.setAttribute('aria-checked', +b.dataset.t === t);
-  if (items[t]) { el.firstElementChild.textContent = items[t].textContent; el.firstElementChild.title = items[t].title; }
+  // the button is as wide as the longest choice (invisible copies of every name stacked under the current one), so
+  // picking a shorter or longer one never moves the controls beside it
+  const esc = (x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  if (items[t]) { el.firstElementChild.innerHTML = `<span class="tm-w"><span>${esc(items[t].textContent)}</span>${[...[...items].map(b => b.textContent), ...also].map(n => `<span aria-hidden="true">${esc(n)}</span>`).join('')}</span>`; el.firstElementChild.title = items[t].title; }
 }
 {
   typeMenu(document.getElementById('rev-type'), REV_TYPES.map(T => ({ name: T.name, tip: T.name })), (i) => setKnob('revtype', i / 3));
@@ -5055,6 +5075,7 @@ async function loadIRs() {
 }
 const LEX_CHORUS_NAMES = { lexbass: 'Pair 1', lexmid: 'Pair 2', lexxover: 'Pair 3', lextreble: 'Pair 4', lexdepth: 'Wander' };
 let revShown = '';
+const REV_PROG_NAMES = REV_TYPES.map(T => REV_PROGS[T.id][1].map(([n, , name]) => `${T.id === 'lex' ? 'P' : ''}${n} ${name}`)).flat();
 function drawLex() {
   const progs = document.getElementById('rev-prog'); if (!progs || !knobEls.lexmix) return;
   const t = revType(state.knobs), T = REV_TYPES[t], [pk, list] = REV_PROGS[T.id];
@@ -5065,7 +5086,7 @@ function drawLex() {
     for (const k of KNOBS) if (k.fx === 'lex' && knobEls[k.id]) knobEls[k.id].wrap.hidden = (k.rev || 'lex') !== T.id;
   }
   const sel = revProg(state.knobs[pk], list.length);
-  drawTypeMenu(progs, sel);
+  drawTypeMenu(progs, sel, REV_PROG_NAMES); // as wide as the longest program of any unit, so switching units moves nothing
   if (T.id === 'conv') { loadIRMeta(); loadIRs(); }
   if (T.id !== 'lex') {
     const q = { plate: plateParams, spring: springParams, conv: convParams }[T.id](state.knobs);
