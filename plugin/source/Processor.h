@@ -9,7 +9,7 @@
 #include <map>
 #include <climits>
 
-class TB303Processor : public juce::AudioProcessor, private juce::AsyncUpdater {
+class TB303Processor : public juce::AudioProcessor, private juce::AsyncUpdater, private juce::Timer {
 public:
     TB303Processor();
     ~TB303Processor() override;
@@ -45,7 +45,8 @@ public:
     // DAW parameters (every knob, the effect switches, the wave switch), kept in step with the page both ways
     void uiTick (const std::function<void (const juce::var&)>& toPage); // ends idle gestures, sends automation moves to the page
     void uiOpened();                                   // the page has just started with pageInitData's values
-    void endGestures();
+    void endGestures();                                // the editor closes
+
     std::function<void()> onStateLoaded;             // the editor rebuilds its page when the DAW loads a project
     std::function<void (const juce::String&, const juce::String&)> onSave; // the page exported a file
 
@@ -67,7 +68,7 @@ private:
 
     // DAW parameters
     struct Param {
-        enum Kind { Knob, Fx, Wave } kind; std::string name, key; juce::RangedAudioParameter* p;
+        enum Kind { Knob, Fx, Wave, Slot } kind; std::string name, key; juce::RangedAudioParameter* p;
         std::atomic<float> applied { NAN };      // the value the audio thread last gave the engine
         float ui = NAN; bool gesture = false; double touched = 0; // message thread
     };
@@ -77,6 +78,11 @@ private:
     juce::var paramMessage (const Param& P, float v) const;
     void overlayParams();                              // snapshotLock held: automation moves into the snapshot
     void setParamsFromSnapshot();
+    // the Pattern parameter picks pattern slot 1-8: the page does it while it is open, the plug-in from the saved slots otherwise
+    Param* slotParam = nullptr; bool pageOpen = false; float slotApplied = NAN;
+    int currentSlot() const;                           // 0-7, from the page's saved selection
+    void timerCallback() override;
+    void loadSlotNatively (int n);
 
     // audio thread
     std::unique_ptr<Engine> engine;

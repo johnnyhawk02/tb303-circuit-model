@@ -40,6 +40,7 @@ function loadSlot(g, n) {
   const c = cleanSettings(banks[slotKey(g, n)]);
   state.pattern = c.pattern || blankPattern(); state.shuffle = c.shuffle ?? 0; state.gate = c.gate ?? 0.5;
   tail = []; sendGroove(); renderSeq(); pushPattern(); renderBank();
+  if (tbPlugin) send({ type: 'slot', n }); // the plug-in's Pattern parameter follows
 }
 document.getElementById('bk-n').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; if (e.metaKey || e.ctrlKey) toggleChain(b); else loadSlot(sel.g, +b.dataset.n); };
 document.getElementById('p-copy').onclick = () => { clip = { shuffle: state.shuffle, gate: state.gate, pattern: state.pattern.map(st => ({ ...st })) }; store.set('clip', clip); renderBank(); };
