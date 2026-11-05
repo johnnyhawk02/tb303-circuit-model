@@ -905,6 +905,11 @@ html.fit dialog#options .lcd-look .sld { grid-template-columns: 96px minmax(0, 1
 .pm-pop .pm-foot #prj-name { order: 1; } .pm-pop .pm-foot #prj-roll { order: 2; } .pm-pop .pm-foot #prj-save { order: 3; } .pm-pop .pm-foot #prj-del { order: 4; }
 .pm-pop .pm-foot #prj-import { order: 6; } .pm-pop .pm-foot #prj-export { order: 7; } .pm-pop .pm-foot #prj-exfav { order: 8; }
 .pm-pop .pm-foot .pm-opt { order: 9; margin-left: auto; padding-right: 4px; }
+
+/* Tabs all one width (Johnny: "make the tabs the same width as each other"): every page tab as wide as the widest (Sequencer),
+   every Options tab as wide as the widest (Colours); labels centred */
+html.fit .main .mtabs button { flex: 0 0 104px; width: 104px; padding-left: 0; padding-right: 0; text-align: center; justify-content: center; }
+html.fit dialog#options .otabs button { flex: 0 0 96px; width: 96px; padding-left: 0; padding-right: 0; text-align: center; justify-content: center; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
