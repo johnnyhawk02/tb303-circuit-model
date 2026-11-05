@@ -425,3 +425,8 @@ html.fit .blk-lex { padding-top: 14px; }
 .fx-row2 .blk-lex { flex: 1; min-width: 0; border-top: 0; }
 html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
 .kn.dim { opacity: .4; }
+
+/* readouts keep their width as the value changes (Johnny: controls moved when a value went from one to two figures) */
+.trim .tval { min-width: 8ch; text-align: center; }
+.top .bpm-read output#bpm-val { width: calc(3ch + 20px); min-width: 0; font-variant-numeric: tabular-nums; }
+.kn .val, .md .val, .sld output, .fx output, output { font-variant-numeric: tabular-nums; }

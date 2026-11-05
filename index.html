@@ -759,6 +759,11 @@ html.fit .blk-lex { padding-top: 14px; }
 .fx-row2 .blk-lex { flex: 1; min-width: 0; border-top: 0; }
 html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
 .kn.dim { opacity: .4; }
+
+/* readouts keep their width as the value changes (Johnny: controls moved when a value went from one to two figures) */
+.trim .tval { min-width: 8ch; text-align: center; }
+.top .bpm-read output#bpm-val { width: calc(3ch + 20px); min-width: 0; font-variant-numeric: tabular-nums; }
+.kn .val, .md .val, .sld output, .fx output, output { font-variant-numeric: tabular-nums; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -803,8 +808,7 @@ html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
 
   <section class="sq pane" id="pane-seq" data-title="Sequencer" role="tabpanel" aria-label="Sequencer">
     <div class="sq-body">
-      <!-- controls above the roll (the pattern and what you do to it) and below it (a long Length slider, then step length,
-           shift and transpose); Generate lives in the Randomise menu (key G) -->
+      <!-- controls above the roll (the pattern and what you do to it) and below it (long Length and Step len sliders); Generate lives in the Randomise menu (key G) -->
       <div class="sq-row sq-bank">
         <span class="rlab">pattern</span>
         <div class="seg slots" id="bk-n" role="group" aria-label="Pattern slot"><button type="button" data-n="0" aria-pressed="false">1</button><button type="button" data-n="1" aria-pressed="false">2</button><button type="button" data-n="2" aria-pressed="false">3</button><button type="button" data-n="3" aria-pressed="false">4</button><button type="button" data-n="4" aria-pressed="false">5</button><button type="button" data-n="5" aria-pressed="false">6</button><button type="button" data-n="6" aria-pressed="false">7</button><button type="button" data-n="7" aria-pressed="false">8</button></div>
@@ -846,9 +850,7 @@ html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
       <div class="sq-foot"><div class="sq-foot-rows">
       <div class="sq-row sq-side">
         <label class="sld len"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
-        <label class="sld"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
-        <label class="sld spr" title="Drag to rotate the pattern; springs back to centre"><span>Shift</span><input type="range" data-a="shift" min="-16" max="16" step="1" value="0" aria-label="Shift pattern by steps"><output id="o-shift">0</output></label>
-        <label class="sld spr" title="Drag to transpose the pattern; springs back to centre"><span>Transpose</span><input type="range" data-a="tr" min="-12" max="12" step="1" value="0" aria-label="Transpose pattern by semitones"><output id="o-tr">0</output></label>
+        <label class="sld len"><span>Step len</span><input type="range" data-a="gate" min="10" max="95" step="1" aria-label="Step length"><output id="o-gate">50%</output></label>
       </div></div>
         <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
         <div class="nudge dpad" role="group" aria-label="Move the notes">
@@ -4006,35 +4008,13 @@ function renderSide() {
 }
 function sendGroove() { send({ type: 'groove', shuffle: state.shuffle, gate: state.gate }); }
 const restStep = (code) => ({ code, gate: false, accent: false, slide: false });
-// sliders, as in the Shyoy: Length and Step len set values; Shift and Transpose spring back to centre when let go
-let sprBase = null;
-const sprReset = () => { sprBase = null; for (const a of ['shift', 'tr']) { sideIn[a].value = 0; document.getElementById('o-' + a).textContent = '0'; } };
-for (const a of ['shift', 'tr']) {
-  const el = sideIn[a];
-  const grab = () => { if (!sprBase) { pushUndo(); sprBase = state.pattern.map(st => ({ ...st })); } };
-  el.addEventListener('pointerdown', grab); el.addEventListener('focus', grab);
-  el.addEventListener('change', () => { if (el.matches(':focus-visible')) return; sprReset(); });
-  el.addEventListener('pointerup', sprReset); el.addEventListener('pointercancel', sprReset); el.addEventListener('blur', sprReset);
-}
+// sliders: Length and Step len (Shift and Transpose went; the cross under the roll does both)
 document.querySelector('.sq-side').addEventListener('input', (e) => {
   const el = e.target.closest('input[data-a]'); if (!el) return;
   const v = +el.value, P = state.pattern;
   switch (el.dataset.a) {
     case 'len': while (P.length > v && P.length > 1) tail.unshift(P.pop()); extendTo(v); break;
     case 'gate': state.gate = v / 100; sendGroove(); break;
-    case 'shift': {
-      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
-      const n = sprBase.length, k = ((v % n) + n) % n;
-      state.pattern = sprBase.map((_, i) => ({ ...sprBase[(i - k + n) % n] }));
-      renderSeq(); pushPattern(); document.getElementById('o-shift').textContent = (v > 0 ? '+' : '') + v; return;
-    }
-    case 'tr': {
-      if (!sprBase || sprBase.length !== P.length) sprBase = P.map(st => ({ ...st }));
-      const codes = sprBase.map(st => st.code), lo = Math.min(...codes), hi = Math.max(...codes);
-      const d = Math.max(-lo, Math.min(59 - hi, v));
-      state.pattern = sprBase.map(st => ({ ...st, code: st.code + d }));
-      renderSeq(); pushPattern(); document.getElementById('o-tr').textContent = (d > 0 ? '+' : '') + d; return;
-    }
   }
   renderSeq(); pushPattern();
 });
