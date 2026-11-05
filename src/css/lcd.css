@@ -459,3 +459,7 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
 
 /* Inside the VST3 plug-in the DAW's transport and tempo run it: no Play button, Tempo dial or Install app */
 html[data-plugin] #play, html[data-plugin] .top .bpm, html[data-plugin] .opt-install { display: none; }
+
+/* Screen text is not selectable (a drag or double-click on a label must not highlight it), except where you type. */
+html { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
