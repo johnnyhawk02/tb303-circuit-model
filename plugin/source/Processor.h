@@ -42,6 +42,10 @@ public:
     int uiStep() const { return stepForUi.load(); }
     double uiBpm() const { return bpmForUi.load(); }
     bool popMidi (int& status, int& d1, int& d2);    // CC from the DAW track, for the page's MIDI map
+    // DAW parameters (every knob, the effect switches, the wave switch), kept in step with the page both ways
+    void uiTick (const std::function<void (const juce::var&)>& toPage); // ends idle gestures, sends automation moves to the page
+    void uiOpened();                                   // the page has just started with pageInitData's values
+    void endGestures();
     std::function<void()> onStateLoaded;             // the editor rebuilds its page when the DAW loads a project
     std::function<void (const juce::String&, const juce::String&)> onSave; // the page exported a file
 
@@ -60,6 +64,19 @@ private:
     void handleAsyncUpdate() override;                  // deletes engines the audio thread has finished with
     void startIRLoad (double fs);
     void syncToHost (Engine& e, int numSamples);
+
+    // DAW parameters
+    struct Param {
+        enum Kind { Knob, Fx, Wave } kind; std::string name, key; juce::RangedAudioParameter* p;
+        std::atomic<float> applied { NAN };      // the value the audio thread last gave the engine
+        float ui = NAN; bool gesture = false; double touched = 0; // message thread
+    };
+    std::vector<std::unique_ptr<Param>> params;
+    std::map<std::string, Param*> paramByKey;          // "k:cutoff", "fx:rat", "wave"
+    static float msgValue (const Param& P, const juce::var& m);
+    juce::var paramMessage (const Param& P, float v) const;
+    void overlayParams();                              // snapshotLock held: automation moves into the snapshot
+    void setParamsFromSnapshot();
 
     // audio thread
     std::unique_ptr<Engine> engine;

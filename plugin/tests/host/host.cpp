@@ -24,6 +24,18 @@ int main (int argc, char** argv) {
     const String mode = argv[2];
     PH ph; inst->setPlayHead (&ph);
     auto pump = [] (int ms) { MessageManager::getInstance()->runDispatchLoopUntil (ms); };
+    if (mode == "params") { // the DAW parameters: count, a few names, and that a host move reaches the saved state
+        auto ps = inst->getParameters();
+        std::printf ("%d parameters\n", ps.size());
+        for (int i : { 0, 1, 8, 75, ps.size() - 1 }) if (i < ps.size()) std::printf ("  %s = %s\n", ps[i]->getName (40).toRawUTF8(), ps[i]->getCurrentValueAsText().toRawUTF8());
+        inst->setPlayConfigDetails (0, 2, 48000, 512); inst->prepareToPlay (48000, 512);
+        ps[1]->setValueNotifyingHost (0.9f); ps[ps.size() - 1]->setValueNotifyingHost (1.f);
+        AudioBuffer<float> b (2, 512); MidiBuffer mb; inst->processBlock (b, mb);
+        MemoryBlock st; inst->getStateInformation (st);
+        auto x = AudioProcessor::getXmlFromBinary (st.getData(), (int) st.getSize());
+        if (x) if (auto* c = x->getChildByName ("IComponent")) { MemoryBlock raw; raw.fromBase64Encoding (c->getAllSubText()); std::printf ("%s\n", raw.toString().toRawUTF8()); }
+        return 0;
+    }
     if (mode == "render") {
         const String st = File (argv[3]).loadFileAsString();
         const double secs = atof (argv[4]); ph.bpm = argc > 6 ? atof (argv[6]) : 128; ph.ppq = argc > 7 ? atof (argv[7]) : 0;
