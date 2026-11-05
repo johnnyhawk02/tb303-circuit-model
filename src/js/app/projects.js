@@ -54,7 +54,6 @@ function foldPresets(sounds, patterns) {
 }
 foldPresets(loadStore('soundPresets'), loadStore('patternPresets'));
 const download = (name, obj) => {
-  if (PLUGIN) { send({ type: 'save', name, text: JSON.stringify(obj, null, 2) }); return; } // the plug-in asks where with a save panel
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
   a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);

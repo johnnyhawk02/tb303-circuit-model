@@ -791,9 +791,6 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
 /* Options › About: Install app at the top (moved from the Functions menu, which is gone) */
 .opt-install { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .opt-install #opt-install-msg { color: var(--mute); }
-
-/* the plug-in (plugin/, plugin.js): the host plays, stops and sets the tempo, and there is no app to install */
-html.plugin #play, html.plugin .top .bpm, html.plugin .opt-install { display: none; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -2948,9 +2945,7 @@ const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 let ctx = null, node = null, analyser = null, fallback = null;
 // the deploy stamps the version; a local build shows 'dev'
 { const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
-// in the plug-in (plugin/) the page runs inside the host and every message goes to the C++ engine instead (plugin.js)
-const PLUGIN = !!window.TB303_PLUGIN;
-const send = (m) => { if (PLUGIN) window.TB303_BRIDGE.send(m); else if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
 // de-click is a playback preference, kept apart from sounds and projects; its switch went with the Options Monitor tab, so a stored setting still holds and the default is on, 1.5 ms
 const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
 function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
@@ -4138,7 +4133,7 @@ function alterLane(kind) {
 }
 
 // ---------- the 8 pattern slots, A1-A8: edits save to the selected slot ----------
-// (Storage, projects and the plug-in still name a slot by bank and number, { g: 'A', n }, from when there were
+// (Storage and projects still name a slot by bank and number, { g: 'A', n }, from when there were
 // banks A-D of 12; only bank A is used now, and the other old slots stay in storage but are not shown.)
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };
@@ -4679,10 +4674,10 @@ playBtn.onclick = async () => {
 // spacebar plays and stops, except while typing in a text field
 const typing = (t) => t.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]');
 document.addEventListener('keydown', (e) => {
-  if (PLUGIN || e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
+  if (e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
   e.preventDefault(); playBtn.click();
 }, true);
-document.addEventListener('keyup', (e) => { if (!PLUGIN && e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
+document.addEventListener('keyup', (e) => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault(); }, true);
 // Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste the current pattern slot (text fields and selected text keep their normal copy/paste)
 document.addEventListener('keydown', (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.repeat || typing(e.target) || document.getElementById('options').open) return;
@@ -5021,7 +5016,7 @@ drawTune();
 // ---------- preset auto-namer ----------
 // A name is either two or three real words, or one made-up word: alien syllables spliced with a spice.
 // Big word pools (acid gear, weather, rocks, creatures, desserts, cosmos, Greek, spices...) so names rarely repeat.
-// A last pass turns each s into z 60% of the time. The plug-in's autoName (plugin/Source/SeqModel.cpp) mirrors this.
+// A last pass turns each s into z 60% of the time.
 const NAMER = (() => {
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
   const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
@@ -5438,7 +5433,6 @@ function foldPresets(sounds, patterns) {
 }
 foldPresets(loadStore('soundPresets'), loadStore('patternPresets'));
 const download = (name, obj) => {
-  if (PLUGIN) { send({ type: 'save', name, text: JSON.stringify(obj, null, 2) }); return; } // the plug-in asks where with a save panel
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
   a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -5517,7 +5511,6 @@ for (const n in state.fx) preview.setFx(n, state.fx[n]);
 
 // ---------- MIDI: CC 1 onwards, any channel ----------
 // CC 1-8 are the main panel's dials left to right (Key track sits after Reso), CC 9 the Filter trim, then the Mods page.
-// The plug-in's ccMap() (PluginProcessor.cpp) uses the same order.
 const voiceCc = (k) => ({ name: k.name, set: (t) => setKnob(k.id, t) });
 const MIDI_MAP = [...KNOBS.filter(k => !k.fx).flatMap(k => k.id === 'resonance'
     ? [voiceCc(k), { name: 'Key track', set: (t) => setPartT('KT', t, true) }] : [voiceCc(k)]),
@@ -5592,34 +5585,5 @@ renderFx(); renderSeq(); renderBank(); renderFrontMods();
   const strip = () => document.querySelectorAll('body [title]').forEach(el => { if (el.title) el.dataset.tip = el.title; el.removeAttribute('title'); });
   strip(); new MutationObserver(strip).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] });
 })();
-
-// ---------- the VST3 / AU plug-in (plugin/) ----------
-// The plug-in shows this same page (plugin/Resources/ui.html, written by build.js) and runs the C++ port of the engine.
-// The host plays, stops and sets the tempo, so there is no Play button or Tempo dial; everything else is the web app.
-// plugin/web/shim.js keeps localStorage in the plug-in (this project's keys with the DAW project, the rest shared)
-// and passes messages both ways: send() goes to the C++ engine, and the engine answers with the playing step,
-// the host tempo, and dials moved by host automation or MIDI CC.
-if (PLUGIN) {
-  const B = window.TB303_BRIDGE;
-  document.documentElement.classList.add('plugin');
-  // what initAudio() sends when the web app starts its audio: the engine gets the whole sound and pattern
-  for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
-  for (const k in state.parts) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); sendTune(); sendPattern(); sendGroove();
-  for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
-  sendDeclick();
-  B.on('step', (m) => markStep(m.step));
-  B.on('rate', (m) => { document.getElementById('rate').textContent = `2× of ${m.value / 1000} kHz`; });
-  B.on('bpm', (m) => { state.bpm = m.value; }); // the host's tempo (presets and the session keep it as the web app does)
-  // a dial the host moved (automation, MIDI CC through the host)
-  B.on('set', (m) => {
-    if (m.what === 'knob' && m.id in state.knobs) setKnob(m.id, m.value);
-    else if (m.what === 'part' && m.id in COMPONENTS) applyPart(m.id, m.value);
-    else if (m.what === 'wave') { state.wave = m.value; preview.waveform = m.value; drawWave(); saveSession(); }
-    else if (m.what === 'fx' && m.id in state.fx) { state.fx[m.id] = !!m.value; preview.setFx(m.id, state.fx[m.id]); renderFx(); saveSession(); }
-  });
-  document.getElementById('midi-status').textContent = 'MIDI comes from the host: notes play the voice (legato slides, velocity 100 and up accents), CCs move the dials.';
-  B.send({ type: 'ready' });
-}
 })();
 </script>

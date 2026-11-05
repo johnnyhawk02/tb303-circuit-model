@@ -1,5 +1,5 @@
 // ---------- the 8 pattern slots, A1-A8: edits save to the selected slot ----------
-// (Storage, projects and the plug-in still name a slot by bank and number, { g: 'A', n }, from when there were
+// (Storage and projects still name a slot by bank and number, { g: 'A', n }, from when there were
 // banks A-D of 12; only bank A is used now, and the other old slots stay in storage but are not shown.)
 const banks = store.get('banks', null) || {};
 let sel = store.get('bankSel', null) || { g: 'A', n: 0 };

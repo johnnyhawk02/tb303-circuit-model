@@ -1,4 +1,4 @@
-// Sound lock for the web engine (tb303-model.js). Renders each scenario with plugin/tests/render.js and checks the
+// Sound lock for the web engine (tb303-model.js). Renders each scenario with tests/render.js and checks the
 // output is bit-for-bit what tests/golden.json records, so a refactor can prove it changed nothing you can hear.
 //   node tests/golden.js           check (exit 1 on any difference)
 //   node tests/golden.js --update  record the current renders: do this, and commit golden.json, only when a
@@ -6,14 +6,14 @@
 const fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const root = path.join(__dirname, '..'), file = path.join(__dirname, 'golden.json');
-const SCENARIOS = ['plugin/tests/scenario.json', 'plugin/tests/scenario-44k.json'];
+const SCENARIOS = ['tests/scenario.json', 'tests/scenario-44k.json'];
 const update = process.argv.includes('--update');
 const want = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 const got = {};
 let bad = 0;
 for (const sc of SCENARIOS) {
   const out = path.join(os.tmpdir(), `golden-${process.pid}-${path.basename(sc, '.json')}.f32`);
-  execFileSync(process.execPath, [path.join(root, 'plugin/tests/render.js'), out, path.join(root, sc)]);
+  execFileSync(process.execPath, [path.join(root, 'tests/render.js'), out, path.join(root, sc)]);
   const buf = fs.readFileSync(out); fs.unlinkSync(out);
   const f = new Float32Array(buf.buffer, buf.byteOffset, buf.length / 4);
   let sp = 0; for (const x of f) sp += x * x;
