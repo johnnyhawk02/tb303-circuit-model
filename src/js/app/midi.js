@@ -12,7 +12,8 @@ function onMidi(e) {
   midiPending.set(cc, val / 127);
   if (!midiFrame) midiFrame = requestAnimationFrame(() => { midiFrame = 0; for (const [c, t] of midiPending) MIDI_MAP[c - 1].set(t); midiPending.clear(); });
 }
-if (navigator.requestMIDIAccess) {
+if (tbPlugin) document.getElementById('midi-status').textContent = 'In the plug-in, MIDI CC comes from the DAW track, all channels.';
+else if (navigator.requestMIDIAccess) {
   const midiStatus = document.getElementById('midi-status');
   navigator.requestMIDIAccess().then((acc) => {
     const hook = () => { const ins = [...acc.inputs.values()]; for (const i of ins) i.onmidimessage = onMidi;
