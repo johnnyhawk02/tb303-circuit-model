@@ -42,7 +42,6 @@
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
     </div>
-    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button><button type="button" role="menuitem" data-fn="install" id="fn-install" title="Install the synth as an app, so it opens in its own window and works offline">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" title="Undo the last change to a pattern" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
     <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
@@ -204,6 +203,7 @@
       </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
+      <div class="opt-install"><button type="button" id="opt-install">Install app</button><span id="opt-install-msg" role="status"></span></div>
       <div class="notes">
         <p><strong>Source.</strong> Roland main board schematic, Feb 19 1982, with unclear values read from the TD-3 clone sheet. Parts on neither sheet are estimates. Running at <span id="rate">2× oversampling</span>.</p>
         <p><strong>Pitch and VCO.</strong> A 6-bit R-2R ladder from 5.333 V gives 1/12 V per step. An exponential current charges C33 from 5.5 V to 12 V, then resets, smoothed with a polyBLEP.</p>

@@ -655,7 +655,7 @@ html.fit .pane .rmenu .fn-menu button { height: 24px; padding: 0 12px 0 22px; fo
    every dropdown item (Functions, Randomise, Tools, the FX type and program menus, the preset list) one height,
    one indent and no button shadow; headings lowercase in the Options sheet like the FX units */
 :root { --menu-h: 22px; }
-html.fit .top .fn > button, html.fit .pm .pm-btn, .pm-opt, .pm .pm-q, .pm-foot input[type=text] { font-size: var(--fs-m); }
+html.fit .pm .pm-btn, .pm-opt, .pm .pm-q, .pm-foot input[type=text] { font-size: var(--fs-m); }
 .top .fn > button::after { font-size: inherit; }
 html.fit .pane .seg button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit .fxh .seg button, html.fit #tu-root button { height: calc(var(--ctl-h) - 4px); }
 html.fit .fn-menu button, html.fit .pane .fn-menu button:not(.seq button):not(.lex-progs button):not(.nudge button), html.fit #pane-fx .tmenu .fn-menu button {
@@ -787,6 +787,10 @@ html.fit .fxpane .fx-row2 #fx-flg { flex: none; padding: 14px 0 0 12px; }
 /* Options › Colours: the Mono / Grey + colour switch over the swatches (the swatch picks the glass in Mono, the accent in Grey + colour) */
 .lcd-mode { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; font-size: var(--fs-m); text-transform: lowercase; }
 html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0 14px; font-size: var(--fs-m); }
+
+/* Options › About: Install app at the top (moved from the Functions menu, which is gone) */
+.opt-install { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.opt-install #opt-install-msg { color: var(--mute); }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
@@ -813,7 +817,6 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
         <span class="hint" id="prj-msg" role="status"></span>
       </div>
     </div>
-    <div class="fn"><button type="button" id="fn-btn" aria-haspopup="menu" aria-expanded="false">Functions</button><div class="fn-menu" id="fn-menu" role="menu" hidden><button type="button" role="menuitem" data-fn="join" title="Join every chained pattern into one and copy it, ready to paste into a slot">Join chain and copy</button><button type="button" role="menuitem" data-fn="install" id="fn-install" title="Install the synth as an app, so it opens in its own window and works offline">Install app</button><button type="button" role="menuitem" data-fn="undo" id="fn-undo" title="Undo the last change to a pattern" disabled>Undo</button></div></div>
     <span class="sq-msg" id="sq-msg" role="status"></span>
     <span class="ver" id="ver" title="Build __BUILD_SHA__, __BUILD_DATE__">__BUILD_VERSION__</span>
     <button type="button" class="icon gear" id="open-options" aria-haspopup="dialog" aria-label="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L2 13.7v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2z" fill-rule="evenodd"/></svg></button>
@@ -975,6 +978,7 @@ html.fit dialog#options .lcd-mode .seg button { height: var(--ctl-h); padding: 0
       </div>
     </section>
     <section class="osec" id="osec-about" role="tabpanel" aria-label="About" hidden>
+      <div class="opt-install"><button type="button" id="opt-install">Install app</button><span id="opt-install-msg" role="status"></span></div>
       <div class="notes">
         <p><strong>Source.</strong> Roland main board schematic, Feb 19 1982, with unclear values read from the TD-3 clone sheet. Parts on neither sheet are estimates. Running at <span id="rate">2× oversampling</span>.</p>
         <p><strong>Pitch and VCO.</strong> A 6-bit R-2R ladder from 5.333 V gives 1/12 V per step. An exponential current charges C33 from 5.5 V to 12 V, then resets, smoothed with a polyBLEP.</p>
@@ -4042,12 +4046,8 @@ document.querySelector('.sq-side').addEventListener('input', (e) => {
   }
   renderSeq(); pushPattern();
 });
-// Undo next to the pattern tools: the same undo as Functions › Undo
-{
-  const fu = document.getElementById('fn-undo'), pu = document.getElementById('p-undo');
-  pu.onclick = () => fu.click();
-  new MutationObserver(() => { pu.disabled = fu.disabled; }).observe(fu, { attributes: true, attributeFilter: ['disabled'] });
-}
+// Tools › Undo: pattern undo
+document.getElementById('p-undo').onclick = () => FUNCTIONS.undo();
 // Randomise accents, slides or octaves: each rewrites only its own property on the notes (steps with the gate on) and
 // leaves the notes and the other properties alone; rests are untouched. Again for another roll; Undo puts it back.
 const RND_OCT = [[-1, 3], [0, 5], [1, 2], [2, 0.4], [-2, 0.4]]; // octave lane, weight: mostly 0 and -1, some +1, a rare extreme
@@ -4233,26 +4233,21 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault(); document.querySelector(`#bk-n [data-n="${+e.code.slice(5) - 1}"]`)?.click();
 });
 
-// ---------- functions menu ----------
-const fnBtn = document.getElementById('fn-btn'), fnMenu = document.getElementById('fn-menu'), sqMsg = document.getElementById('sq-msg');
+// ---------- pattern undo, install, join (the Functions menu is gone: Undo and Join live in Tools, Install in Options › About) ----------
+const sqMsg = document.getElementById('sq-msg');
 let sqMsgT = 0;
 function sqSay(t) { sqMsg.textContent = t; clearTimeout(sqMsgT); sqMsgT = setTimeout(() => { sqMsg.textContent = ''; }, 5000); }
-function fnOpen(on) { fnMenu.hidden = !on; fnBtn.setAttribute('aria-expanded', on); if (on) fnMenu.querySelector('button').focus(); }
-fnBtn.onclick = () => fnOpen(fnMenu.hidden);
-document.addEventListener('pointerdown', (e) => { if (!fnMenu.hidden && !e.target.closest('.fn')) fnOpen(false); });
-fnMenu.addEventListener('keydown', (e) => {
-  const items = [...fnMenu.querySelectorAll('button:not(:disabled)')], i = items.indexOf(document.activeElement);
-  if (e.key === 'Escape') { fnOpen(false); fnBtn.focus(); }
-  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
-});
 const undoStack = [];
-function pushUndo() { undoStack.push({ k: slotKey(sel.g, sel.n), pattern: state.pattern.map(st => ({ ...st })) }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false; }
+function pushUndo() { undoStack.push({ k: slotKey(sel.g, sel.n), pattern: state.pattern.map(st => ({ ...st })) }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('p-undo').disabled = false; }
 // ---------- install as an app ----------
 let installEvt = null;
 const standalone = () => matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
-addEventListener('appinstalled', () => { installEvt = null; document.getElementById('fn-install').hidden = true; sqSay('Installed. Open 303 from your home screen or app list.'); });
-if (standalone()) document.getElementById('fn-install').hidden = true;
+addEventListener('appinstalled', () => { installEvt = null; document.getElementById('opt-install').hidden = true; installSay('Installed. Open 303 from your home screen or app list.'); });
+if (standalone()) document.getElementById('opt-install').hidden = true;
+// install messages show beside the button (Options covers the status line) and in the status line
+function installSay(t) { document.getElementById('opt-install-msg').textContent = t; sqSay(t); }
+document.getElementById('opt-install').onclick = () => FUNCTIONS.install();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 // spread of each part between real units: 0 means it does not vary (digital settings in the 224)
 function tolerance(k) {
@@ -4268,10 +4263,10 @@ function tolerance(k) {
 }
 const FUNCTIONS = {
   async install() {
-    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome !== 'accepted') sqSay('Install cancelled.'); installEvt = null; return; }
-    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) sqSay('On iPhone or iPad: tap Share, then Add to Home Screen.');
-    else if (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)) sqSay('In Safari on a Mac: File › Add to Dock.');
-    else sqSay('Use your browser menu: Install 303 Circuit Model, or Add to Home screen.');
+    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome !== 'accepted') installSay('Install cancelled.'); installEvt = null; return; }
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) installSay('On iPhone or iPad: tap Share, then Add to Home Screen.');
+    else if (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)) installSay('In Safari on a Mac: File › Add to Dock.');
+    else installSay('Use your browser menu: Install 303 Circuit Model, or Add to Home screen.');
   },
   // a variation, not a new pattern: about a quarter of the steps change, notes stay among the pitches the pattern already uses
   alter() {
@@ -4327,7 +4322,7 @@ const FUNCTIONS = {
     const u = undoStack.pop(); if (!u) return;
     if (u.k !== slotKey(sel.g, sel.n)) loadSlot(u.k[0], +u.k.slice(1) - 1);
     state.pattern = u.pattern; tail = []; renderSeq(); pushPattern();
-    document.getElementById('fn-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
+    document.getElementById('p-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
   },
   // join every chained pattern into one and put it on the Copy/Paste clipboard (and the system clipboard as JSON)
   join() {
@@ -4341,7 +4336,6 @@ const FUNCTIONS = {
       : `Joined ${keys.join(' › ')}: ${Math.min(64, all.length)} steps copied${cut ? `, the last ${all.length - 64} cut off at the 64-step limit` : ''}. Paste it into a slot.`);
   },
 };
-fnMenu.addEventListener('click', (e) => { const b = e.target.closest('[data-fn]'); if (!b) return; fnOpen(false); FUNCTIONS[b.dataset.fn](); });
 document.getElementById('chain-clear').onclick = () => { chain = []; store.set('chain', chain); playingSlot = ''; sendPattern(); renderChain(); };
 // the slot that was selected last holds the current pattern; seed it the first time
 if (!banks[slotKey(sel.g, sel.n)]) storeSlot();
@@ -4398,11 +4392,6 @@ document.getElementById('p-refill').onclick = () => { fillSlots(true); sendPatte
     const k = keyName(a), tip = el.getAttribute('title') || el.dataset.tip || el.textContent.trim();
     el.title = `${tip} (key ${k})`;
     if (el.closest('.fn-menu')) el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
-  }
-  // the Functions menu's Join and Undo are the same actions, so they show the same keys as the Tools items
-  for (const [sel, id] of [['#fn-menu [data-fn="join"]', 'join'], ['#fn-undo', 'p-undo']]) {
-    const el = document.querySelector(sel); if (!el) continue;
-    const k = keyName(ACTS[id]); el.title = `${el.title} (key ${k})`; el.insertAdjacentHTML('beforeend', `<kbd>${k}</kbd>`);
   }
   // the cross under the roll shows its keys too
   for (const [sel, ids] of [['.dp-up', ['nu-up', 'nu-oup']], ['.dp-dn', ['nu-dn', 'nu-odn']], ['.dp-lt', ['rot-l']], ['.dp-rt', ['rot-r']]]) {

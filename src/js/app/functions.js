@@ -1,23 +1,18 @@
-// ---------- functions menu ----------
-const fnBtn = document.getElementById('fn-btn'), fnMenu = document.getElementById('fn-menu'), sqMsg = document.getElementById('sq-msg');
+// ---------- pattern undo, install, join (the Functions menu is gone: Undo and Join live in Tools, Install in Options › About) ----------
+const sqMsg = document.getElementById('sq-msg');
 let sqMsgT = 0;
 function sqSay(t) { sqMsg.textContent = t; clearTimeout(sqMsgT); sqMsgT = setTimeout(() => { sqMsg.textContent = ''; }, 5000); }
-function fnOpen(on) { fnMenu.hidden = !on; fnBtn.setAttribute('aria-expanded', on); if (on) fnMenu.querySelector('button').focus(); }
-fnBtn.onclick = () => fnOpen(fnMenu.hidden);
-document.addEventListener('pointerdown', (e) => { if (!fnMenu.hidden && !e.target.closest('.fn')) fnOpen(false); });
-fnMenu.addEventListener('keydown', (e) => {
-  const items = [...fnMenu.querySelectorAll('button:not(:disabled)')], i = items.indexOf(document.activeElement);
-  if (e.key === 'Escape') { fnOpen(false); fnBtn.focus(); }
-  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
-});
 const undoStack = [];
-function pushUndo() { undoStack.push({ k: slotKey(sel.g, sel.n), pattern: state.pattern.map(st => ({ ...st })) }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('fn-undo').disabled = false; }
+function pushUndo() { undoStack.push({ k: slotKey(sel.g, sel.n), pattern: state.pattern.map(st => ({ ...st })) }); if (undoStack.length > 30) undoStack.shift(); document.getElementById('p-undo').disabled = false; }
 // ---------- install as an app ----------
 let installEvt = null;
 const standalone = () => matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
-addEventListener('appinstalled', () => { installEvt = null; document.getElementById('fn-install').hidden = true; sqSay('Installed. Open 303 from your home screen or app list.'); });
-if (standalone()) document.getElementById('fn-install').hidden = true;
+addEventListener('appinstalled', () => { installEvt = null; document.getElementById('opt-install').hidden = true; installSay('Installed. Open 303 from your home screen or app list.'); });
+if (standalone()) document.getElementById('opt-install').hidden = true;
+// install messages show beside the button (Options covers the status line) and in the status line
+function installSay(t) { document.getElementById('opt-install-msg').textContent = t; sqSay(t); }
+document.getElementById('opt-install').onclick = () => FUNCTIONS.install();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 // spread of each part between real units: 0 means it does not vary (digital settings in the 224)
 function tolerance(k) {
@@ -33,10 +28,10 @@ function tolerance(k) {
 }
 const FUNCTIONS = {
   async install() {
-    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome !== 'accepted') sqSay('Install cancelled.'); installEvt = null; return; }
-    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) sqSay('On iPhone or iPad: tap Share, then Add to Home Screen.');
-    else if (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)) sqSay('In Safari on a Mac: File › Add to Dock.');
-    else sqSay('Use your browser menu: Install 303 Circuit Model, or Add to Home screen.');
+    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome !== 'accepted') installSay('Install cancelled.'); installEvt = null; return; }
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) installSay('On iPhone or iPad: tap Share, then Add to Home Screen.');
+    else if (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)) installSay('In Safari on a Mac: File › Add to Dock.');
+    else installSay('Use your browser menu: Install 303 Circuit Model, or Add to Home screen.');
   },
   // a variation, not a new pattern: about a quarter of the steps change, notes stay among the pitches the pattern already uses
   alter() {
@@ -92,7 +87,7 @@ const FUNCTIONS = {
     const u = undoStack.pop(); if (!u) return;
     if (u.k !== slotKey(sel.g, sel.n)) loadSlot(u.k[0], +u.k.slice(1) - 1);
     state.pattern = u.pattern; tail = []; renderSeq(); pushPattern();
-    document.getElementById('fn-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
+    document.getElementById('p-undo').disabled = !undoStack.length; sqSay(`Undone on ${u.k}.`);
   },
   // join every chained pattern into one and put it on the Copy/Paste clipboard (and the system clipboard as JSON)
   join() {
@@ -106,7 +101,6 @@ const FUNCTIONS = {
       : `Joined ${keys.join(' › ')}: ${Math.min(64, all.length)} steps copied${cut ? `, the last ${all.length - 64} cut off at the 64-step limit` : ''}. Paste it into a slot.`);
   },
 };
-fnMenu.addEventListener('click', (e) => { const b = e.target.closest('[data-fn]'); if (!b) return; fnOpen(false); FUNCTIONS[b.dataset.fn](); });
 document.getElementById('chain-clear').onclick = () => { chain = []; store.set('chain', chain); playingSlot = ''; sendPattern(); renderChain(); };
 // the slot that was selected last holds the current pattern; seed it the first time
 if (!banks[slotKey(sel.g, sel.n)]) storeSlot();
