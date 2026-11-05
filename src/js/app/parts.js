@@ -16,9 +16,9 @@ function fromSlider(k, x) {
   return +v.toPrecision(3);
 }
 function drawPartKnob(k) {
-  const t = COMPONENTS[k].fixed ? 0.5 : cseqHeard('p:' + k, toSlider(k, state.parts[k]) / SL);
+  const t = COMPONENTS[k].fixed ? 0.5 : toSlider(k, state.parts[k]) / SL, h = cseqOn('p:' + k) ? cseqHeard('p:' + k, t) : -1;
   for (const el of document.querySelectorAll(`.knob[data-k="${k}"]`)) {
-    knobDraw(el, t);
+    knobDraw(el, t); knobHeard(el, h);
     el.setAttribute('aria-valuenow', Math.round(t * 100));
   }
 }

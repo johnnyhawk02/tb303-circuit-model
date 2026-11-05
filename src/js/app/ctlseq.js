@@ -11,6 +11,7 @@
 var cseqRt = {};             // key -> { off, glide }: the offset each running sequencer is at
 var cseqN = -1, cseqLastI = -1; // the 16th count since play started, and the last step message
 var cseqCur = null;          // the control whose pop-up is open: { key, label }
+function cseqOn(key) { return !!state.seqs[key]?.on; }
 function cseqHeard(key, base) {
   const r = cseqRt && cseqRt[key], q = state.seqs[key];
   if (!r || !r.off || !q) return base;
@@ -27,7 +28,7 @@ function cseqPush(key) {
   if (key[0] === 'k') {
     const h = cseqHeard(key, state.knobs[id]), k = knobEls[id];
     send({ type: 'knob', name: id, value: h });
-    if (k) { knobDraw(k.el, h); k.val.textContent = knobText(id, h); }
+    if (k) { knobDraw(k.el, state.knobs[id]); knobHeard(k.el, cseqOn(key) ? h : -1); k.val.textContent = knobText(id, h); }
   } else { send({ type: 'component', name: id, value: cseqPartValue(id) }); drawPartKnob(id); }
 }
 function cseqRelease(key) { if (!cseqRt[key]) return; delete cseqRt[key]; cseqPush(key); }
@@ -102,7 +103,10 @@ function cseqCtl(t) {
 function cseqMarks() {
   for (const el of document.querySelectorAll('.knob')) {
     const c = el.id === 'bpm' ? null : cseqCtl(el);
-    el.classList.toggle('cseq', !!(c && state.seqs[c.key]?.on));
+    const on = !!(c && cseqOn(c.key));
+    el.classList.toggle('cseq', on);
+    if (c && c.key[0] === 'k') knobHeard(el, on ? cseqHeard(c.key, state.knobs[c.key.slice(2)]) : -1);
+    else if (c) knobHeard(el, on ? cseqHeard(c.key, toSlider(c.key.slice(2), state.parts[c.key.slice(2)]) / SL) : -1);
   }
 }
 // a sound was loaded: its sequencers (or none) replace the old ones
