@@ -427,25 +427,17 @@ html.fit .blk-lex { padding-top: 14px; }
 
 /* ---- Colourful mode (Johnny, Nov 2026: Options › Colours › Mode). Mono is every theme above, one ink on one glass.
    Colourful puts the grey glass underneath and inks a few things in the other themes' colours, deepened so they read on
-   grey like printed colour filters on a real LCD: the front-panel dials by function (the Mods dials stay ink), each FX unit, the page tabs, the play
+   grey like printed colour filters on a real LCD: each FX unit's On button and routing block (every dial stays ink, Johnny), the page tabs, the play
    light, the slide and accent rows and the step and pattern markers. Text and lines stay in the grey theme's ink.
    data-lcdmode=colour goes on <html> (the page head puts it back before the styles load) ---- */
 :root[data-lcdmode=colour] { --glass: #d3d6cc; --ink: #121410; --panel-rgb: 211 214 204; --ink-rgb: 18 20 16; --shade-rgb: 64 68 58; --light-rgb: 248 250 242;
   --hl1-rgb: 250 252 245; --hl2-rgb: 246 248 240; --dk1-rgb: 44 46 40; --dk2-rgb: 38 40 34; --dk3-rgb: 28 30 24;
   --c-orange: #d0600a; --c-amber: #b58300; --c-lime: #4e8a16; --c-blue: #2a63ae; --c-red: #c2352a; }
-[data-lcdmode=colour] #knob-tuning, [data-lcdmode=colour] .trim .knob { --ac: var(--c-amber); }
-[data-lcdmode=colour] #knob-cutoff, [data-lcdmode=colour] #knob-resonance, [data-lcdmode=colour] #knob-kt { --ac: var(--c-blue); }
-[data-lcdmode=colour] #knob-envmod, [data-lcdmode=colour] #knob-decay { --ac: var(--c-lime); }
-[data-lcdmode=colour] #knob-accent { --ac: var(--c-red); }
-[data-lcdmode=colour] #knob-volume, [data-lcdmode=colour] #bpm { --ac: var(--c-orange); }
 [data-lcdmode=colour] #fx-fold, [data-lcdmode=colour] .route-dia [data-u=fold] { --ac: var(--c-lime); }
 [data-lcdmode=colour] #fx-rat, [data-lcdmode=colour] .route-dia [data-u=rat] { --ac: var(--c-red); }
 [data-lcdmode=colour] #fx-dly, [data-lcdmode=colour] .route-dia [data-u=dly] { --ac: var(--c-blue); }
 [data-lcdmode=colour] #fx-cmp, [data-lcdmode=colour] .route-dia [data-u=cmp] { --ac: var(--c-amber); }
 [data-lcdmode=colour] #fx-lex, [data-lcdmode=colour] .route-dia [data-u=lex] { --ac: var(--c-orange); }
-/* dials: the lit wedges take the colour, the unlit ones a faint wash of it */
-[data-lcdmode=colour] .knob svg .arc { fill: var(--ac, var(--ink)); }
-[data-lcdmode=colour] .knob svg .trk { fill: color-mix(in srgb, var(--ac, var(--ink)) 16%, transparent); }
 /* FX: each unit's On button and its block in the routing diagram */
 [data-lcdmode=colour] .fxb .onoff[aria-pressed=true] { background: var(--ac, var(--ink)); border-color: var(--ac, var(--ink)); }
 [data-lcdmode=colour] .route-dia .rb[data-u] rect { stroke: var(--ac); }
