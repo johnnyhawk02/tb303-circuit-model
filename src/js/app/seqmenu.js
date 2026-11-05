@@ -1,17 +1,17 @@
 // ---------- Randomise and Tools menus, and pattern key commands ----------
 // Johnny: the pattern buttons live in two menus at the right of the pattern row instead of on the page. Randomise holds
 // the random and alter tools, Shuffle, Generate and Refill; Tools holds Copy, Paste, Double, Clear, Undo, moving the notes
-// and joining the chain. Every item has a key, shown in the menu and in the status-line tooltip. Keys are plain letters
+// and joining the chain. Step len ▾ beside them picks how long each note sounds (key E). Every item has a key, shown in the menu and in the status-line tooltip. Keys are plain letters
 // (Shift for the gentler Alter versions) and never clash with 1-8 (pattern slots), Space (play) or Cmd/Ctrl+C/V (copy,
 // paste, handled in audio.js). Keys are ignored while typing in a text field or with Options open.
 (() => {
   const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   const cmd = mac ? '⌘' : 'Ctrl+', shift = mac ? '⇧' : 'Shift+';
   const click = (sel) => () => { const b = document.querySelector(sel); if (b && !b.disabled) b.click(); };
-  const MENUS = [['rm-btn', 'rm-menu'], ['tm-btn', 'tm-menu']].map(([b, m]) => ({ btn: document.getElementById(b), menu: document.getElementById(m) }));
+  const MENUS = [['rm-btn', 'rm-menu'], ['tm-btn', 'tm-menu'], ['gm-btn', 'gm-menu']].map(([b, m]) => ({ btn: document.getElementById(b), menu: document.getElementById(m) }));
   const open = (M, on) => {
     for (const o of MENUS) if (o !== M || !on) { o.menu.hidden = true; o.btn.setAttribute('aria-expanded', false); }
-    if (on) { M.menu.hidden = false; M.btn.setAttribute('aria-expanded', true); M.menu.querySelector('button:not(:disabled)')?.focus(); }
+    if (on) { M.menu.hidden = false; M.btn.setAttribute('aria-expanded', true); (M.menu.querySelector('[aria-checked=true]') || M.menu.querySelector('button:not(:disabled)'))?.focus(); }
   };
   const toggle = (i) => () => open(MENUS[i], MENUS[i].menu.hidden);
   // each action: what it runs, its key (code, shift, cmd, and a label when the code is not a letter), and the element
@@ -41,6 +41,7 @@
     'join': { run: () => FUNCTIONS.join(), code: 'KeyJ' },
     'rm-btn': { run: toggle(0), code: 'KeyR' },
     'tm-btn': { run: toggle(1), code: 'KeyT' },
+    'gm-btn': { run: toggle(2), code: 'KeyE' },     // Step len ▾ (its items are drawn by renderSide in sequencer.js)
   };
   const keyName = (a) => (a.cmd ? cmd : '') + (a.shift ? shift : '') + (a.label || a.code.slice(3));
   for (const [id, a] of Object.entries(ACTS)) {
@@ -75,7 +76,7 @@
     const hit = Object.entries(ACTS).find(([, a]) => a.run && a.code === e.code && !!a.shift === e.shiftKey && !!a.cmd === c);
     if (!hit) return;
     e.preventDefault();
-    if (!/^(rm|tm)-btn$/.test(hit[0])) for (const M of MENUS) if (!M.menu.hidden) open(M, false);
+    if (!/^(rm|tm|gm)-btn$/.test(hit[0])) for (const M of MENUS) if (!M.menu.hidden) open(M, false);
     hit[1].run();
   });
 })();
