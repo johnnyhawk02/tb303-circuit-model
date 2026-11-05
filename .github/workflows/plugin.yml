@@ -30,10 +30,13 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      # the version in the page's top bar: this workflow's run number (the web app shows the Cloudflare run as vN)
+      - name: Stamp the page
+        run: sed -i '' "s/__BUILD_VERSION__/p${{ github.run_number }}/; s/__BUILD_SHA__/${GITHUB_SHA::7}/; s/__BUILD_DATE__/$(date -u '+%Y-%m-%d %H:%M UTC')/" plugin/Resources/ui.html
       - name: "Configure (universal: Apple silicon + Intel)"
         run: cmake -S plugin -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
       - name: Build
-        run: cmake --build build --config Release --target TB303CircuitModel_VST3 TB303CircuitModel_AU TB303CircuitModel_Standalone -j 4
+        run: cmake --build build --config Release --target TB303CircuitModel_VST3 TB303CircuitModel_AU TB303CircuitModel_Standalone tb303_hosttest -j 4
       - name: Sign (ad hoc) and package
         run: |
           A="build/TB303CircuitModel_artefacts/Release"
@@ -49,6 +52,8 @@ jobs:
           (cd out/plugins && ditto -c -k . ../../dist/TB303-Circuit-Model-plugins.zip)
           (cd out/app && ditto -c -k --keepParent "TB303 Circuit Model.app" ../../dist/TB303-Circuit-Model-app.zip)
           cp plugin/INSTALL.txt dist/
+      - name: Host test (transport, MIDI, page messages, saved state)
+        run: build/tb303_hosttest_artefacts/Release/tb303_hosttest
       - name: Validate (pluginval)
         run: |
           curl -sSL -o pv.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip

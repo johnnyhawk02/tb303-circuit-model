@@ -1,5 +1,7 @@
 #include "PluginProcessor.h"
+#ifndef TB303_NO_EDITOR
 #include "PluginEditor.h"
+#endif
 #include "PartsMeta.h"
 #include "BinaryData.h"
 
@@ -52,10 +54,8 @@ bool isModPart(int part) {
     for (auto& m : frontMods()) if (partIndex(m.part) == part) return true;
     return false;
 }
-// parts the web app never lets you change (pot values that only set a taper)
-bool isFixedPart(int part) { return part >= 0 && part < PARTS_META_COUNT && PARTS_META[part].fixed; }
 
-juce::String TB303Processor::formatPart(double v, const juce::String& unit) {
+static juce::String formatPart(double v, const juce::String& unit) {
     auto sig = [](double x, int digits) {
         if (x == 0) return juce::String("0");
         const int mag = (int)std::floor(std::log10(std::fabs(x)));
@@ -188,41 +188,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout TB303Processor::createLayout
     return L;
 }
 
-// ---------------------------------------------------------------------------------------------------
-double partTolerance(int k) {
-    const auto& m = PARTS_META[k]; const juce::String id = m.id, block = m.block, unit = juce::String::fromUTF8(parts()[k].unit);
-    if (m.fixed || block == "224") return 0;
-    if (block == "CV") return 0.005;
-    if (id == "F_TUNE" || id == "CV_TUNE") return 0.003;
-    if (id.startsWith("VR")) return 0.2;
-    if (unit == juce::String::fromUTF8("Ω")) return 0.05;
-    if (unit == "F") return parts()[k].v >= 1e-6 ? 0.2 : 0.1;
-    if (id == "RAT_GBW" || id == "RAT_SR") return 0.2;
-    return 0.05;
-}
-
-std::vector<double> seriesValues(int k) {
-    static const double E24[] = { 1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1 };
-    static const double E12[] = { 1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2 };
-    const auto& m = PARTS_META[k]; const juce::String src = m.source, unit = juce::String::fromUTF8(parts()[k].unit);
-    std::vector<double> out;
-    if (m.fixed || !(src == "schematic" || src == "td3" || src == "rat")) return out;
-    const bool ohm = unit == juce::String::fromUTF8("Ω");
-    if (!ohm && unit != "F") return out;
-    const auto r = partRange(k);
-    for (int dec = (int)std::floor(std::log10(r.lo)) - 1; dec <= (int)std::ceil(std::log10(r.hi)); dec++) {
-        auto add = [&](double mm) { const double v = std::stod(juce::String(mm * std::pow(10.0, dec), 3, true).toStdString()); if (v >= r.lo * 0.999 && v <= r.hi * 1.001) out.push_back(v); };
-        if (ohm) for (double mm : E24) add(mm); else for (double mm : E12) add(mm);
-    }
-    return out;
-}
-double snapReal(int k, double v) {
-    const auto vs = seriesValues(k); if (vs.empty() || v <= 0) return v;
-    double best = v, bd = 1e300;
-    for (double x : vs) { const double d = std::fabs(std::log(x / v)); if (d < bd) { bd = d; best = x; } }
-    return best;
-}
-
 const std::vector<CcTarget>& ccMap() {
     static const std::vector<CcTarget> m = [] {
         std::vector<CcTarget> v;
@@ -238,6 +203,75 @@ const std::vector<CcTarget>& ccMap() {
     return m;
 }
 
+
+static bool isFixedPart(int part) { return part >= 0 && part < PARTS_META_COUNT && PARTS_META[part].fixed; }
+static const char* const FX_NAMES[] = { "rat", "lex", "dly", "fold", "flg" };
+
+// the page's value for a dial (0..1) as the parameter's plain value
+static float plainFor(int k, double v) {
+    v = juce::jlimit(0.0, 1.0, v);
+    if (k == K::lexprog) return (float)jsRound(v * 8);
+    if (const int n = revSteps(k)) return (float)jsRound(v * (n - 1));
+    if (k == K::dlytime) return (float)dlyDivIndex(v);
+    if (k == K::dlypp) return v >= 0.5 ? 1.0f : 0.0f;
+    return (float)v;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// localStorage
+bool isProjectKey(const juce::String& key) {
+    static const juce::StringArray keys { "tb303.session", "tb303.banks", "tb303.bankSel", "tb303.chain", "tb303.pattern", "tb303.tuneRoot", "tb303.mainTab" };
+    return keys.contains(key);
+}
+juce::File SharedStore::file() {
+#if JUCE_MAC
+    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Application Support/TB303 Circuit Model/web-store.json");
+#else
+    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("TB303 Circuit Model/web-store.json");
+#endif
+}
+SharedStore& SharedStore::get() { static SharedStore* s = new SharedStore(); return *s; } // never deleted: may outlive the message loop
+SharedStore::SharedStore() {
+    const auto j = juce::JSON::parse(file().loadFileAsString());
+    if (auto* o = j.getDynamicObject()) {
+        for (auto& kv : o->getProperties()) data[kv.name.toString()] = kv.value.toString();
+        return;
+    }
+    // first run: the presets saved by the earlier plug-in (its own preset browser) become My presets
+    const auto old = juce::JSON::parse(file().getSiblingFile("presets.json").loadFileAsString());
+    auto presets = old.getProperty("presets", {});
+    if (!presets.isObject() && old.isObject()) presets = old; // the first version kept them at the top level
+    if (auto* p = presets.getDynamicObject(); p && p->getProperties().size() > 0) {
+        data["tb303.projectPresets"] = juce::JSON::toString(presets, true);
+        if ((bool)old.getProperty("soundOnly", false)) data["tb303.prjSoundOnly"] = "true";
+        dirty = true; flush();
+    }
+}
+std::map<juce::String, juce::String> SharedStore::all() { const juce::ScopedLock sl(lock); return data; }
+void SharedStore::set(const juce::String& key, const juce::var& value) {
+    {
+        const juce::ScopedLock sl(lock);
+        if (value.isVoid() || value.isUndefined()) data.erase(key); else data[key] = value.toString();
+        dirty = true;
+    }
+    startTimer(400);
+}
+void SharedStore::flush() {
+    stopTimer();
+    juce::var out;
+    {
+        const juce::ScopedLock sl(lock);
+        if (!dirty) return;
+        dirty = false;
+        auto* o = new juce::DynamicObject();
+        for (auto& [k, v] : data) o->setProperty(k, v);
+        out = juce::var(o);
+    }
+    auto f = file(); f.getParentDirectory().createDirectory();
+    f.replaceWithText(juce::JSON::toString(out));
+}
+
+// ---------------------------------------------------------------------------------------------------
 TB303Processor::TB303Processor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "TB303", createLayout()) {
@@ -246,18 +280,26 @@ TB303Processor::TB303Processor()
     for (int k = 0; k < K::COUNT; ++k) knobParams[(size_t)k] = apvts.getRawParameterValue(knobs()[k].id);
     for (auto& m : frontMods()) modParams.push_back({ partIndex(m.part), apvts.getRawParameterValue(juce::String("m_") + m.part) });
     lastMod.assign(modParams.size(), -1.0f);
+    seenMod.assign(modParams.size(), 0.0f);
     pWave = apvts.getRawParameterValue("wave"); pRat = apvts.getRawParameterValue("fx_rat"); pLex = apvts.getRawParameterValue("fx_lex");
-    pFold = apvts.getRawParameterValue("fx_fold"); pFlg = apvts.getRawParameterValue("fx_flg"); pDly = apvts.getRawParameterValue("fx_dly"); pDeclick = apvts.getRawParameterValue("declick"); pDeclickMs = apvts.getRawParameterValue("declickms");
+    pFold = apvts.getRawParameterValue("fx_fold"); pFlg = apvts.getRawParameterValue("fx_flg"); pDly = apvts.getRawParameterValue("fx_dly");
+    pDeclick = apvts.getRawParameterValue("declick"); pDeclickMs = apvts.getRawParameterValue("declickms");
     pSeq = apvts.getRawParameterValue("seq");
     apvts.addParameterListener("declick", this);
     for (int i = 0; i < P::COUNT; ++i) extraParts[(size_t)i] = parts()[i].v;
     for (auto& c : ccPending) c = -1.0f;
-    pubPattern.reserve(64 * 48); audioPattern.reserve(64 * 48); held.reserve(128);
-    loadUserData();
-    publish();
+    // until the page sends its pattern: the web app's example line (EXAMPLE in state.js)
+    static const int ex[16][4] = { {21,1,0,1},{21,0,0,1},{33,0,1,1},{31,0,0,1},{21,1,0,1},{0,0,0,0},{24,0,1,1},{26,0,0,1},
+                                   {21,0,0,1},{33,1,0,1},{28,0,1,1},{24,0,0,1},{21,1,1,1},{19,0,0,1},{0,0,0,0},{36,1,0,1} };
+    for (auto& s : ex) pubPattern.push_back({ s[0] ? s[0] : 21, s[3] != 0, s[1] != 0, s[2] != 0 });
+    pubPattern.reserve(64 * 8); audioPattern.reserve(64 * 8); held.reserve(128);
+    markAllSeen();
 }
 
-TB303Processor::~TB303Processor() { cancelPendingUpdate(); apvts.removeParameterListener("declick", this); }
+TB303Processor::~TB303Processor() {
+    cancelPendingUpdate(); apvts.removeParameterListener("declick", this);
+    for (auto& [p, t] : gestures) p->endChangeGesture();
+}
 
 bool TB303Processor::isBusesLayoutSupported(const BusesLayout& layouts) const {
     const auto out = layouts.getMainOutputChannelSet();
@@ -271,8 +313,13 @@ double TB303Processor::knobValue(int k) const {
     if (k == K::dlytime) return raw / 10.0;
     return raw;
 }
-tb303::Knobs TB303Processor::allKnobs() const { Knobs k; for (int i = 0; i < K::COUNT; ++i) k[(size_t)i] = knobValue(i); return k; }
-tb303::Parts TB303Processor::allParts() const { Parts p; for (int i = 0; i < P::COUNT; ++i) p[(size_t)i] = partValue(i); return p; }
+double TB303Processor::partValue(int part) const {
+    for (auto& m : modParams) if (m.first == part) return partFromT(part, m.second->load());
+    const juce::SpinLock::ScopedLockType lock(partsLock);
+    return extraParts[(size_t)part];
+}
+std::vector<Step> TB303Processor::pattern() const { const juce::SpinLock::ScopedLockType lock(patternLock); return pubPattern; }
+std::map<juce::String, juce::String> TB303Processor::projectStore() const { const juce::ScopedLock sl(storeLock); return projStore; }
 
 void TB303Processor::prepareToPlay(double sampleRate, int) {
     fs = sampleRate;
@@ -366,7 +413,7 @@ void TB303Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
     auto& e = *engine;
     pushAllParams(false);
 
-    // transport: the sequencer follows the host
+    // transport and tempo: the host's
     bool hostPlay = false; double ppq = 0, bpm = 128;
     if (auto* ph = getPlayHead())
         if (auto pos = ph->getPosition()) {
@@ -374,12 +421,14 @@ void TB303Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
             if (auto q = pos->getPpqPosition(); q && pos->getIsPlaying()) { hostPlay = true; ppq = *q; }
         }
     if (bpm != e.bpm) e.setBpm(bpm);
+    hostBpm = bpm;
     const bool seq = *pSeq > 0.5f;
 
     struct Ev { int pos; int type; int code; bool accent, slide; }; // type 0 = off, 1 = on
     Ev evs[512]; int nev = 0;
     auto add = [&](Ev ev) { if (nev < 512) evs[nev++] = ev; };
 
+    // the sequencer: step i of the pattern starts at 16th note i (shuffle delays the odd ones), as TB303Engine walks it
     int syncStep = -1;
     if (seq && hostPlay) {
         hostSynced = true;
@@ -405,7 +454,6 @@ void TB303Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
             }
         }
     } else if (hostSynced) { hostSynced = false; e.noteOff(); }
-
     // MIDI: mono, last note priority; a note played while another is held slides (legato). CCs move the dials.
     bool ccs = false;
     for (const auto meta : midi) {
@@ -433,7 +481,6 @@ void TB303Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
     }
     if (ccs) triggerAsyncUpdate();
     std::stable_sort(evs, evs + nev, [](const Ev& a, const Ev& b) { return a.pos != b.pos ? a.pos < b.pos : (a.type == 0) > (b.type == 0); });
-
     int i = 0;
     for (int k = 0; k < nev; ++k) {
         const Ev& ev = evs[k];
@@ -442,379 +489,210 @@ void TB303Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
     }
     if (i < N) e.render(L, R, i, N);
     if (!R && buffer.getNumChannels() > 1) buffer.copyFrom(1, 0, buffer, 0, 0, N);
-
-    int w = scopeWrite.load();
-    for (int n = 0; n < N; ++n) { scope[w] = L[n]; w = (w + 1) & (SCOPE - 1); }
-    scopeWrite = w;
-
     currentStep = hostSynced ? syncStep : -1;
-    seqRunning = hostSynced;
 }
 
 // ---------------------------------------------------------------------------------------------------
-void TB303Processor::publish() {
-    std::vector<Step> p; double g, sh;
+// the page
+static double num(const juce::var& v, double d = 0) { return v.isDouble() || v.isInt() || v.isInt64() || v.isBool() ? (double)v : d; }
+
+void TB303Processor::touch(juce::RangedAudioParameter* p) {
+    if (gestures.find(p) == gestures.end()) p->beginChangeGesture();
+    gestures[p] = juce::Time::getMillisecondCounter();
+}
+void TB303Processor::endGestures() {
+    const auto now = juce::Time::getMillisecondCounter();
+    for (auto it = gestures.begin(); it != gestures.end();)
+        if (now - it->second > 400) { it->first->endChangeGesture(); it = gestures.erase(it); } else ++it;
+}
+void TB303Processor::setKnobFromPage(int k, double v) {
+    if (!std::isfinite(v)) return;
+    auto* p = apvts.getParameter(knobs()[k].id);
+    const float n = p->convertTo0to1(plainFor(k, v));
+    if (std::abs(p->getValue() - n) > 1e-7f) { touch(p); p->setValueNotifyingHost(n); }
+    seenKnob[(size_t)k] = knobParams[(size_t)k]->load();
+}
+void TB303Processor::setPartFromPage(int part, double v) {
+    if (!std::isfinite(v) || v < 0 || isFixedPart(part)) return;
+    if (part == P::NOISE) v = std::min(v, 1.0);
+    for (size_t i = 0; i < modParams.size(); ++i)
+        if (modParams[i].first == part) {
+            auto* p = apvts.getParameter(juce::String("m_") + parts()[part].id);
+            const float n = p->convertTo0to1((float)partToT(part, v));
+            if (std::abs(p->getValue() - n) > 1e-7f) { touch(p); p->setValueNotifyingHost(n); }
+            seenMod[i] = modParams[i].second->load();
+            return;
+        }
     {
-        const juce::ScopedLock sl(modelLock);
-        p = seq.sequence(chainOffs);
-        g = seq.cur().gate; sh = seq.cur().shuffle;
+        const juce::SpinLock::ScopedLockType lock(partsLock);
+        if (extraParts[(size_t)part] == v) return;
+        extraParts[(size_t)part] = v;
     }
-    {
-        const juce::SpinLock::ScopedLockType lock(patternLock);
-        pubPattern = std::move(p); pubGate = g; pubShuffle = sh;
-    }
-    ++patternVersion; ++modelVersion;
-}
-
-double TB303Processor::partValue(int part) const {
-    for (auto& m : modParams) if (m.first == part) return partFromT(part, m.second->load());
-    const juce::SpinLock::ScopedLockType lock(partsLock);
-    return extraParts[(size_t)part];
-}
-
-static void setParam(juce::AudioProcessorValueTreeState& s, const juce::String& id, float plain) {
-    if (auto* p = s.getParameter(id)) p->setValueNotifyingHost(p->convertTo0to1(plain));
-}
-
-void TB303Processor::setPart(int part, double v) {
-    if (part < 0 || part >= P::COUNT || isFixedPart(part)) return;
-    if (isModPart(part)) { setParam(apvts, juce::String("m_") + parts()[part].id, (float)partToT(part, v)); return; }
-    { const juce::SpinLock::ScopedLockType lock(partsLock); extraParts[(size_t)part] = v; }
     ++partsVersion;
 }
-
-void TB303Processor::restoreParts() {
-    partsUndo.push_back(allParts());
-    for (int p = 0; p < P::COUNT; ++p) setPart(p, parts()[p].v);
+void TB303Processor::setBoolParam(const juce::String& id, bool on) {
+    auto* p = apvts.getParameter(id);
+    if ((p->getValue() > 0.5f) != on) { p->beginChangeGesture(); p->setValueNotifyingHost(on ? 1.0f : 0.0f); p->endChangeGesture(); }
 }
 
-// New unit: every part lands inside its real tolerance (triangular). Messed up: circuit-bent, each part
-// swings a quarter of its dial travel either way and about a third swing up to 60%. Pitch parts stay in
-// tolerance so it plays in tune. Only sets that still make a sound are kept (functions.js parts()).
-juce::String TB303Processor::randomiseParts(bool wild) {
-    auto& R = juce::Random::getSystemRandom();
-    std::vector<int> keys;
-    for (int k = 0; k < P::COUNT; ++k) if (!isFixedPart(k) && partTolerance(k) > 0) keys.push_back(k);
-    auto pitch = [](int k) { const juce::String id = parts()[k].id; return juce::String(PARTS_META[k].block) == "CV" || id == "F_TUNE" || id == "CV_TUNE"; };
-    auto nudge = [&](int k) {
-        const auto r = partRange(k); const double d = parts()[k].v, tri = R.nextDouble() + R.nextDouble() - 1;
-        if (!wild || pitch(k)) return juce::String(juce::jlimit(r.lo, r.hi, d * (1 + partTolerance(k) * tri)), 4, true).getDoubleValue();
-        const double t = partToT(k, d) + (R.nextDouble() * 2 - 1) * (R.nextDouble() < 0.3 ? 0.6 : 0.25);
-        return juce::String(partFromT(k, juce::jlimit(0.0, 1.0, t)), 4, true).getDoubleValue();
+void TB303Processor::handleMessage(const juce::var& m) {
+    const auto type = m.getProperty("type", {}).toString();
+    const auto name = m.getProperty("name", {}).toString();
+    const auto value = m.getProperty("value", {});
+    if (type == "knob") { const int k = knobIndex(name.toStdString()); if (k >= 0) setKnobFromPage(k, num(value, knobs()[k].def)); }
+    else if (type == "component") { const int p = partIndex(name.toStdString()); if (p >= 0) setPartFromPage(p, num(value, -1)); }
+    else if (type == "wave") { setBoolParam("wave", value.toString() == "square"); seenWave = pWave->load(); }
+    else if (type == "fx") {
+        for (size_t i = 0; i < 5; ++i)
+            if (name == FX_NAMES[i]) { setBoolParam(juce::String("fx_") + FX_NAMES[i], (bool)value); seenFx[i] = apvts.getRawParameterValue(juce::String("fx_") + FX_NAMES[i])->load(); }
+    }
+    else if (type == "declick") {
+        setBoolParam("declick", (bool)m.getProperty("on", true));
+        auto* p = apvts.getParameter("declickms");
+        p->setValueNotifyingHost(p->convertTo0to1((float)juce::jlimit(0.5, 3.0, num(m.getProperty("ms", 1.5), 1.5))));
+    }
+    else if (type == "tune") {
+        if (const auto* a = value.getArray(); a && a->size() == 12) {
+            { const juce::SpinLock::ScopedLockType lock(tuneLock);
+              for (int i = 0; i < 12; i++) { const double c = num((*a)[i]); tuneCents[(size_t)i] = std::isfinite(c) ? jsRound(juce::jlimit(-100.0, 100.0, c) * 10) / 10 : 0.0; } }
+            ++tuneVersion;
+        }
+    }
+    else if (type == "pattern") {
+        if (const auto* a = value.getArray(); a && !a->isEmpty()) {
+            std::vector<Step> p; p.reserve((size_t)a->size());
+            for (auto& s : *a) p.push_back({ juce::jlimit(0, 59, (int)num(s.getProperty("code", 33), 33)), (bool)s.getProperty("gate", false),
+                                             (bool)s.getProperty("accent", false), (bool)s.getProperty("slide", false) });
+            { const juce::SpinLock::ScopedLockType lock(patternLock); pubPattern = std::move(p); }
+            ++patternVersion;
+        }
+    }
+    else if (type == "groove") {
+        { const juce::SpinLock::ScopedLockType lock(patternLock);
+          pubShuffle = juce::jlimit(0.0, 0.5, num(m.getProperty("shuffle", 0))); pubGate = juce::jlimit(0.1, 0.95, num(m.getProperty("gate", 0.5), 0.5)); }
+        ++patternVersion;
+    }
+    else if (type == "store") {
+        const auto key = m.getProperty("key", {}).toString();
+        if (!key.startsWith("tb303.")) return;
+        if (isProjectKey(key)) {
+            const juce::ScopedLock sl(storeLock);
+            if (value.isVoid() || value.isUndefined()) projStore.erase(key); else projStore[key] = value.toString();
+        } else SharedStore::get().set(key, value);
+    }
+    // 'bpm' and 'play': the host's; 'ir': the plug-in loads the impulse responses itself
+}
+
+void TB303Processor::markAllSeen() {
+    for (int k = 0; k < K::COUNT; ++k) seenKnob[(size_t)k] = knobParams[(size_t)k]->load();
+    for (size_t i = 0; i < modParams.size(); ++i) seenMod[i] = modParams[i].second->load();
+    seenWave = pWave->load();
+    for (size_t i = 0; i < 5; ++i) seenFx[i] = apvts.getRawParameterValue(juce::String("fx_") + FX_NAMES[i])->load();
+}
+
+void TB303Processor::collectChanges(juce::Array<juce::var>& out) {
+    auto msg = [&](const char* what, const juce::String& id, const juce::var& v) {
+        auto* o = new juce::DynamicObject();
+        o->setProperty("type", "set"); o->setProperty("what", what); o->setProperty("id", id); o->setProperty("value", v);
+        out.add(juce::var(o));
     };
-    const auto kn = allKnobs();
-    Parts cur = allParts(), found {}; bool ok = false;
-    for (int tries = 0; tries < (wild ? 24 : 8) && !ok; tries++) {
-        Parts cand; for (int k = 0; k < P::COUNT; ++k) cand[(size_t)k] = parts()[k].v;
-        for (int k : keys) cand[(size_t)k] = nudge(k);
-        Voice v(22050, 12345u);
-        v.c = cand; v.knobs = kn; v.square = *pWave > 0.5f; v.derive();
-        std::vector<float> buf(11025, 0.0f);
-        for (int n = 0; n < 4; n++) { v.noteOn(24 + 7 * (n & 1), n == 2, false); v.process(buf.data(), n * 2756, n * 2756 + 1500, nullptr); v.noteOff(); v.process(buf.data(), n * 2756 + 1500, n * 2756 + 2756, nullptr); }
-        double e = 0; bool fin = true;
-        for (float x : buf) { if (!std::isfinite(x)) fin = false; e += (double)x * x; }
-        if (fin && std::sqrt(e / buf.size()) > 0.015) { found = cand; ok = true; }
-    }
-    if (!ok) return "Could not find a random set that still sounds. Try again.";
-    partsUndo.push_back(cur); if (partsUndo.size() > 30) partsUndo.erase(partsUndo.begin());
-    for (int k = 0; k < P::COUNT; ++k) setPart(k, found[(size_t)k]); // like applySound({ parts: set }): the rest go back to stock
-    return wild ? "Messed up: " + juce::String((int)keys.size()) + " parts bent well outside spec (tuning left alone). Undo puts them back."
-                : "Built a new machine: " + juce::String((int)keys.size()) + " parts somewhere inside their real tolerances. The Circuit tab shows them, and Undo puts them back.";
-}
-
-juce::String TB303Processor::undoParts() {
-    if (partsUndo.empty()) return {};
-    const auto p = partsUndo.back(); partsUndo.pop_back();
-    for (int k = 0; k < P::COUNT; ++k) setPart(k, p[(size_t)k]);
-    return "Part values put back.";
-}
-
-// ---------------------------------------------------------------------------------------------------
-// microtuning
-TB303Processor::Tune TB303Processor::tune() const { const juce::SpinLock::ScopedLockType lock(tuneLock); return tuneCents; }
-void TB303Processor::setTune(const Tune& t) {
-    {
-        const juce::SpinLock::ScopedLockType lock(tuneLock);
-        for (size_t i = 0; i < 12; i++) { const double c = std::isfinite(t[i]) ? juce::jlimit(-100.0, 100.0, t[i]) : 0.0; tuneCents[i] = jsRound(c * 10) / 10; }
-    }
-    ++tuneVersion;
-}
-void TB303Processor::pushTuneUndo() { tuneUndo.push_back(tune()); if (tuneUndo.size() > 50) tuneUndo.erase(tuneUndo.begin()); }
-bool TB303Processor::undoTune() { if (tuneUndo.empty()) return false; const auto t = tuneUndo.back(); tuneUndo.pop_back(); setTune(t); return true; }
-
-// ---------------------------------------------------------------------------------------------------
-// web-app JSON. Same rules as cleanSettings() / applySound() / applyProject().
-void TB303Processor::applySound(const juce::var& x) {
-    auto* kn = x.getProperty("knobs", {}).getDynamicObject();
-    // sounds saved before the two-dial Compactor (no Amount) load with 40%, 20 ms release (cleanSettings in state.js)
-    juce::DynamicObject::Ptr knMig;
-    if (kn && !kn->hasProperty("cmpamt")) { knMig = kn->clone().release(); knMig->setProperty("cmpamt", 0.4); knMig->setProperty("cmprel", 0.14142); kn = knMig.get(); }
     for (int k = 0; k < K::COUNT; ++k) {
-        double v = knobs()[k].def;
-        if (kn) { const auto j = kn->getProperty(knobs()[k].id); if ((j.isDouble() || j.isInt() || j.isInt64()) && (double)j >= 0 && (double)j <= 1) v = j; }
-        float plain = (float)v;
-        if (k == K::lexprog) plain = (float)jsRound(v * 8);
-        else if (const int n = revSteps(k)) plain = (float)jsRound(v * (n - 1));
-        else if (k == K::dlytime) plain = (float)dlyDivIndex(v);
-        else if (k == K::dlypp) plain = v >= 0.5 ? 1.0f : 0.0f;
-        setParam(apvts, knobs()[k].id, plain);
+        const float r = knobParams[(size_t)k]->load();
+        if (r != seenKnob[(size_t)k]) { seenKnob[(size_t)k] = r; msg("knob", knobs()[k].id, knobValue(k)); }
     }
-    const auto* pa = x.getProperty("parts", {}).getDynamicObject();
-    for (int p = 0; p < P::COUNT; ++p) {
-        double v = parts()[p].v;
-        if (pa && !isFixedPart(p)) {
-            const auto j = pa->getProperty(parts()[p].id);
-            if ((j.isDouble() || j.isInt() || j.isInt64()) && std::isfinite((double)j) && (double)j >= 0) v = j;
-            if (p == P::NOISE) v = std::min(v, 1.0);
-        }
-        setPart(p, v);
+    for (size_t i = 0; i < modParams.size(); ++i) {
+        const float r = modParams[i].second->load();
+        if (r != seenMod[i]) { seenMod[i] = r; msg("part", parts()[modParams[i].first].id, partFromT(modParams[i].first, r)); }
     }
-    Tune tn {};
-    if (const auto* ta = x.getProperty("tune", {}).getArray(); ta && ta->size() == 12)
-        for (int i = 0; i < 12; i++) { const auto j = (*ta)[i]; if (j.isDouble() || j.isInt() || j.isInt64()) tn[(size_t)i] = j; }
-    setTune(tn);
-    setParam(apvts, "wave", x.getProperty("wave", "saw").toString() == "square" ? 1.0f : 0.0f);
-    const auto fx = x.getProperty("fx", {});
-    setParam(apvts, "fx_rat", (bool)fx.getProperty("rat", false) ? 1.0f : 0.0f);
-    setParam(apvts, "fx_lex", (bool)fx.getProperty("lex", false) ? 1.0f : 0.0f);
-    setParam(apvts, "fx_dly", (bool)fx.getProperty("dly", false) ? 1.0f : 0.0f);
-    setParam(apvts, "fx_fold", (bool)fx.getProperty("fold", false) ? 1.0f : 0.0f);
-    setParam(apvts, "fx_flg", (bool)fx.getProperty("flg", false) ? 1.0f : 0.0f);
+    if (const float r = pWave->load(); r != seenWave) { seenWave = r; msg("wave", {}, r > 0.5f ? "square" : "saw"); }
+    for (size_t i = 0; i < 5; ++i) {
+        const float r = apvts.getRawParameterValue(juce::String("fx_") + FX_NAMES[i])->load();
+        if (r != seenFx[i]) { seenFx[i] = r; msg("fx", FX_NAMES[i], r > 0.5f); }
+    }
 }
 
-void TB303Processor::applyProject(const juce::var& x) {
-    applySound(x.getProperty("sound", juce::var(new juce::DynamicObject())));
-    {
-        const juce::ScopedLock sl(modelLock);
-        const auto banks = x.getProperty("banks", {});
-        if (banks.isObject()) seq.fromVar(banks, x.getProperty("sel", {}), x.getProperty("chain", {}));
-        else { seq.chain.clear(); }
-    }
-    publish();
-}
-
-void TB303Processor::applyPreset(const juce::var& x) {
-    const auto kind = x.getProperty("kind", "").toString();
-    if (kind == "pattern") {
-        if (soundOnly()) return;
-        const auto pt = x.getProperty("pattern", {});
-        auto p = SeqModel::patternFromVar(pt.getProperty("pattern", {}));
-        {
-            const juce::ScopedLock sl(modelLock);
-            if (!p.empty()) { seq.cur().pattern = p; seq.tail.clear(); seq.edited(); }
-            const auto g = pt.getProperty("gate", {}), sh = pt.getProperty("shuffle", {});
-            if (g.isDouble() || g.isInt()) seq.cur().gate = juce::jlimit(0.1, 0.95, (double)g);
-            if (sh.isDouble() || sh.isInt()) seq.cur().shuffle = juce::jlimit(0.0, 0.5, (double)sh);
-        }
-        publish(); return;
-    }
-    if (kind == "sound" || soundOnly()) { applySound(x.getProperty("sound", juce::var(new juce::DynamicObject()))); return; }
-    applyProject(x);
-}
-
-juce::var TB303Processor::soundSnapshot() const {
-    auto* s = new juce::DynamicObject();
+// The page's localStorage at start: the shared keys, this project's keys, and the session's sound replaced by the
+// processor's (the host may have moved dials, or loaded a state, while the page was closed). A value the page set
+// is kept as it was when the parameter still holds it, so nothing drifts by float rounding.
+juce::String TB303Processor::bootScript() {
+    auto store = SharedStore::get().all();
+    for (auto& [k, v] : projectStore()) store[k] = v;
+    auto sess = juce::JSON::parse(store.count("tb303.session") ? store["tb303.session"] : juce::String());
+    if (!sess.isObject()) sess = juce::var(new juce::DynamicObject());
+    auto* so = sess.getDynamicObject();
+    auto oldKnobs = so->getProperty("knobs"), oldParts = so->getProperty("parts");
     auto* kn = new juce::DynamicObject();
-    for (int k = 0; k < K::COUNT; ++k) kn->setProperty(knobs()[k].id, knobValue(k));
-    s->setProperty("knobs", juce::var(kn));
+    for (int k = 0; k < K::COUNT; ++k) {
+        const double raw = knobParams[(size_t)k]->load(), was = num(oldKnobs.getProperty(knobs()[k].id, {}), -1), def = knobs()[k].def;
+        kn->setProperty(knobs()[k].id, was >= 0 && was <= 1 && plainFor(k, was) == raw ? was : plainFor(k, def) == raw ? def : knobValue(k));
+    }
+    so->setProperty("knobs", juce::var(kn));
     auto* pa = new juce::DynamicObject();
     for (int p = 0; p < P::COUNT; ++p) {
         if (isFixedPart(p)) continue;
-        const double v = partValue(p), d = parts()[p].v;
-        if (std::fabs(v - d) > (d != 0 ? 1e-4 * std::fabs(d) : 1e-9)) pa->setProperty(parts()[p].id, juce::String(v, 4, true).getDoubleValue());
-    }
-    s->setProperty("parts", juce::var(pa));
-    const auto tn = tune();
-    if (std::any_of(tn.begin(), tn.end(), [](double c) { return c != 0; })) { juce::Array<juce::var> ta; for (double c : tn) ta.add(c); s->setProperty("tune", ta); }
-    s->setProperty("wave", *pWave > 0.5f ? "square" : "saw");
-    auto* fx = new juce::DynamicObject();
-    fx->setProperty("rat", *pRat > 0.5f); fx->setProperty("lex", *pLex > 0.5f); fx->setProperty("dly", *pDly > 0.5f); fx->setProperty("fold", *pFold > 0.5f); fx->setProperty("flg", *pFlg > 0.5f);
-    s->setProperty("fx", juce::var(fx));
-    return juce::var(s);
-}
-
-juce::var TB303Processor::projectSnapshot() const {
-    auto* pr = new juce::DynamicObject();
-    pr->setProperty("sound", soundSnapshot());
-    pr->setProperty("bpm", engine ? juce::roundToInt(engine->bpm) : 128);
-    const juce::ScopedLock sl(modelLock);
-    auto* sel = new juce::DynamicObject(); sel->setProperty("g", juce::String::charToString((juce::juce_wchar)('A' + seq.selG))); sel->setProperty("n", seq.selN);
-    pr->setProperty("sel", juce::var(sel));
-    juce::Array<juce::var> ch; for (auto& k : seq.chain) ch.add(k);
-    pr->setProperty("chain", ch);
-    pr->setProperty("banks", seq.toVar());
-    return juce::var(pr);
-}
-
-juce::String TB303Processor::importFile(const juce::File& f) {
-    const auto j = juce::JSON::parse(f.loadFileAsString());
-    if (!j.isObject()) return "That file is not JSON from the web app.";
-    const auto name = f.getFileNameWithoutExtension().trim().substring(0, 40);
-    loadUserData();
-    auto* presets = userData.getProperty("presets", {}).getDynamicObject();
-    int added = 0;
-    auto addAll = [&](const juce::var& list, const juce::String& kind) {
-        if (auto* o = list.getDynamicObject())
-            for (auto& kv : o->getProperties()) {
-                const auto nm = kv.name.toString().trim().substring(0, 40);
-                if (!kv.value.isObject() || nm.isEmpty()) continue;
-                juce::var v = kv.value;
-                if (kind.isNotEmpty()) { auto* w = new juce::DynamicObject(); w->setProperty("kind", kind); w->setProperty(kind, kv.value); v = juce::var(w); }
-                presets->setProperty(nm, v); ++added;
+        double v = partValue(p);
+        for (auto& [mp, raw] : modParams)
+            if (mp == p) {
+                const double was = num(oldParts.getProperty(parts()[p].id, {}), parts()[p].v), t = raw->load();
+                if ((float)partToT(p, was) == t) v = was; else if ((float)partToT(p, parts()[p].v) == t) v = parts()[p].v;
             }
-    };
-    addAll(j.getProperty("projectPresets", {}), {});
-    addAll(j.getProperty("soundPresets", {}), "sound");
-    addAll(j.getProperty("patternPresets", {}), "pattern");
-    auto project = j.getProperty("project", {});
-    if (!project.isObject()) project = j.getProperty("current", {}).getProperty("project", {});
-    if (project.isObject()) {
-        presets->setProperty(name, project);
-        saveUserData();
-        applyProject(project);
-        lastPresetName = name;
-        return "Loaded " + name + " and saved it to My presets" + (added ? juce::String(", with ") + juce::String(added) + " more" : juce::String()) + ".";
+        const double d = parts()[p].v;
+        if (std::abs(v - d) > (d != 0 ? 1e-6 * std::abs(d) : 1e-9)) pa->setProperty(parts()[p].id, v);
     }
-    saveUserData();
-    const auto cur = j.getProperty("current", {});
-    if (cur.getProperty("sound", {}).isObject()) applySound(cur.getProperty("sound", {}));
-    if (added) return "Added " + juce::String(added) + " preset" + (added == 1 ? "" : "s") + " to My presets.";
-    const auto pat = SeqModel::patternFromVar(j.getProperty("pattern", {}));
-    if (!pat.empty()) { { const juce::ScopedLock sl(modelLock); seq.cur().pattern = pat; seq.edited(); } publish(); return "Loaded the pattern into " + seq.selKey() + "."; }
-    return "That file is not a preset export from the web app.";
-}
-
-void TB303Processor::exportProject(const juce::File& f) const {
-    auto* o = new juce::DynamicObject();
-    o->setProperty("app", "tb303-circuit-model"); o->setProperty("kind", "project"); o->setProperty("version", 1);
-    o->setProperty("project", projectSnapshot());
-    f.replaceWithText(juce::JSON::toString(juce::var(o)));
-}
-
-// Options > File > Export all: the current sound and pattern plus every saved preset
-void TB303Processor::exportAll(const juce::File& f) const {
-    auto* o = new juce::DynamicObject();
-    o->setProperty("app", "tb303-circuit-model"); o->setProperty("version", 2);
-    auto* cur = new juce::DynamicObject();
-    cur->setProperty("sound", soundSnapshot());
-    cur->setProperty("project", projectSnapshot());
-    o->setProperty("current", juce::var(cur));
-    o->setProperty("soundPresets", juce::var(new juce::DynamicObject()));
-    o->setProperty("patternPresets", juce::var(new juce::DynamicObject()));
-    o->setProperty("projectPresets", userData.getProperty("presets", juce::var(new juce::DynamicObject())));
-    f.replaceWithText(juce::JSON::toString(juce::var(o)));
-}
-
-juce::String TB303Processor::exportFavourites(const juce::File& f) const {
-    auto* out = new juce::DynamicObject(); int c = 0;
-    for (auto& n : userPresetNames()) if (isFavourite(n)) { out->setProperty(n, userPreset(n)); ++c; }
-    if (!c) return "No favourites yet: star some presets first.";
-    auto* o = new juce::DynamicObject();
-    o->setProperty("app", "tb303-circuit-model"); o->setProperty("kind", "presets"); o->setProperty("version", 1);
-    o->setProperty("projectPresets", juce::var(out));
-    f.replaceWithText(juce::JSON::toString(juce::var(o)));
-    return "Exported " + juce::String(c) + " favourite" + (c == 1 ? "" : "s") + " to " + f.getFileName() + ".";
+    so->setProperty("parts", juce::var(pa));
+    so->setProperty("wave", *pWave > 0.5f ? "square" : "saw");
+    auto* fx = new juce::DynamicObject();
+    for (auto* n : FX_NAMES) fx->setProperty(n, apvts.getRawParameterValue(juce::String("fx_") + n)->load() > 0.5f);
+    so->setProperty("fx", juce::var(fx));
+    {
+        const juce::SpinLock::ScopedLockType lock(tuneLock);
+        if (std::any_of(tuneCents.begin(), tuneCents.end(), [](double c) { return c != 0; })) { juce::Array<juce::var> t; for (double c : tuneCents) t.add(c); so->setProperty("tune", t); }
+        else so->removeProperty("tune");
+    }
+    store["tb303.session"] = juce::JSON::toString(sess, true);
+    markAllSeen();
+    auto* st = new juce::DynamicObject();
+    for (auto& [k, v] : store) st->setProperty(k, v);
+    auto* boot = new juce::DynamicObject(); boot->setProperty("store", juce::var(st));
+    return "<script>window.TB303_BOOT = " + juce::JSON::toString(juce::var(boot), true).replace("</", "<\\/") + ";</script>";
 }
 
 // ---------------------------------------------------------------------------------------------------
-juce::File TB303Processor::userPresetFile() {
-#if JUCE_MAC
-    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Application Support/TB303 Circuit Model/presets.json");
-#else
-    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("TB303 Circuit Model/presets.json");
-#endif
-}
-void TB303Processor::loadUserData() {
-    auto j = juce::JSON::parse(userPresetFile().loadFileAsString());
-    if (!j.isObject()) j = juce::var(new juce::DynamicObject());
-    // the first version of the plug-in kept presets at the top level
-    if (!j.hasProperty("presets")) {
-        auto* p = new juce::DynamicObject();
-        if (auto* o = j.getDynamicObject()) for (auto& kv : o->getProperties()) if (kv.value.isObject()) p->setProperty(kv.name, kv.value);
-        j = juce::var(new juce::DynamicObject()); j.getDynamicObject()->setProperty("presets", juce::var(p));
-    }
-    if (!j.getProperty("presets", {}).isObject()) j.getDynamicObject()->setProperty("presets", juce::var(new juce::DynamicObject()));
-    if (!j.getProperty("fav", {}).isArray()) j.getDynamicObject()->setProperty("fav", juce::Array<juce::var>());
-    userData = j;
-}
-void TB303Processor::saveUserData() const {
-    auto f = userPresetFile(); f.getParentDirectory().createDirectory();
-    f.replaceWithText(juce::JSON::toString(userData));
-}
-juce::StringArray TB303Processor::userPresetNames() const {
-    juce::StringArray s;
-    if (auto* o = userData.getProperty("presets", {}).getDynamicObject()) for (auto& kv : o->getProperties()) s.add(kv.name.toString());
-    s.sortNatural();
-    return s;
-}
-juce::var TB303Processor::userPreset(const juce::String& n) const { return userData.getProperty("presets", {}).getProperty(n, {}); }
-static const juce::var& factoryData() {
-    static const juce::var j = juce::JSON::parse(juce::String::fromUTF8(BinaryData::factorypresets_json, BinaryData::factorypresets_jsonSize));
-    return j;
-}
-juce::StringArray TB303Processor::factoryPresetNames() {
-    juce::StringArray s;
-    if (auto* o = factoryData().getDynamicObject()) for (auto& kv : o->getProperties()) if (kv.value.isObject()) s.add(kv.name.toString());
-    s.sortNatural();
-    return s;
-}
-juce::var TB303Processor::factoryPreset(const juce::String& n) { return factoryData().getProperty(n, {}); }
-juce::var TB303Processor::anyPreset(const juce::String& n) const {
-    const auto u = userPreset(n);
-    return u.isObject() ? u : factoryPreset(n);
-}
-void TB303Processor::savePreset(const juce::String& n) {
-    if (n.isEmpty()) return;
-    loadUserData();
-    userData.getProperty("presets", {}).getDynamicObject()->setProperty(n, projectSnapshot());
-    saveUserData();
-    lastPresetName = n;
-}
-void TB303Processor::removeUserPreset(const juce::String& n) {
-    loadUserData();
-    userData.getProperty("presets", {}).getDynamicObject()->removeProperty(n);
-    setFavourite(n, false);
-    saveUserData();
-}
-bool TB303Processor::isFavourite(const juce::String& n) const {
-    if (auto* a = userData.getProperty("fav", {}).getArray()) return a->contains(n);
-    return false;
-}
-void TB303Processor::setFavourite(const juce::String& n, bool on) {
-    auto* a = userData.getProperty("fav", {}).getArray(); if (!a) return;
-    a->removeAllInstancesOf(n);
-    if (on) a->add(n);
-    saveUserData();
-}
-bool TB303Processor::soundOnly() const { return (bool)userData.getProperty("soundOnly", false); }
-void TB303Processor::setSoundOnly(bool on) { userData.getDynamicObject()->setProperty("soundOnly", on); saveUserData(); }
-
-// ---------------------------------------------------------------------------------------------------
+// state: the parameters, plus the parts that are not parameters, the tuning, the pattern and the page's project keys
 void TB303Processor::getStateInformation(juce::MemoryBlock& dest) {
     auto state = apvts.copyState();
-    juce::ValueTree extra("Extra");
+    juce::ValueTree page("Page");
     {
-        const juce::ScopedLock sl(modelLock);
         auto* o = new juce::DynamicObject();
-        o->setProperty("banks", seq.toVar());
-        auto* sel = new juce::DynamicObject(); sel->setProperty("g", juce::String::charToString((juce::juce_wchar)('A' + seq.selG))); sel->setProperty("n", seq.selN);
-        o->setProperty("sel", juce::var(sel));
-        juce::Array<juce::var> ch; for (auto& k : seq.chain) ch.add(k);
-        o->setProperty("chain", ch);
-        o->setProperty("genDens", seq.genDens); o->setProperty("genBars", seq.genBars);
-        extra.setProperty("seq", juce::JSON::toString(juce::var(o), true), nullptr);
+        for (auto& [k, v] : projectStore()) o->setProperty(k, v);
+        page.setProperty("store", juce::JSON::toString(juce::var(o), true), nullptr);
     }
-    extra.setProperty("preset", lastPresetName, nullptr);
-    juce::String ps;
     {
+        auto* o = new juce::DynamicObject();
         const juce::SpinLock::ScopedLockType lock(partsLock);
-        for (int p = 0; p < P::COUNT; ++p)
-            if (!isModPart(p) && extraParts[(size_t)p] != parts()[p].v) ps << parts()[p].id << "=" << juce::String(extraParts[(size_t)p], 9, true) << ";";
+        for (int p = 0; p < P::COUNT; ++p) if (!isModPart(p) && extraParts[(size_t)p] != parts()[p].v) o->setProperty(parts()[p].id, extraParts[(size_t)p]);
+        page.setProperty("parts", juce::JSON::toString(juce::var(o), true), nullptr);
     }
-    extra.setProperty("parts", ps, nullptr);
-    { juce::StringArray ts; for (double t : tune()) ts.add(juce::String(t)); extra.setProperty("tune", ts.joinIntoString(";"), nullptr); extra.setProperty("tuneRoot", tuneRoot, nullptr); }
+    {
+        juce::Array<juce::var> t;
+        const juce::SpinLock::ScopedLockType lock(tuneLock);
+        for (double c : tuneCents) t.add(c);
+        page.setProperty("tune", juce::JSON::toString(t, true), nullptr);
+    }
+    {
+        juce::Array<juce::var> a;
+        const juce::SpinLock::ScopedLockType lock(patternLock);
+        for (auto& s : pubPattern) {
+            auto* o = new juce::DynamicObject();
+            o->setProperty("code", s.code); o->setProperty("gate", s.gate); o->setProperty("accent", s.accent); o->setProperty("slide", s.slide);
+            a.add(juce::var(o));
+        }
+        page.setProperty("pattern", juce::JSON::toString(a, true), nullptr);
+        page.setProperty("gate", pubGate, nullptr); page.setProperty("shuffle", pubShuffle, nullptr);
+    }
+    state.removeChild(state.getChildWithName("Page"), nullptr);
     state.removeChild(state.getChildWithName("Extra"), nullptr);
-    state.appendChild(extra, nullptr);
+    state.appendChild(page, nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary(*xml, dest);
 }
 
@@ -823,44 +701,47 @@ void TB303Processor::setStateInformation(const void* data, int size) {
     if (!xml) return;
     auto state = juce::ValueTree::fromXml(*xml);
     if (!state.hasType(apvts.state.getType())) return;
-    const auto extra = state.getChildWithName("Extra");
     if (!state.getChildWithProperty("id", "cmpamt").isValid()) { // sessions saved before the two-dial Compactor: 40%, 20 ms release
         juce::ValueTree a("PARAM"); a.setProperty("id", "cmpamt", nullptr).setProperty("value", 0.4, nullptr); state.appendChild(a, nullptr);
         auto r = state.getChildWithProperty("id", "cmprel"); if (r.isValid()) r.setProperty("value", 0.14142, nullptr);
     }
+    const auto page = state.getChildWithName("Page"), extra = state.getChildWithName("Extra");
     apvts.replaceState(state);
-    if (!extra.isValid()) return;
-    const auto j = juce::JSON::parse(extra.getProperty("seq").toString());
-    if (j.isObject()) {
-        const juce::ScopedLock sl(modelLock);
-        seq.fromVar(j.getProperty("banks", {}), j.getProperty("sel", {}), j.getProperty("chain", {}));
-        seq.genDens = juce::jlimit(0, 7, (int)j.getProperty("genDens", 0)); seq.genBars = juce::jlimit(1, 4, (int)j.getProperty("genBars", 1));
-    } else if (extra.hasProperty("pattern")) { // first plug-in version: one pattern
-        std::vector<Step> p;
-        for (auto& s : juce::StringArray::fromTokens(extra.getProperty("pattern").toString(), ";", "")) {
-            const auto code = s.upToFirstOccurrenceOf(",", false, false).getIntValue();
-            const auto f = s.fromFirstOccurrenceOf(",", false, false);
-            if (f.length() >= 3) p.push_back({ juce::jlimit(0, 59, code), f[0] == '1', f[1] == '1', f[2] == '1' });
-        }
-        const juce::ScopedLock sl(modelLock);
-        if (!p.empty()) seq.cur().pattern = p;
+    Parts ps; for (int i = 0; i < P::COUNT; ++i) ps[(size_t)i] = parts()[i].v;
+    std::array<double, 12> tn {};
+    std::map<juce::String, juce::String> st;
+    if (page.isValid()) {
+        const auto pj = juce::JSON::parse(page.getProperty("parts").toString()), tj = juce::JSON::parse(page.getProperty("tune").toString()),
+                   sj = juce::JSON::parse(page.getProperty("store").toString());
+        if (auto* o = pj.getDynamicObject())
+            for (auto& kv : o->getProperties()) { const int p = partIndex(kv.name.toString().toStdString()); if (p >= 0 && !isModPart(p)) ps[(size_t)p] = num(kv.value, parts()[p].v); }
+        if (const auto* a = tj.getArray(); a && a->size() == 12)
+            for (int i = 0; i < 12; i++) tn[(size_t)i] = num((*a)[i]);
+        if (auto* o = sj.getDynamicObject())
+            for (auto& kv : o->getProperties()) if (isProjectKey(kv.name.toString())) st[kv.name.toString()] = kv.value.toString();
+        juce::var pm(new juce::DynamicObject());
+        pm.getDynamicObject()->setProperty("type", "pattern"); pm.getDynamicObject()->setProperty("value", juce::JSON::parse(page.getProperty("pattern").toString()));
+        handleMessage(pm);
+        juce::var g(new juce::DynamicObject());
+        g.getDynamicObject()->setProperty("type", "groove"); g.getDynamicObject()->setProperty("gate", page.getProperty("gate", 0.5)); g.getDynamicObject()->setProperty("shuffle", page.getProperty("shuffle", 0));
+        handleMessage(g);
+    } else if (extra.isValid()) { // saved by the earlier plug-in: keep its parts and tuning (its pattern banks are not the web app's)
+        for (auto& s : juce::StringArray::fromTokens(extra.getProperty("parts").toString(), ";", ""))
+            if (const int p = partIndex(s.upToFirstOccurrenceOf("=", false, false).toStdString()); p >= 0 && !isModPart(p)) ps[(size_t)p] = s.fromFirstOccurrenceOf("=", false, false).getDoubleValue();
+        const auto ts = juce::StringArray::fromTokens(extra.getProperty("tune").toString(), ";", "");
+        if (ts.size() == 12) for (int i = 0; i < 12; i++) tn[(size_t)i] = ts[i].getDoubleValue();
     }
-    lastPresetName = extra.getProperty("preset").toString();
-    {
-        const juce::SpinLock::ScopedLockType lock(partsLock);
-        for (int i = 0; i < P::COUNT; ++i) if (!isModPart(i)) extraParts[(size_t)i] = parts()[i].v;
-        for (auto& kv : juce::StringArray::fromTokens(extra.getProperty("parts").toString(), ";", "")) {
-            const int i = partIndex(kv.upToFirstOccurrenceOf("=", false, false).toStdString());
-            if (i >= 0 && !isModPart(i)) extraParts[(size_t)i] = kv.fromFirstOccurrenceOf("=", false, false).getDoubleValue();
-        }
-    }
+    { const juce::SpinLock::ScopedLockType lock(partsLock); extraParts = ps; }
     ++partsVersion;
-    Tune tn {};
-    const auto ts = juce::StringArray::fromTokens(extra.getProperty("tune").toString(), ";", "");
-    if (ts.size() == 12) for (int i = 0; i < 12; i++) tn[(size_t)i] = ts[i].getDoubleValue();
-    setTune(tn); tuneRoot = juce::jlimit(0, 11, (int)extra.getProperty("tuneRoot", 9));
-    publish();
+    { const juce::SpinLock::ScopedLockType lock(tuneLock); tuneCents = tn; }
+    ++tuneVersion;
+    { const juce::ScopedLock sl(storeLock); projStore = std::move(st); }
+    ++stateVersion;
 }
 
+#ifndef TB303_NO_EDITOR
 juce::AudioProcessorEditor* TB303Processor::createEditor() { return new TB303Editor(*this); }
+#else
+juce::AudioProcessorEditor* TB303Processor::createEditor() { return nullptr; } // the host test has no window
+#endif
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new TB303Processor(); }

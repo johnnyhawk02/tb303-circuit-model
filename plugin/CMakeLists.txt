@@ -37,24 +37,25 @@ juce_add_plugin(TB303CircuitModel
   NEEDS_MIDI_INPUT TRUE
   NEEDS_MIDI_OUTPUT FALSE
   IS_MIDI_EFFECT FALSE
-  EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+  EDITOR_WANTS_KEYBOARD_FOCUS TRUE
+  NEEDS_WEB_BROWSER TRUE
   VST3_CATEGORIES Instrument Synth
   AU_MAIN_TYPE kAudioUnitType_MusicDevice
   COPY_PLUGIN_AFTER_BUILD FALSE)
 
 target_sources(TB303CircuitModel PRIVATE
   Source/PluginProcessor.cpp
-  Source/PluginEditor.cpp
-  Source/SeqModel.cpp)
+  Source/PluginEditor.cpp)
 
-# the web app's factory patterns (the source material for Generate and Refill) and the VT323 pixel font
-# (SIL Open Font License, Resources/VT323-OFL.txt) for the LCD look
-# and the Conv reverb's recorded impulse responses (../irs, credits in irs/CREDITS.md)
+# the window is the web app's own page: Resources/ui.html (written by `node build.js` from src/, with the factory
+# presets and patterns inside), the VT323 pixel font it uses (SIL Open Font License, Resources/VT323-OFL.txt),
+# and the Conv reverb's recorded impulse responses (../irs, credits in irs/CREDITS.md) with their list
 file(GLOB TB303_IRS ${CMAKE_CURRENT_SOURCE_DIR}/../irs/*.flac)
-juce_add_binary_data(TB303Data SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../patterns.json ${CMAKE_CURRENT_SOURCE_DIR}/../factory-presets.json ${CMAKE_CURRENT_SOURCE_DIR}/Resources/VT323-Regular.ttf ${TB303_IRS})
+juce_add_binary_data(TB303Data SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Resources/ui.html ${CMAKE_CURRENT_SOURCE_DIR}/Resources/VT323-Regular.ttf
+  ${CMAKE_CURRENT_SOURCE_DIR}/../irs/irs.json ${TB303_IRS})
 
 target_compile_definitions(TB303CircuitModel PUBLIC
-  JUCE_WEB_BROWSER=0
+  JUCE_WEB_BROWSER=1
   JUCE_USE_CURL=0
   JUCE_VST3_CAN_REPLACE_VST2=0
   JUCE_DISPLAY_SPLASH_SCREEN=0)
@@ -80,8 +81,8 @@ endif()
 
 # host-style test of the processor: transport sync and MIDI (run: tb303_hosttest)
 juce_add_console_app(tb303_hosttest PRODUCT_NAME "tb303_hosttest")
-target_sources(tb303_hosttest PRIVATE tests/host_test.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/SeqModel.cpp)
-target_compile_definitions(tb303_hosttest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JucePlugin_Name="TB303 Circuit Model" JUCE_STANDALONE_APPLICATION=1)
+target_sources(tb303_hosttest PRIVATE tests/host_test.cpp Source/PluginProcessor.cpp)
+target_compile_definitions(tb303_hosttest PRIVATE TB303_NO_EDITOR=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JucePlugin_Name="TB303 Circuit Model" JUCE_STANDALONE_APPLICATION=1)
 target_compile_options(tb303_hosttest PRIVATE -ffp-contract=off)
-target_link_libraries(tb303_hosttest PRIVATE TB303Data juce::juce_audio_utils PUBLIC juce::juce_recommended_config_flags)
+target_link_libraries(tb303_hosttest PRIVATE TB303Data juce::juce_audio_utils juce::juce_dsp PUBLIC juce::juce_recommended_config_flags)
 add_test(NAME host COMMAND tb303_hosttest)

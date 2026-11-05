@@ -1,5 +1,5 @@
 // Drives the plugin's processor like a host would: transport playing at 128 BPM, then MIDI notes.
-// Writes host_test.wav and checks that notes land on the 16th-note grid.
+// Writes host_test.wav and checks that notes land on the 16th-note grid, then the page's messages and the saved state.
 #include "../Source/PluginProcessor.h"
 
 struct FakePlayHead : juce::AudioPlayHead {
@@ -43,41 +43,40 @@ int main() {
     if (auto w = std::unique_ptr<juce::AudioFormatWriter>(wav.createWriterFor(new juce::FileOutputStream(f), fs, 2, 24, {}, 0))) w->writeFromAudioSampleBuffer(all, 0, all.getNumSamples());
     bool ok = firstSound >= 0 && firstSound < 400 && rmsSeq > 0.01f && rmsMidi > 0.01f;
 
-    // sequencer model, presets and state, like the web app
+    // messages from the page, and the state the host saves
     auto check = [&](bool c, const char* what) { if (!c) { std::printf("FAILED: %s\n", what); ok = false; } };
-    int filled = 0; for (auto& sl : proc.seq.slots) for (auto& st : sl.pattern) if (st.gate) { filled++; break; }
-    check(filled == 48, "every slot starts filled (A1 example, the rest generated)");
-    {
-        const juce::ScopedLock sl(proc.modelLock);
-        proc.seq.select(1, 2);
-        const auto msg = proc.seq.generate();
-        std::printf("generate: %s\n", msg.toRawUTF8());
-        check(!proc.seq.cur().pattern.empty() && proc.seq.canUndo(), "generate");
-        proc.seq.toggleChain(1, 5);
-        check(proc.seq.chain.size() == 2 && proc.seq.chain[0] == "B3" && proc.seq.chain[1] == "B6", "chain B3 > B6");
-        std::printf("alter: %s\njoin: %s\n", proc.seq.alter().toRawUTF8(), proc.seq.joinChain().toRawUTF8());
-    }
-    proc.publish();
-    const auto parts = proc.randomiseParts(true);
-    std::printf("parts: %s\n", parts.toRawUTF8());
-    check(proc.canUndoParts(), "messed up");
-    const double r52 = proc.partValue(tb303::P::R52), c35 = proc.partValue(tb303::P::C35);
+    auto msg = [](const char* json) { return juce::JSON::parse(juce::String(json)); };
+    proc.handleMessage(msg(R"({"type":"knob","name":"cutoff","value":0.42})"));
+    proc.handleMessage(msg(R"({"type":"knob","name":"revtype","value":0.6666666666666666})"));
+    proc.handleMessage(msg(R"({"type":"component","name":"R52","value":150000})"));   // a mod (host parameter)
+    proc.handleMessage(msg(R"({"type":"component","name":"C33","value":1.2e-8})"));   // a part that is not a parameter
+    proc.handleMessage(msg(R"({"type":"fx","name":"flg","value":true})"));
+    proc.handleMessage(msg(R"({"type":"wave","value":"square"})"));
+    proc.handleMessage(msg(R"({"type":"tune","value":[0,0,0,0,0,0,0,0,0,-13.7,0,0]})"));
+    proc.handleMessage(msg(R"({"type":"pattern","value":[{"code":33,"gate":true,"accent":true,"slide":false},{"code":45,"gate":true,"accent":false,"slide":true},{"code":21,"gate":false,"accent":false,"slide":false}]})"));
+    proc.handleMessage(msg(R"({"type":"store","key":"tb303.banks","value":"{\"A1\":{}}"})"));
+    check(std::fabs(proc.knobValue(tb303::K::cutoff) - 0.42) < 1e-6, "knob");
+    check(std::fabs(proc.knobValue(tb303::K::revtype) - 2.0 / 3) < 1e-9, "stepped knob");
+    check(std::fabs(proc.partValue(tb303::P::R52) / 150000 - 1) < 1e-5, "mod part");
+    check(proc.pattern().size() == 3 && proc.pattern()[1].slide, "pattern");
+    juce::Array<juce::var> changes; proc.collectChanges(changes);
+    check(changes.isEmpty(), "the page's own changes are not sent back");
+    proc.apvts.getParameter("cutoff")->setValueNotifyingHost(0.9f); // host automation
+    proc.collectChanges(changes);
+    check(changes.size() == 1 && changes[0].getProperty("id", {}).toString() == "cutoff", "automation goes to the page");
     juce::MemoryBlock state; proc.getStateInformation(state);
     TB303Processor other; other.setStateInformation(state.getData(), (int)state.getSize());
-    check(other.seq.chain.joinIntoString(",") == "B3,B6" && other.seq.selKey() == "B3", "state keeps chain and selection");
-    check(std::fabs(other.partValue(tb303::P::R52) / r52 - 1) < 1e-6 && std::fabs(other.partValue(tb303::P::C35) / c35 - 1) < 1e-6, "state keeps parts");
-    bool same = true; for (int i = 0; i < 48; ++i) { const auto& a = proc.seq.slots[(size_t)i].pattern; const auto& b = other.seq.slots[(size_t)i].pattern;
-        same &= a.size() == b.size(); for (size_t j = 0; same && j < a.size(); ++j) same &= a[j].code == b[j].code && a[j].gate == b[j].gate && a[j].accent == b[j].accent && a[j].slide == b[j].slide; }
-    check(same, "state keeps all 48 slots");
-    // web app project format both ways
-    auto tmp = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("tb303-host-test.json");
-    proc.exportProject(tmp);
-    TB303Processor third; const auto msg = third.importFile(tmp);
-    std::printf("import: %s\n", msg.toRawUTF8());
-    check(third.seq.chain.joinIntoString(",") == "B3,B6" && std::fabs(third.partValue(tb303::P::R52) / r52 - 1) < 1e-3, "export / import project");
-    tmp.deleteFile();
-    third.removeUserPreset("tb303-host-test");
-    std::printf("auto names: %s, %s\n", tb303::autoName({}).toRawUTF8(), tb303::autoName({}).toRawUTF8());
+    check(std::fabs(other.partValue(tb303::P::C33) / 1.2e-8 - 1) < 1e-9 && std::fabs(other.partValue(tb303::P::R52) / 150000 - 1) < 1e-5, "state keeps parts");
+    check(other.pattern().size() == 3 && other.pattern()[0].accent && !other.pattern()[2].gate, "state keeps the pattern");
+    check(other.projectStore()["tb303.banks"] == "{\"A1\":{}}", "state keeps the page's project keys");
+    const auto boot = other.bootScript();
+    const auto bootJson = juce::JSON::parse(boot.fromFirstOccurrenceOf("=", false, false).upToLastOccurrenceOf(";</script>", false, false));
+    const auto sess = juce::JSON::parse(bootJson.getProperty("store", {}).getProperty("tb303.session", {}).toString());
+    check(std::fabs((double)sess.getProperty("parts", {}).getProperty("C33", 0) / 1.2e-8 - 1) < 1e-9, "boot session has the parts");
+    check((bool)sess.getProperty("fx", {}).getProperty("flg", false) && sess.getProperty("wave", {}).toString() == "square"
+          && std::fabs((double)sess.getProperty("tune", {})[9] + 13.7) < 1e-9, "boot session has the sound");
+    check((double)sess.getProperty("knobs", {}).getProperty("resonance", 0) == 0.82, "untouched dials keep their exact default");
+    if (!ok) std::printf("%s\n", boot.substring(0, 1500).toRawUTF8());
     std::printf(ok ? "OK\n" : "FAILED\n");
     return ok ? 0 : 1;
 }

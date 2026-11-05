@@ -1,21 +1,40 @@
 #pragma once
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "dsp/TB303Model.h"
-#include "SeqModel.h"
 
-// The front-panel mods (FRONT_MODS in parts.js) plus the TM3 filter trim are automatable parameters;
-// every other part is set on the Circuit page or by presets.
+// The plug-in is the web app: its editor shows the app's own page (Resources/ui.html, made by build.js from src/)
+// in a web view, and the page drives this processor with the same messages it sends the web app's AudioWorklet
+// (TB303Engine.message in tb303-model.js). The engine is the C++ port (dsp/TB303Model.h). The host plays and sets
+// the tempo: the sequencer follows the host transport, and MIDI notes play the voice.
+
+// The voice dials, FX dials, the front-panel mods and the FX switches are host parameters (automation, MIDI CC);
+// every other part, the tuning and the pattern are kept here and saved with the host's project.
 struct ModInfo { const char* part; const char* name; const char* desc; };
 const std::vector<ModInfo>& frontMods();
 bool isModPart(int part);
-bool isFixedPart(int part);
-double partTolerance(int part);          // spread between real units (tolerance() in functions.js)
-std::vector<double> seriesValues(int part); // E24 / E12 values inside the part's dial range, or empty
-double snapReal(int part, double v);
 
 // MIDI CC 1.. follow the voice dials, then the mods (MIDI_MAP in midi.js)
 struct CcTarget { juce::String paramId, name; };
 const std::vector<CcTarget>& ccMap();
+
+// localStorage of the plug-in's page. This project's keys (the session, pattern banks, ...) are kept by each
+// plug-in instance and saved with the host project; the rest (presets, favourites, the screen look) are shared by
+// every instance and kept in one file: ~/Library/Application Support/TB303 Circuit Model/web-store.json.
+bool isProjectKey(const juce::String& key);
+class SharedStore : private juce::Timer {
+public:
+    static SharedStore& get();
+    std::map<juce::String, juce::String> all();
+    void set(const juce::String& key, const juce::var& value); // a void var removes the key
+    void flush();
+    static juce::File file();
+private:
+    SharedStore();
+    void timerCallback() override { flush(); }
+    juce::CriticalSection lock;
+    std::map<juce::String, juce::String> data;
+    bool dirty = false;
+};
 
 class TB303Processor : public juce::AudioProcessor, private juce::AudioProcessorValueTreeState::Listener, private juce::AsyncUpdater {
 public:
@@ -44,72 +63,33 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-    // ---- sequencer model (message thread; lock modelLock around changes) ----
-    juce::CriticalSection modelLock;
-    tb303::SeqModel seq;
-    void publish();                          // call after any change to seq
-    std::vector<int> chainOffs;              // of the published sequence
-    std::atomic<int> currentStep { -1 };     // index into the published sequence
-    std::atomic<bool> seqRunning { false };
-    std::atomic<int> modelVersion { 0 };     // bumped by publish(), so editors redraw
+    // ---- the page (message thread) ----
+    void handleMessage(const juce::var& m);   // a message from the page: knob, component, wave, fx, tune, pattern, groove, declick, store
+    juce::String bootScript();                // window.TB303_BOOT for the page: its localStorage, with the sound as the processor has it
+    // dials the page did not move itself (host automation, MIDI CC), as { type: 'set', what, id, value } messages
+    void collectChanges(juce::Array<juce::var>& out);
+    void endGestures();                       // ends host gestures for dials the page stopped moving
 
-    // ---- parts (message thread) ----
+    std::atomic<int> currentStep { -1 };      // index into the pattern the page sent; -1 when the host is stopped
+    std::atomic<double> hostBpm { 128 };
+    std::atomic<int> stateVersion { 0 };      // bumped when the host loads a state, so an open page reloads
+    double sampleRateNow() const { return fs; }
+
+    // state kept for the page and the engine (also used by the tests)
+    double knobValue(int k) const;            // 0..1 as the page has it
     double partValue(int part) const;
-    void setPart(int part, double v);
-    juce::String randomiseParts(bool wild);  // New unit / Messed up
-    juce::String undoParts();
-    bool canUndoParts() const { return !partsUndo.empty(); }
-    void restoreParts();
-    tb303::Parts allParts() const;
-    tb303::Knobs allKnobs() const;
-    double knobValue(int k) const;
-
-    // ---- microtuning (message thread): cents for C..B, every octave; part of the sound (tuning.js) ----
-    using Tune = std::array<double, 12>;
-    Tune tune() const;
-    void setTune(const Tune& t);             // rounds to 0.1 c, clamps to ±100
-    int tuneRoot = 9;                        // the temperaments' root (A), kept with the plug-in's state
-    void pushTuneUndo(); bool undoTune(); bool canUndoTune() const { return !tuneUndo.empty(); }
-
-    // ---- presets (web app formats) ----
-    void applySound(const juce::var& sound);
-    void applyPreset(const juce::var& preset); // honours Sound only
-    void applyProject(const juce::var& project);
-    juce::var soundSnapshot() const;
-    juce::var projectSnapshot() const;
-    juce::String importFile(const juce::File& f);
-    void exportProject(const juce::File& f) const;
-    void exportAll(const juce::File& f) const;
-    juce::String exportFavourites(const juce::File& f) const;
-
-    // user presets, favourites and Sound only: one file shared by every instance
-    juce::StringArray userPresetNames() const;
-    juce::var userPreset(const juce::String& name) const;
-    // factory presets: factory-presets.json (the web app's Factory list), embedded; a saved preset of the same name wins
-    static juce::StringArray factoryPresetNames();
-    static juce::var factoryPreset(const juce::String& name);
-    juce::var anyPreset(const juce::String& name) const;
-    void savePreset(const juce::String& name);
-    void removeUserPreset(const juce::String& name);
-    bool isFavourite(const juce::String& name) const;
-    void setFavourite(const juce::String& name, bool on);
-    bool soundOnly() const;
-    void setSoundOnly(bool on);
-    static juce::File userPresetFile();
-    juce::String lastPresetName;
-
-    // ---- monitor ----
-    static constexpr int SCOPE = 4096;
-    float scope[SCOPE] {};
-    std::atomic<int> scopeWrite { 0 };
-
-    static juce::String formatPart(double v, const juce::String& unit);
+    std::vector<tb303::Step> pattern() const;
+    std::map<juce::String, juce::String> projectStore() const;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void parameterChanged(const juce::String& id, float newValue) override;
     void handleAsyncUpdate() override;
     void pushAllParams(bool instant);
+    void setKnobFromPage(int k, double v);
+    void setPartFromPage(int part, double v);
+    void setBoolParam(const juce::String& id, bool on);
+    void touch(juce::RangedAudioParameter* p);
 
     std::unique_ptr<tb303::Engine> engine;
     double fs = 48000;
@@ -121,21 +101,27 @@ private:
     std::atomic<float>*pWave, *pRat, *pLex, *pDly, *pFold, *pFlg, *pDeclick, *pDeclickMs, *pSeq;
     float lastFade = -1;
 
+    // what the page last saw of each parameter (raw value), so changes from elsewhere go back to it
+    std::array<float, tb303::K::COUNT> seenKnob {};
+    std::vector<float> seenMod;
+    float seenWave = 0; std::array<float, 5> seenFx {};
+    void markAllSeen();
+    // host gestures: a parameter the page moves stays "touched" until it rests for a moment
+    std::map<juce::RangedAudioParameter*, juce::uint32> gestures;
+
     // parts that are not parameters
     mutable juce::SpinLock partsLock;
     tb303::Parts extraParts {};
     std::atomic<int> partsVersion { 0 };
     int partsSeen = -1;
     tb303::Parts sentParts {};
-    std::vector<tb303::Parts> partsUndo;
 
     mutable juce::SpinLock tuneLock;
-    Tune tuneCents {};
+    std::array<double, 12> tuneCents {};
     std::atomic<int> tuneVersion { 0 };
     int tuneSeen = -1;
-    std::vector<Tune> tuneUndo;
 
-    // published sequence
+    // the pattern from the page (chained slots joined), with its groove
     mutable juce::SpinLock patternLock;
     std::vector<tb303::Step> pubPattern;
     double pubGate = 0.5, pubShuffle = 0;
@@ -143,14 +129,14 @@ private:
     int patternSeen = -1;
     std::vector<tb303::Step> audioPattern;
 
+    // this project's localStorage keys
+    mutable juce::CriticalSection storeLock;
+    std::map<juce::String, juce::String> projStore;
+
     // MIDI
     std::vector<int> held;
     bool midiAccent = false, hostSynced = false, lastDeclick = true;
     std::array<std::atomic<float>, 32> ccPending;
-
-    juce::var userData; // { presets: {name: preset}, fav: [names], soundOnly: bool }
-    void loadUserData();
-    void saveUserData() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TB303Processor)
 };

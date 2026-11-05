@@ -13,26 +13,28 @@ The web app's TB-303 model as a VST3 / AU instrument (and a standalone app), bui
   are written by `node plugin/tools/gen-tables.js` from `COMPONENTS` in `tb303-model.js` and `KNOBS` in
   `src/js/app/state.js`. Run it after changing either; CI fails if they are stale. New knobs go at the end of
   its `KNOB_ORDER`, which is the plug-in's parameter order.
-- **Everything the web app has, laid out the same way.** Voice knobs with the web page's readouts, the
-  TM3 filter trim, and *New unit* / *Messed up* / *Undo* for the components. Tabs for the Sequencer, the
-  twelve Mods (E24 / E12 steps, Shift for in-between), FX (RAT, Delay with Ping-pong / Mono, Compactor with
-  Amount and Release, the reverb with its 224 / Plate / Spring / Conv switch, program buttons, LCD and note), Circuit (every part by block),
-  Board (the stylised PCB), Monitor (de-click, scope, readouts), MIDI (the CC map) and About.
-- **Sequencer.** Banks A-D x slots 1-12, chains (Cmd-click or right-click a slot), Copy / Paste / Clear /
-  Refill, patterns up to 64 steps (the grid shows at least 32; clicking past the end extends), Length,
-  Duplicate steps, Shuffle notes, Step len, Shift, Transpose, Generate with Density and Bars, and the
-  Functions menu (Join chain and copy, Alter pattern, Undo). It follows the host's transport and tempo,
-  locked to the bar; there is no Play button or tempo dial, the host does that.
+- **The web app's own screen.** The window is the web app's page itself: `Resources/ui.html`, which
+  `node build.js` writes next to `index.html` from the same `src/` (so commit both after any `src/` change; CI
+  checks). It runs in the system web view and is served from the plug-in, with the VT323 font embedded, so the
+  look, the pages, the preset menu with all the factory presets, the sequencer, the FX page, Options and every
+  key command are the web app's. The only differences: no Play button and no Tempo dial, because the host
+  plays, stops and sets the tempo, and no Install app button.
+- **How the page drives the engine.** `src/js/app/plugin.js` and `web/shim.js`: every message the page would
+  send the web app's AudioWorklet (`knob`, `component`, `wave`, `fx`, `tune`, `pattern`, `groove`, `declick`)
+  goes to the processor instead, which sends back the playing step, the host tempo and any dial moved by
+  automation or MIDI CC. The page's localStorage lives in the plug-in: this project's keys (the session,
+  pattern slots, chain, open tab) are saved with the host project; presets, favourites and the screen look
+  are shared by every instance in `~/Library/Application Support/TB303 Circuit Model/web-store.json`
+  (presets saved by the earlier plug-in are moved into My presets on first run). Export all / Export
+  favourites open a save panel.
+- **Host parameters.** The voice and FX dials, the front-panel mods, the waveform and the FX switches are
+  automatable; moving one in the host moves it on the page.
+- **Sequencer.** It follows the host's transport and tempo, locked to the bar: step *n* of the pattern (or
+  chain) plays on 16th note *n*.
 - **MIDI.** Notes play the voice at any time: mono, last note wins, a note played while another is held
   slides (legato), velocity 100 or more is an accent. MIDI A2 (note 45) is the 303's A, 110 Hz. CC 1-8
   move the voice dials in panel order (Tuning, Cutoff, Reso, Key track, Env mod, Decay, Accent, Volume),
   CC 9 the Filter trim and CC 10-21 the Mods page, as in the web app.
-- **Presets.** The top bar has the web app's preset browser: search, star favourites (and show only them),
-  previous / next, Save with the auto-namer (and another name), Delete, and *Sound only*. Presets are whole
-  projects (sound, all 48 slots and the chain), kept in
-  `~/Library/Application Support/TB303 Circuit Model/presets.json` and shared by every instance. *File*
-  imports the web app's files (a project, favourites or Export all) and exports a preset, your favourites,
-  or everything, in the web app's format.
 - **De-click** adds 3 ms of latency, reported to the host so it compensates.
 
 ## Build
@@ -45,4 +47,6 @@ cmake -S plugin -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 JUCE is fetched by CMake; pass `-DJUCE_DIR=/path/to/JUCE` to use a checkout. `ctest --test-dir build`
-runs the parity test (needs Node) and the host test (transport sync and MIDI through the processor).
+runs the parity test (needs Node) and the host test (transport sync, MIDI, the page's messages and the saved
+state through the processor). On Linux the window loads the page from a temporary folder, because JUCE's
+WebKitGTK helper can't take the page over its pipe; macOS and Windows serve it straight from the plug-in.

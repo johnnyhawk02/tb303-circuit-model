@@ -157,7 +157,9 @@ const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 let ctx = null, node = null, analyser = null, fallback = null;
 // the deploy stamps the version; a local build shows 'dev'
 { const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
-const send = (m) => { if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
+// in the plug-in (plugin/) the page runs inside the host and every message goes to the C++ engine instead (plugin.js)
+const PLUGIN = !!window.TB303_PLUGIN;
+const send = (m) => { if (PLUGIN) window.TB303_BRIDGE.send(m); else if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
 // de-click is a playback preference, kept apart from sounds and projects; its switch went with the Options Monitor tab, so a stored setting still holds and the default is on, 1.5 ms
 const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));
 function sendDeclick() { send({ type: 'declick', on: declick.on, ms: declick.ms }); }
