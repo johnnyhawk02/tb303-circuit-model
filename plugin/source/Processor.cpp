@@ -17,7 +17,20 @@ const char* findResource (const juce::String& file, int& size) {
 }
 
 TB303Processor::TB303Processor()
-    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)) {}
+    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)) {
+    auto add = [this] (Param::Kind kind, const char* name, const std::string& key, juce::RangedAudioParameter* p) {
+        auto P = std::make_unique<Param>(); P->kind = kind; P->name = name; P->key = key; P->p = p;
+        addParameter (p); paramByKey[key] = P.get(); params.push_back (std::move (P));
+    };
+    const auto attrs = juce::AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return juce::String (juce::roundToInt (v * 100)) + "%"; });
+#define TB_ADD_KNOB(id, label, def) add (Param::Knob, #id, "k:" #id, new juce::AudioParameterFloat (juce::ParameterID { #id, 1 }, label, juce::NormalisableRange<float> (0.f, 1.f), (float) (def), attrs));
+    TB_PARAM_KNOBS (TB_ADD_KNOB)
+#undef TB_ADD_KNOB
+#define TB_ADD_FX(id, label) add (Param::Fx, #id, "fx:" #id, new juce::AudioParameterBool (juce::ParameterID { "fx_" #id, 1 }, label, false));
+    TB_PARAM_FX (TB_ADD_FX)
+#undef TB_ADD_FX
+    add (Param::Wave, "wave", "wave", new juce::AudioParameterBool (juce::ParameterID { "wave", 1 }, "Square wave", false));
+}
 
 TB303Processor::~TB303Processor() {
     *alive = false;
@@ -92,8 +105,77 @@ void TB303Processor::handleUiMessage (const juce::var& m) {
     Msg msg; std::string key;
     if (!parse (m, msg, key)) return;
     { std::lock_guard<std::mutex> g (snapshotLock); snapshot[key] = m; }
-    std::lock_guard<std::mutex> g (queueLock);
-    queue.push_back (std::move (msg));
+    {
+        std::lock_guard<std::mutex> g (queueLock);
+        queue.push_back (std::move (msg));
+    }
+    // a control moved on the screen: the DAW parameter follows (and records, in write mode)
+    auto it = paramByKey.find (key);
+    if (it != paramByKey.end()) {
+        Param& P = *it->second; const float v = msgValue (P, m);
+        P.ui = v;
+        if (std::isfinite (v) && v != P.p->getValue()) {
+            P.applied.store (v);
+            if (!P.gesture) { P.p->beginChangeGesture(); P.gesture = true; }
+            P.p->setValueNotifyingHost (v);
+            P.touched = juce::Time::getMillisecondCounterHiRes();
+        }
+    }
+}
+
+float TB303Processor::msgValue (const Param& P, const juce::var& m) {
+    const juce::var v = m["value"];
+    if (P.kind == Param::Wave) return v.toString() == "square" ? 1.f : 0.f;
+    if (P.kind == Param::Fx) return (bool) v ? 1.f : 0.f;
+    return (v.isDouble() || v.isInt() || v.isInt64()) ? juce::jlimit (0.f, 1.f, (float) (double) v) : NAN;
+}
+
+juce::var TB303Processor::paramMessage (const Param& P, float v) const {
+    juce::DynamicObject::Ptr o = new juce::DynamicObject();
+    if (P.kind == Param::Wave) { o->setProperty ("type", "wave"); o->setProperty ("value", v >= 0.5f ? "square" : "saw"); }
+    else if (P.kind == Param::Fx) { o->setProperty ("type", "fx"); o->setProperty ("name", juce::String (P.name)); o->setProperty ("value", v >= 0.5f); }
+    else { o->setProperty ("type", "knob"); o->setProperty ("name", juce::String (P.name)); o->setProperty ("value", (double) v); }
+    return juce::var (o.get());
+}
+
+// a parameter the DAW moved (automation, a generic editor) replaces the snapshot's message; one the page set to this
+// value keeps the page's exact number
+void TB303Processor::overlayParams() {
+    for (auto& Pp : params) {
+        const Param& P = *Pp; const float v = P.p->getValue();
+        auto s = snapshot.find (P.key);
+        if (s != snapshot.end() && msgValue (P, s->second) == v) continue;
+        if (s == snapshot.end() && P.kind != Param::Knob && v < 0.5f) continue; // off by default
+        snapshot[P.key] = paramMessage (P, v);
+    }
+}
+
+void TB303Processor::setParamsFromSnapshot() {
+    for (auto& Pp : params) {
+        Param& P = *Pp; float v;
+        {
+            std::lock_guard<std::mutex> g (snapshotLock);
+            auto s = snapshot.find (P.key);
+            v = s != snapshot.end() ? msgValue (P, s->second) : P.p->getDefaultValue();
+        }
+        if (!std::isfinite (v)) continue;
+        P.applied.store (v); P.ui = NAN;
+        if (v != P.p->getValue()) P.p->setValueNotifyingHost (v);
+    }
+}
+
+void TB303Processor::uiOpened() { for (auto& P : params) P->ui = P->p->getValue(); }
+
+void TB303Processor::endGestures() { for (auto& P : params) if (P->gesture) { P->p->endChangeGesture(); P->gesture = false; } }
+
+void TB303Processor::uiTick (const std::function<void (const juce::var&)>& toPage) {
+    const double now = juce::Time::getMillisecondCounterHiRes();
+    for (auto& Pp : params) {
+        Param& P = *Pp;
+        if (P.gesture && now - P.touched > 300) { P.p->endChangeGesture(); P.gesture = false; }
+        const float v = P.p->getValue();
+        if (v != P.ui) { P.ui = v; toPage (paramMessage (P, v)); }
+    }
 }
 
 juce::var TB303Processor::pageInitData() const {
@@ -106,6 +188,13 @@ juce::var TB303Processor::pageInitData() const {
     juce::DynamicObject::Ptr o = new juce::DynamicObject();
     o->setProperty ("store", juce::var (store.get()));
     o->setProperty ("plugin", JucePlugin_VersionString);
+    juce::Array<juce::var> eng; // what the engine plays now, which the page takes over its saved session (automation may have moved it)
+    {
+        std::lock_guard<std::mutex> g (snapshotLock);
+        const_cast<TB303Processor*> (this)->overlayParams();
+        for (const auto& [k, m] : snapshot) if (paramByKey.count (k)) eng.add (m);
+    }
+    o->setProperty ("engine", eng);
     return juce::var (o.get());
 }
 
@@ -138,6 +227,7 @@ std::unique_ptr<TB303Processor::Engine> TB303Processor::makeEngine (double fs) {
     e->onStep = [this] (int step) { stepForUi.store (step); firedG = pendingG; pendingG++; }; // audio thread
     e->v.conv.alloc(); // up front, so choosing Conv later never allocates on the audio thread (same state as the lazy alloc)
     std::lock_guard<std::mutex> g (snapshotLock);
+    overlayParams();
     // the same order the page sends them in when audio starts: knobs, parts, wave, tuning, pattern, groove, fx, de-click
     static const char* order[] = { "k:", "c:", "wave", "tune", "pattern", "groove", "fx:", "declick" };
     for (const char* pre : order)
@@ -258,6 +348,14 @@ void TB303Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
     }
     for (auto& m : inbox) apply (e, m, false);
     inbox.clear();
+    for (auto& Pp : params) { // DAW automation
+        Param& P = *Pp; const float v = P.p->getValue();
+        if (v == P.applied.load (std::memory_order_relaxed)) continue;
+        P.applied.store (v, std::memory_order_relaxed);
+        if (P.kind == Param::Knob) e.knob (P.name, v);
+        else if (P.kind == Param::Fx) e.setFx (P.name, v >= 0.5f);
+        else { static const std::string sq = "square", saw = "saw"; e.setWave (v >= 0.5f ? sq : saw); }
+    }
     for (const auto meta : midi) {
         const auto msg = meta.getMessage();
         if (msg.isController()) {
@@ -279,6 +377,7 @@ void TB303Processor::getStateInformation (juce::MemoryBlock& dest) {
     juce::Array<juce::var> msgs;
     {
         std::lock_guard<std::mutex> g (snapshotLock);
+        overlayParams();
         for (const auto& [k, m] : snapshot) msgs.add (m);
         for (const auto& [k, v] : instStore) st->setProperty (k, v);
     }
@@ -302,6 +401,7 @@ void TB303Processor::setStateInformation (const void* data, int size) {
         if (auto* s = v["store"].getDynamicObject())
             for (const auto& p : s->getProperties()) if (p.value.isString()) instStore[p.name.toString()] = p.value.toString();
     }
+    setParamsFromSnapshot();
     if (sampleRate > 0) installEngine (makeEngine (sampleRate));
     { std::lock_guard<std::mutex> g (queueLock); queue.clear(); }
     juce::MessageManager::callAsync ([this, alive = alive] { if (*alive && onStateLoaded) onStateLoaded(); });

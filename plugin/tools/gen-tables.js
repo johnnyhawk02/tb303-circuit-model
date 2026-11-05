@@ -14,6 +14,21 @@ const pp = Object.entries(M.PEDAL_PARTS).filter(([, x]) => typeof x === 'number'
 out += 'namespace tb303 { namespace pedal {\n' + pp.map(([k, x]) => `constexpr double ${k} = ${num(x)};`).join('\n') + '\n';
 out += 'constexpr double B259_CELLS[5][3] = {' + M.PEDAL_PARTS.B259_CELLS.map(r => '{' + r.map(num).join(', ') + '}').join(', ') + '};\n';
 out += 'constexpr double B259_W[5] = {' + M.PEDAL_PARTS.B259_W.map(num).join(', ') + '};\n} }\n';
+// the DAW's automation parameters: every knob in the page's KNOBS list (src/js/app/state.js), named as the screen shows
+// them with the unit in front, then the effect switches and the wave switch
+const stateJs = fs.readFileSync(path.join(root, 'src/js/app/state.js'), 'utf8');
+const KN = new Function(stateJs.match(/const KNOBS = \[[\s\S]*?\n\];/)[0] + '\nreturn KNOBS;')();
+const DRV = { rat: 'RAT', ds: 'DS-1', ts: 'TS808' }, REV = { plate: 'Plate', spring: 'Spring', conv: 'Conv' };
+const FXN = { rat: 'Drive', fold: 'Folder', lex: '224', dly: 'Delay', cmp: 'Compactor', flg: 'Flanger', route: 'Routing' };
+const SPECIAL = { drvtype: 'Drive pedal', lexprog: '224 program', revtype: 'Reverb type', fxorder: 'Routing order', fxret: 'Routing returns',
+  plateprog: 'Plate size', sprprog: 'Spring tank', cnvprog: 'Conv IR', dlypp: 'Delay ping-pong', flgmode: 'Flanger mode' };
+const pname = (k) => SPECIAL[k.id] || (!k.fx ? k.name : `${k.drv ? DRV[k.drv] : k.rev ? REV[k.rev] : FXN[k.fx]} ${k.name.toLowerCase()}`);
+const q = (x) => JSON.stringify(x);
+out += '\n// X(id, "name in the DAW", default) from the page\'s KNOBS (src/js/app/state.js): the DAW parameters, then fx and wave\n';
+out += '#define TB_PARAM_KNOBS(X) \\\n' + KN.map(k => `  X(${k.id}, ${q(pname(k))}, ${num(k.def)})`).join(' \\\n') + '\n';
+const FXS = stateJs.match(/fx: \{ ([^}]*) \}/)[1].split(',').map(x => x.trim().split(':')[0]);
+const FXON = { rat: 'Drive on', lex: 'Reverb on', dly: 'Delay on', fold: 'Folder on', flg: 'Flanger on' };
+out += '#define TB_PARAM_FX(X) \\\n' + FXS.map(n => `  X(${n}, ${q(FXON[n] || n + ' on')})`).join(' \\\n') + '\n';
 const file = path.join(root, 'plugin/engine/tables.h');
 if (process.argv.includes('--check')) {
   if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== out) { console.error('plugin/engine/tables.h is out of date: run node plugin/tools/gen-tables.js'); process.exit(1); }

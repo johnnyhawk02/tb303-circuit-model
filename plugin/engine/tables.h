@@ -222,3 +222,82 @@ constexpr double B259_C = 1e-10;
 constexpr double B259_CELLS[5][3] = {{10000.0, 100000.0, 100000.0}, {49900.0, 100000.0, 43200.0}, {91000.0, 100000.0, 56000.0}, {30000.0, 100000.0, 68000.0}, {68000.0, 100000.0, 33000.0}};
 constexpr double B259_W[5] = {-12.0, -27.777, -21.428, 17.647, 36.363};
 } }
+
+// X(id, "name in the DAW", default) from the page's KNOBS (src/js/app/state.js): the DAW parameters, then fx and wave
+#define TB_PARAM_KNOBS(X) \
+  X(tuning, "Tuning", 0.5) \
+  X(cutoff, "Cutoff", 0.3) \
+  X(resonance, "Reso", 0.82) \
+  X(envmod, "Env mod", 0.62) \
+  X(decay, "Decay", 0.3) \
+  X(accent, "Accent", 0.75) \
+  X(volume, "Volume", 0.85) \
+  X(drvtype, "Drive pedal", 0.0) \
+  X(dist, "RAT distortion", 0.5) \
+  X(filter, "RAT filter", 0.4) \
+  X(ratvol, "RAT volume", 0.5) \
+  X(dsdist, "DS-1 dist", 0.5) \
+  X(dstone, "DS-1 tone", 0.5) \
+  X(dslevel, "DS-1 level", 0.5) \
+  X(tsdrive, "TS808 drive", 0.5) \
+  X(tstone, "TS808 tone", 0.5) \
+  X(tslevel, "TS808 level", 0.5) \
+  X(fldtimbre, "Folder timbre", 0.5) \
+  X(fldsym, "Folder symmetry", 0.5) \
+  X(fldlevel, "Folder level", 0.5) \
+  X(lexprog, "224 program", 0.125) \
+  X(lexbass, "224 bass", 0.3) \
+  X(lexmid, "224 mid", 0.27) \
+  X(lexxover, "224 crossover", 0.443) \
+  X(lextreble, "224 treble", 0.834) \
+  X(lexdepth, "224 depth", 0.5) \
+  X(lexdiff, "224 diffusion", 0.55) \
+  X(lexpre, "224 predelay", 0.2) \
+  X(lexme, "224 mode enh", 0.5) \
+  X(lexpitch, "224 pitch", 0.2) \
+  X(lexmix, "224 return", 0.5) \
+  X(revtype, "Reverb type", 0.0) \
+  X(plateprog, "Plate size", 0.5) \
+  X(platepre, "Plate predelay", 0.2) \
+  X(platedecay, "Plate decay", 0.45) \
+  X(platedamp, "Plate damping", 0.6) \
+  X(platebw, "Plate bandwidth", 0.75) \
+  X(platelo, "Plate low cut", 0.35) \
+  X(platediff, "Plate diffusion", 0.88) \
+  X(platemod, "Plate mod", 0.5) \
+  X(platemix, "Plate return", 0.5) \
+  X(sprprog, "Spring tank", 0.6666666666666666) \
+  X(sprdwell, "Spring dwell", 0.4) \
+  X(sprdecay, "Spring decay", 0.5) \
+  X(sprtension, "Spring tension", 0.5) \
+  X(sprtone, "Spring tone", 0.5) \
+  X(sprlo, "Spring low cut", 0.4) \
+  X(sprmix, "Spring return", 0.5) \
+  X(cnvprog, "Conv IR", 0.0) \
+  X(cnvpre, "Conv predelay", 0.2) \
+  X(cnvdecay, "Conv decay", 1.0) \
+  X(cnvtone, "Conv tone", 0.7) \
+  X(cnvlo, "Conv low cut", 0.3) \
+  X(cnvwidth, "Conv width", 0.6666666666666666) \
+  X(cnvmix, "Conv return", 0.5) \
+  X(dlytime, "Delay time", 0.7) \
+  X(dlyfb, "Delay feedback", 0.35) \
+  X(dlylo, "Delay low cut", 0.3) \
+  X(dlyhi, "Delay high cut", 0.55) \
+  X(dlymix, "Delay return", 0.35) \
+  X(dlypp, "Delay ping-pong", 1.0) \
+  X(cmpamt, "Compactor amount", 0.4) \
+  X(cmprel, "Compactor release", 0.14142) \
+  X(flgman, "Flanger manual", 0.5) \
+  X(flgdep, "Flanger depth", 0.5) \
+  X(flgrate, "Flanger rate", 0.3) \
+  X(flgres, "Flanger res", 0.5) \
+  X(flgmode, "Flanger mode", 0.0) \
+  X(fxorder, "Routing order", 0.0) \
+  X(fxret, "Routing returns", 0.0)
+#define TB_PARAM_FX(X) \
+  X(rat, "Drive on") \
+  X(lex, "Reverb on") \
+  X(dly, "Delay on") \
+  X(fold, "Folder on") \
+  X(flg, "Flanger on")

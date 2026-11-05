@@ -15,7 +15,7 @@ public:
         proc.onSave = [this] (const juce::String& name, const juce::String& text) { saveFile (name, text); };
         startTimerHz (30);
     }
-    ~TB303Editor() override { tbRemoveKeyMonitor (keyMonitor); proc.onStateLoaded = nullptr; proc.onSave = nullptr; }
+    ~TB303Editor() override { tbRemoveKeyMonitor (keyMonitor); proc.endGestures(); proc.onStateLoaded = nullptr; proc.onSave = nullptr; }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff181412)); }
     void resized() override { if (browser) browser->setBounds (getLocalBounds()); }
@@ -37,7 +37,7 @@ private:
             .withInitialisationData ("tb303", proc.pageInitData())
             .withEventListener ("tb303", [this] (const juce::var& m) {
                 if (m["type"].toString() == "typing") { typing = (bool) m["on"]; return; }
-                if (m["type"].toString() == "ready") { ready = true; sentStep = -2; sentBpm = -1; }
+                if (m["type"].toString() == "ready") { ready = true; sentStep = -2; sentBpm = -1; proc.uiOpened(); }
                 proc.handleUiMessage (m);
             });
         if (browser) removeChildComponent (browser.get());
@@ -74,6 +74,11 @@ private:
         if (bpm != sentBpm) { sentBpm = bpm; emit (obj ({ { "type", "bpm" }, { "value", bpm } })); }
         int s, a, b;
         while (proc.popMidi (s, a, b)) emit (obj ({ { "type", "midi" }, { "data", juce::Array<juce::var> { s, a, b } } }));
+        // DAW automation moves the controls on the screen
+        proc.uiTick ([this] (const juce::var& m) {
+            juce::DynamicObject::Ptr o = new juce::DynamicObject(); o->setProperty ("type", "param"); o->setProperty ("m", m);
+            emit (juce::var (o.get()));
+        });
     }
 
     void saveFile (const juce::String& name, const juce::String& text) {

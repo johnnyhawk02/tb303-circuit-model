@@ -13,6 +13,9 @@ The web app as a VST3 instrument for macOS, built only from the web app in this 
 - **Plays from the DAW:** play and stop follow the transport, the tempo follows the DAW's tempo, and the steps land on
   the DAW's 16th-note grid counted from the start of the song (so the pattern's step 1 falls on bar 1, and loops and
   jumps stay in time). MIDI CC from the track drives the page's MIDI map (Options > MIDI) while the screen is open.
+- **Automation:** every knob (named as on the screen, with its unit in front), the effect On switches and the wave switch
+  are DAW parameters (generated into `engine/tables.h` from `src/js/app/state.js`). Automation moves the controls on
+  the screen and plays with the window shut; moving a control on the screen records automation.
 - **Saves with the project:** the plug-in keeps the latest engine message of each kind and the page's project state
   (session, pattern slots, chain) in the DAW project, so it sounds right even before its window is opened. Presets,
   favourites and colours are shared by every instance in `~/Library/Application Support/303 Circuit Model/storage.json`.
