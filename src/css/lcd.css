@@ -419,3 +419,8 @@ html.fit .blk-lex { padding-top: 14px; }
   --hl1-rgb: 255 216 198; --hl2-rgb: 255 208 190; --dk1-rgb: 80 16 6; --dk2-rgb: 68 14 5; --dk3-rgb: 50 8 2; }
 [data-lcd=grey] { --glass: #d3d6cc; --ink: #121410; --panel-rgb: 211 214 204; --ink-rgb: 18 20 16; --shade-rgb: 64 68 58; --light-rgb: 248 250 242;
   --hl1-rgb: 250 252 245; --hl2-rgb: 246 248 240; --dk1-rgb: 44 46 40; --dk2-rgb: 38 40 34; --dk3-rgb: 28 30 24; }
+
+/* readouts keep their width as the value changes (Johnny: controls moved when a value went from one to two figures) */
+.trim .tval { min-width: 8ch; text-align: center; }
+.top .bpm-read output#bpm-val { width: calc(3ch + 20px); min-width: 0; font-variant-numeric: tabular-nums; }
+.kn .val, .md .val, .sld output, .fx output, output { font-variant-numeric: tabular-nums; }
