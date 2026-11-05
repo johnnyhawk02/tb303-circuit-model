@@ -51,12 +51,10 @@ jobs:
       - name: sign (ad hoc) and zip
         run: |
           cd "plugin/build/TB303CircuitModel_artefacts/Release/VST3"
-          B="303 Circuit Model.vst3"
-          find "$B"; codesign -dv "$B" || true
-          xattr -cr "$B"
-          codesign --force --sign - --timestamp=none "$B/Contents/MacOS/303 Circuit Model" || true
+          # "./": codesign reads a name that starts with digits ("303 ...") as a process id
+          B="./303 Circuit Model.vst3"
           codesign --force --sign - --timestamp=none "$B"
-          codesign --verify --deep --strict "303 Circuit Model.vst3"
+          codesign --verify --deep --strict "$B"
           lipo -archs "303 Circuit Model.vst3/Contents/MacOS/303 Circuit Model"
           ditto -c -k --keepParent "303 Circuit Model.vst3" "$GITHUB_WORKSPACE/303-Circuit-Model-VST3-mac.zip"
       - uses: actions/upload-artifact@v4
