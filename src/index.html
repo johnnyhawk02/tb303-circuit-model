@@ -157,6 +157,7 @@
       <div class="fxh"><span class="fxname">Compactor</span><span class="fxsub">ducks the returns under the synth</span></div>
       <div class="fxknobs" id="fx-cmp-knobs"></div>
     </section>
+    <div class="fx-row2">
     <section class="fxb blk-lex" id="fx-lex" aria-label="Reverb">
       <div class="fxh lex-head">
         <button type="button" class="onoff" id="fx-lex-on" aria-pressed="false">Off</button>
@@ -166,6 +167,12 @@
       </div>
       <div class="fxknobs" id="fx-lex-knobs"></div>
     </section>
+    <section class="fxb" id="fx-flg" aria-label="Flanger">
+      <div class="fxh"><button type="button" class="onoff" id="fx-flg-on" aria-pressed="false">Off</button>
+        <div class="seg cmp-mode" id="flg-mode" role="radiogroup" aria-label="Flanger mode"><button type="button" role="radio" data-m="0">Flanger</button><button type="button" role="radio" data-m="1">Chorus</button></div></div>
+      <div class="fxknobs" id="fx-flg-knobs"></div>
+    </section>
+    </div>
     <section class="fxb blk-route" id="fx-route" aria-label="FX routing">
       <svg class="route-dia" id="route-dia" viewBox="0 0 560 60" role="group" aria-label="Signal path through the effects. Click a block to switch it on or off."></svg>
       <div class="route-ctl">
