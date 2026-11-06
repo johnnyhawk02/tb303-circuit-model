@@ -15,18 +15,27 @@ include(FetchContent)
 FetchContent_Declare(juce GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 8.0.12 GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(juce)
 
+# VST3 everywhere, plus an Audio Unit on the Mac (Logic and GarageBand only load AUs)
+if(APPLE)
+  set(TB_FORMATS VST3 AU)
+else()
+  set(TB_FORMATS VST3)
+endif()
+
 juce_add_plugin(TB303CircuitModel
   COMPANY_NAME "303 Circuit"
   BUNDLE_ID com.johnnyhawk02.tb303circuitmodel
   PLUGIN_MANUFACTURER_CODE Tb3c
   PLUGIN_CODE T3cm
-  FORMATS VST3
+  FORMATS ${TB_FORMATS}
   PRODUCT_NAME "303 Circuit Model"
   IS_SYNTH TRUE
   NEEDS_MIDI_INPUT TRUE
   NEEDS_MIDI_OUTPUT FALSE
   IS_MIDI_EFFECT FALSE
   NEEDS_WEB_BROWSER TRUE
+  NEEDS_WEBVIEW2 TRUE
+  AU_MAIN_TYPE kAudioUnitType_MusicDevice
   VST3_CATEGORIES Instrument Synth
   COPY_PLUGIN_AFTER_BUILD FALSE)
 
@@ -36,7 +45,7 @@ juce_add_binary_data(TB303Data SOURCES
   "${TB_ROOT}/irs/irs.json"
   "${TB_ROOT}/irs/plate140.flac" "${TB_ROOT}/irs/plate140b.flac" "${TB_ROOT}/irs/drumroom.flac" "${TB_ROOT}/irs/silo.flac"
   "${TB_ROOT}/irs/garage.flac" "${TB_ROOT}/irs/musikverein.flac" "${TB_ROOT}/irs/star.flac"
-  "${CMAKE_CURRENT_SOURCE_DIR}/page/VT323-Regular.ttf")
+  "${TB_ROOT}/fonts/VT323-Regular.ttf")
 set_target_properties(TB303Data PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 juce_generate_juce_header(TB303CircuitModel)
@@ -49,7 +58,14 @@ target_compile_definitions(TB303CircuitModel PUBLIC
   JUCE_WEB_BROWSER=1 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_USE_FLAC=1
   JUCE_DISPLAY_SPLASH_SCREEN=0)
 # the engine must do its arithmetic exactly as JavaScript does: no fused multiply-add, no fast-math
-target_compile_options(TB303CircuitModel PRIVATE -ffp-contract=off)
+# (MSVC's /fp:precise does not contract a*b+c into an FMA unless /fp:contract is given)
+if(MSVC)
+  target_compile_options(TB303CircuitModel PRIVATE /fp:precise /utf-8)
+  # the WebView2 loader is linked in, so the plug-in is one file and needs no WebView2Loader.dll beside it
+  target_compile_definitions(TB303CircuitModel PUBLIC JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1)
+else()
+  target_compile_options(TB303CircuitModel PRIVATE -ffp-contract=off)
+endif()
 target_link_libraries(TB303CircuitModel
   PRIVATE TB303Data juce::juce_audio_utils juce::juce_audio_formats juce::juce_gui_extra
   PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)

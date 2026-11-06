@@ -90,9 +90,9 @@ function drawLex() {
 
 // ---------- drive slot: ProCo RAT, Boss DS-1, Ibanez TS808 (fx.rat switches it on, drvtype picks the pedal) ----------
 const DRV_TYPES = [
-  { id: 'rat', name: 'ProCo RAT', tip: 'ProCo RAT: LM308 op-amp into a diode pair, Filter after' },
-  { id: 'ds', name: 'Boss DS-1', tip: 'Boss DS-1: transistor booster, op-amp into a diode pair to ground, LPF/HPF tone blend' },
-  { id: 'ts', name: 'Ibanez TS808', tip: 'Ibanez TS808 Tube Screamer: diodes in the op-amp feedback, active tone stage' },
+  { id: 'rat', name: 'Rodent', tip: 'Rodent: LM308 op-amp into a diode pair, Filter after' },
+  { id: 'ds', name: 'Dist One', tip: 'Dist One: transistor booster, op-amp into a diode pair to ground, LPF/HPF tone blend' },
+  { id: 'ts', name: 'Green 808', tip: 'Green 808: diodes in the op-amp feedback, active tone stage' },
 ];
 typeMenu(document.getElementById('drv-type'), DRV_TYPES, (i) => setKnob('drvtype', i / 2));
 // a function declaration with no top-level consts, so drawKnob can call it before this file has run
@@ -142,7 +142,7 @@ function drawRoute() {
   const k = state.knobs, fx = state.fx, swap = k.fxorder >= 0.5, ret = Math.max(0, Math.min(2, Math.round((k.fxret || 0) * 2)));
   for (const [id, v] of [['route-order', swap ? 1 : 0], ['route-ret', ret]])
     for (const b of document.getElementById(id).children) b.setAttribute('aria-checked', Math.round(+b.dataset.v * (id === 'route-ret' ? 2 : 1)) === v);
-  const drv = ['rat', 'ds-1', 'ts808'][Math.max(0, Math.min(2, Math.round((k.drvtype || 0) * 2)))];
+  const drv = ['rodent', 'dist one', 'green'][Math.max(0, Math.min(2, Math.round((k.drvtype || 0) * 2)))];
   const rev = REV_TYPES[revType(k)].short.toLowerCase();
   const W = 62, H = 18, Y = 24; // block size, main row centre
   const blk = (unit, label, x, y, on, tip) => `<g class="rb${on ? ' on' : ''}" data-tip="${tip}"${unit ? ` data-u="${unit}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${label}"` : ''}>` +
@@ -165,7 +165,7 @@ function drawRoute() {
     const [a, b] = ret === 1 ? [dlyB, revB] : [revB, dlyB];
     h += ln([[sx, Y], [280, Y]]) + arr(280, Y) + a(280, Y) + ln([[342, Y], [352, Y]]) + arr(352, Y) + b(352, Y) + ln([[414, Y], [cx, Y]]) + arr(cx, Y);
   }
-  h += blk('', 'cmp', cx, Y, fx.lex || fx.dly, 'Compactor: ducks the delay and reverb returns under the synth');
+  h += blk('', 'duck', cx, Y, fx.lex || fx.dly, 'Ducker: ducks the delay and reverb returns under the synth');
   h += ln([[cx + W, Y], [ox - 7, Y]]) + arr(ox - 7, Y);
   // the dry signal, under the returns
   const dy = ret === 0 ? 58 : 50;

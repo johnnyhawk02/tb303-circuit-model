@@ -461,7 +461,7 @@ class Lexicon224 {
 // The other reverbs on the reverb slot: a plate, a spring tank and a convolution reverb. Unlike the
 // 224 these are not models of one unit; they are well-known published algorithms, run clean at the
 // host rate. revType(k) picks one: 0 = Lexicon 224, 1 = plate, 2 = spring, 3 = convolution.
-const REV_TYPES = [{ id: 'lex', name: 'Lexicon 224', short: '224' }, { id: 'plate', name: 'Plate', short: 'Plate' }, { id: 'spring', name: 'Spring', short: 'Spring' }, { id: 'conv', name: 'Convolution', short: 'Conv' }];
+const REV_TYPES = [{ id: 'lex', name: 'Digital 224', short: '224' }, { id: 'plate', name: 'Plate', short: 'Plate' }, { id: 'spring', name: 'Spring', short: 'Spring' }, { id: 'conv', name: 'Convolution', short: 'Conv' }];
 const revType = (k) => Math.max(0, Math.min(3, Math.round((k.revtype || 0) * 3)));
 const revProg = (p, n) => Math.max(0, Math.min(n - 1, Math.round(p * (n - 1))));
 const revEx = (lo, hi, p) => lo * Math.pow(hi / lo, p);
@@ -636,8 +636,8 @@ class SpringReverb {
 //    reflections, the same every time. Decay (or Gate) is applied per partition, so turning it is free.
 const CNV_B = 512, CNV_N = 1024, CNV_SECS = 3, CNV_BUILD = 8, CNV_IR_GAIN = 0.17752 * 1.15;
 const CNV_PROGRAMS = [
-  { name: 'EMT 140 plate', short: 'Plate 140', ir: 'plate140' },
-  { name: 'EMT 140 plate, bright', short: 'Plate 140 Br', ir: 'plate140b' },
+  { name: '140 plate', short: 'Plate 140', ir: 'plate140' },
+  { name: '140 plate, bright', short: 'Plate 140 Br', ir: 'plate140b' },
   { name: 'Drum room', short: 'Drum room', ir: 'drumroom' },
   { name: 'Grain silo', short: 'Silo', ir: 'silo' },
   { name: 'Concrete garage', short: 'Garage', ir: 'garage' },

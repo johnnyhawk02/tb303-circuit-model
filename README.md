@@ -1,46 +1,83 @@
-# TB-303 circuit model
+# 303 Circuit Model
 
-A JavaScript simulation of the TB-303 bass voice, modelled at component level from the Roland main board schematic (Feb 1982). Values that sheet doesn't show clearly were taken from the Behringer TD-3 schematic.
+A free acid bass synth, modelled part by part from the original 1982 bass line circuit: the pitch ladder, the
+oscillator's transistor, the four-pole ladder filter, the envelopes and the VCA, each from its schematic values. Around
+it: a 64-step pattern sequencer with slides and accents, a step sequencer for any dial, a wavefolder, three drive
+pedals, a flanger, a tempo-synced delay, four kinds of reverb and a ducker.
 
-Open `index.html` in a browser to play it. It has a step sequencer, one Preset menu (sound, effects, tempo, the 8 pattern slots (keys 1-8 pick them) and the chain, with a Sound only option and an auto-namer for saves), Randomise and Tools menus at the right of the pattern row (Randomise: random or altered accents, slides and octaves, Alter whole pattern, Shuffle, Generate, Refill; Tools: Copy, Paste, Double, Clear, Undo, move the notes by a semitone or octave, shift the pattern a step, Join chain and copy), a cross of four buttons under the roll (up and down move the notes a semitone, Shift-click for an octave; left and right shift the pattern a step). Every item has a key, shown in the menu and its tooltip: A/S/O, Shift+A/S/O, L, H, G, Shift+G, Cmd/Ctrl+C/V/Z, D, Shift+Backspace, ] and [ (Shift for octaves), comma and full stop (shift a step), J, and R and T open the menus), the front panel knobs and a Mods page of parts you can edit while it plays. Long-press any dial (or right-click it) for its own step sequencer in a pop-up: 2 to 64 steps, each an offset up or down from the dial's setting (Depth of its range), with Slew, a Speed of a 16th to 8 bars, six kinds of Randomise, and keys (Left/Right pick a step, Up/Down move it, 1-4 pick the page, R randomises, Esc closes). It steps with the pattern (in the plug-in, with the DAW's transport), stopping puts the dial back, a dial with one switched on gets an ink pointer outside its ring that shows where the sequence is moving it (the ring stays at the dial's own setting), and sounds and presets keep them. The Options sheet has MIDI, Colours (a Mono / Grey + colour switch; Grey + colour, the default, puts the grey glass underneath and uses the chosen theme as one accent colour on the FX On buttons and routing blocks, page tabs, play light and the pattern and step markers; in Mono the theme is the glass itself: orange, the default, amber, lime, blue, red or grey, plus Brightness, Saturation, Dirt, Grain and Glow sliders and a Reset) and About.
+It runs in your browser and as a plug-in, with the same sound and the same screen.
 
-## Files
-- `tb303-model.js`: the voice (`TB303Voice`) and its parts table (`COMPONENTS`). It has no dependencies and runs in Node, in a browser, or in an AudioWorklet.
-- `tb303-model.js` also has `TB303Engine`, the player around the voice (knob slew, de-click, the step sequencer). The AudioWorklet and the main-thread fallback both run it.
-- `src/`: the page source. `src/index.html` is the markup with slots; `src/css/` holds the styles by area, `src/js/worklet.js` the AudioWorklet wrapper, and `src/js/app/` the app by feature (sequencer, banks, knobs, parts, presets, MIDI and so on).
-- `build.js`: `node build.js` fills the slots in `src/index.html` with the CSS, the model, the worklet, the app code and `patterns.json`, and writes the single-file `index.html` that gets deployed. Edit `src/`, never `index.html`.
-- `test.js`: sanity checks (DAC voltages, 110 Hz at the A key, filter range, decay times) and renders `demo.wav`.
-- `patterns.json`: the ABL3 and Phoscyon factory patterns that Generate uses as raw material. `tools/import-patterns.js` makes it from the plug-ins' files, and `node build.js` puts it in the page.
-- `factory-presets.json`: the Factory presets in the Preset menu, each a whole project (sound, effects, the 8 pattern slots and chain) in the format Export saves. `node build.js` puts it in the page. Its format is the `projectPresets` map of the file the Preset menu's Export all saves, so presets can be copied straight across.
-- `icons/`: the install icons and favicon, all drawn by `node tools/make-icons.js` (the segmented dial in grey-LCD ink with the orange stop square). Edit the script and rerun it rather than editing the PNGs.
-- `tests/golden.js`: the sound lock. It renders the two scenarios in `tests/` (`tests/render.js`) with the engine and checks they are bit-for-bit what `tests/golden.json` records, so a refactor can prove it changed nothing. When a change to the sound is meant, run `node tests/golden.js --update` and commit `tests/golden.json` with it.
-- CI (`.github/workflows/check.yml`) runs on every push: `index.html` must match what `node build.js` makes, and the golden renders must match. The deploy builds `index.html` itself.
-- `calib.js`: works out the ladder's self-oscillation gain (k = 17) and its resonance-frequency factor.
+## Play it in the browser
 
-## What's modelled
-- **Pitch CV:** a 6-bit R-2R ladder (100k/200k) from 5.333 V, which gives 1/12 V per step.
-- **Slide:** an RC lag through R93 and C35.
-- **VCO:** an exponential current charges C33 from 5.5 V to 12 V, then resets. The reset is smoothed with a polyBLEP.
-- **Square:** the falling ramp drives the Q8 2SA733 PNP through R35 in parallel with C10 + R34. Q8 is an Ebers-Moll transistor solved by Newton each step, its emitter self-biases on C11 through R45, and the collector load goes to the 5.333 V rail, so the width, the 5.3 to 9 V swing and the sagging top all come from the circuit.
-- **VCF:** the 4-pole transistor/diode ladder with an 18n bottom cap and 33n caps above it, and a tanh law for each transistor pair. It is solved with an implicit trapezoidal step at 2× oversampling. Resonance feedback is high-passed by C15.
-- **Envelopes:** the filter envelope charges C62 and decays through R138 + VR6 (200 ms to 2.5 s). On accented notes VR6 is shorted and the accent sweep cap (1µ/47k) charges.
-- **VCA:** an OTA fed through C49/R88. The resonance pot wiper is also mixed in through C76/R100 to compensate for lost bass.
-- **Noise:** white voltage noise at the ladder input (EN_VCF), the OTA input (EN_OTA, the main hiss, which opens and closes with the VCA) and the output stage (EN_OUT, a constant floor). NOISE scales them all from 0 (silent) to 0.15 (the default: hiss around -80 dBFS under notes, -91 dBFS idle).
+**https://tb303-circuit-model.pages.dev**
 
-Each part's `source` field is `schematic`, `td3` or `estimate`.
+Works in Chrome, Edge and Safari on a computer or tablet; Firefox works too. Install it as an app from Options › About
+to use it offline. MIDI keyboards and controllers work in Chrome and Edge (Options › MIDI).
 
-## Effects
-After the VCA there is an optional effect, modelled from its parts:
-- **ProCo RAT:** an LM308 non-inverting stage limited by gain-bandwidth and slew rate (set by the 30p compensation cap). It then has 1N914 clipping diodes to ground, solved with Newton's method each sample, and the 1.5k + 100k / 3.3n filter.
-- **Lexicon 224 (1978, David Griesinger):** a stereo reverb after the RAT. It runs on its own 20 kHz clock behind 6-pole anti-alias and reconstruction filters, with 12-bit gain-ranging converters (+24 dB), a zero-order-hold DAC, an input transformer, and 16-bit words in one shared 32K-word circular delay memory. Programs that don't fit are shrunk, as on the hardware. It has the nine v4.4 programs and the 224's controls: Bass and Mid decay (0.6–70 s) split at Crossover, Treble decay, Depth (0–71), Diffusion (0–63), each program's Predelay range, and Mode Enhancement (random tap modulation, Amount and Pitch). In Chorus A, eight voices wander at random and the first four knobs set the voice-pair levels.
-  - **What is documented:** the program names, control ranges, sample rate, converters, word size and memory (the Lexicon v4.4 manual, the spec sheet, and Dattorro 1997, footnote 5).
-  - **What is estimated:** Lexicon never published the 224's microcode. The core is the "plate-class topology in the style of Griesinger" that Jon Dattorro published (*Effect Design Part 1*, JAES 1997), using his delay lengths and output taps: input allpass diffusers feed a figure-eight tank. The hall, chamber, room and constant-density variants, the Depth mapping, the Mode Enhancement step timing, the chorus voice timings and the truncation rule are my estimates.
-- **Plate, Spring and Convolution:** three more reverbs on the same slot, picked with the 224 / Plate / Spring / Conv switch (the Lexicon stays the default, so old sounds load as they were). They run clean at the host rate.
-  - **Plate:** Jon Dattorro's published Griesinger-style plate (*Effect Design Part 1*, JAES 1997) as he gives it, with his delay lengths and taps: bandwidth filter, four input diffusers, the figure-eight tank with modulated allpasses. Five sizes scale every delay (Medium = his lengths). Predelay, Decay (0.3–20 s), Damping, Bandwidth, Low cut, Diffusion, Mod, Return.
-  - **Spring:** a dispersive model after Välimäki, Parker and Abel (*Parametric spring reverberation effect*, JAES 2010): each spring is a feedback loop around its transit delay and 48 stretched first-order allpasses, so every echo smears into the falling drip chirp, cut off near 4.3 kHz like a real tank. One, two or three springs, or a long tank. Dwell (drive into the tank), Decay, Tension (chirp length), Tone, Low cut, Return.
-  - **Convolution:** uniformly partitioned overlap-save FFT convolution in 512-sample blocks (the older partitions' work is spread across each block), up to 3 s. The impulse responses are generated from seeded noise (highs decay first, a density build-up and early reflections per space): Plate, Room, Chamber, Hall, Church and a 1980s gated one. Decay is applied per partition, so turning it costs nothing. Predelay (the one-block latency is the minimum), Decay (or Gate), Tone, Low cut, Width, Return.
-- **Delay:** a clean digital delay on a parallel return, ping-pong by default (repeats alternate left and right; Mono puts them in the middle): tempo-synced Time (1/32 to 1/2, with dotted and triplet values), Feedback up to 95%, and a Low cut (20 Hz to 1 kHz) and High cut (1 to 20 kHz) inside the feedback loop, so each repeat gets thinner and darker.
-- **Compactor:** a sidechain ducker after the Kilohearts Compactor, on the delay and 224 returns and keyed from the dry synth. Two controls: **Amount** sets how deep the duck goes (0 = off, full duck from about 70%) and how easily it triggers (the synth level that ducks fully goes from -10 dB to -30 dB); **Release** (0 to 1 s) sets how fast the returns come back. Lookahead is fixed at 3 ms with a peak detector. With Release at 0 the gain follows the synth waveform (ring-mod sidechaining). Every factory preset uses Amount 40% and Release 20 ms, and sounds saved before this version load with that setting. Kilohearts does not publish its gain law, so this follows the published control descriptions.
+## The plug-in
 
-The RAT, the delay, the Compactor and the reverb share the FX tab.
+| | Formats | Install |
+|---|---|---|
+| **Mac** (Apple Silicon and Intel, macOS 11+) | VST3, AU | In Terminal: `curl -fsSL https://github.com/johnnyhawk02/tb303-circuit-model/releases/latest/download/install.sh \| bash` |
+| **Windows** (10/11, 64-bit) | VST3 | In PowerShell: `irm https://github.com/johnnyhawk02/tb303-circuit-model/releases/latest/download/install.ps1 \| iex` |
+| **Linux** (x86_64) | VST3 | In a terminal: `curl -fsSL https://github.com/johnnyhawk02/tb303-circuit-model/releases/latest/download/install.sh \| bash` |
 
+Then rescan plug-ins in your DAW. Run the same command again to update. To remove it on Mac or Linux, add
+`-s -- --uninstall` after `bash`; on Windows delete `C:\Program Files\Common Files\VST3\303 Circuit Model.vst3`.
+Every version is on the [releases page](https://github.com/johnnyhawk02/tb303-circuit-model/releases).
+
+Why a command and not a download? The Mac plug-in is not notarised by Apple, so a file downloaded in a browser is
+blocked as "damaged". Fetched with `curl` it is not, and nothing else is changed on your system. The script is short:
+read it first if you like ([install.sh](install.sh), [install.ps1](install.ps1)).
+
+- **Needs:** on Windows the Microsoft Edge WebView2 Runtime (built into Windows 11 and up-to-date Windows 10; the
+  installer tells you if it is missing). On Linux WebKitGTK 4.1 (`libwebkit2gtk-4.1-0` on Debian/Ubuntu).
+- **The DAW runs it:** play, stop and tempo follow the DAW, and the pattern locks to its bar grid. There is no Play
+  button or Tempo dial in the plug-in.
+- **Automation:** every dial, the effect switches, the wave switch and the pattern slot are DAW parameters.
+- **MIDI notes** (C3 = middle C = 60): C0-G0 pick patterns 1-8; C1-C3 transpose the pattern (C1 = as written).
+- **Saving:** the DAW project keeps the sound, the patterns and the chain. Your presets, favourites and colours are
+  shared by every copy of the plug-in, in `~/Library/Application Support/303 Circuit Model` (Mac),
+  `%APPDATA%\303 Circuit Model` (Windows) or `~/.config/303 Circuit Model` (Linux).
+
+### Known limits
+
+- MIDI CC (controller knobs mapped in Options › MIDI) only reaches the plug-in while its window is open. DAW
+  automation and MIDI notes work with it closed.
+- So far tested mainly on a Mac. Reports from other DAWs and systems are welcome.
+- The heaviest settings (convolution reverb plus every effect) want a reasonably recent computer.
+
+## Keys
+
+Space plays (browser only). 1-8 pick a pattern. G generates a new pattern, Shift+G refills the other slots. A, S and O
+randomise accents, slides and octaves (Shift alters them instead). R and T open the Randomise and Tools menus, E the
+Gate menu. Cmd/Ctrl+C, V and Z copy, paste and undo the pattern. Long-press or right-click any dial for its own step
+sequencer.
+
+## Bugs and ideas
+
+Open an issue: https://github.com/johnnyhawk02/tb303-circuit-model/issues. Please say which version (top bar), which
+browser or DAW, and what you did.
+
+## Privacy
+
+No accounts, no tracking, no analytics. Nothing you make leaves your computer: the web app keeps everything in your
+browser's storage, and the plug-in in the folder named above. The font is served from this site, not Google.
+
+## Licence and credits
+
+Free software under the [GNU Affero General Public License v3](LICENSE): use it, share it and change it; if you
+publish a changed version, publish its source too. It comes with no warranty.
+
+- Impulse responses: plate IRs by Greg Hopkins (CC BY), room IRs from Voxengo (free for any use). Details in
+  [irs/CREDITS.md](irs/CREDITS.md).
+- Font: VT323 by Peter Hull, SIL Open Font License ([fonts/OFL.txt](fonts/OFL.txt)).
+- Plug-in built with [JUCE](https://juce.com) (AGPLv3) and the Steinberg VST3 SDK (MIT). VST is a registered
+  trademark of Steinberg Media Technologies GmbH.
+- The reverbs follow published research: Jon Dattorro's plate (JAES 1997), Välimäki, Parker and Abel's spring
+  (JAES 2010), and Esqueda, Pöntynen, Parker and Bilbao's wavefolder (DAFx-17).
+
+**Trademarks.** Not affiliated with or endorsed by Roland, Behringer or the makers of any gear it is modelled on.
+Product names belong to their owners and are mentioned only to describe the circuits that were modelled.
+
+Working on the code? See [DEVELOPING.md](DEVELOPING.md).

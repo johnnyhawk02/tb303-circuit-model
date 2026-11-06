@@ -31,6 +31,15 @@ private:
         ready = false; sentStep = -2; sentBpm = -1;
         const auto root = juce::WebBrowserComponent::getResourceProviderRoot();
         auto opts = juce::WebBrowserComponent::Options {}
+           #if JUCE_WINDOWS
+            // Edge WebView2 (the old IE control can't run the page). Its cache goes in the user's app data folder:
+            // the default, beside the DAW's .exe, is often not writable
+            .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options (juce::WebBrowserComponent::Options::WinWebView2 {}
+                .withUserDataFolder (juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                    .getChildFile ("303 Circuit Model").getChildFile ("WebView2"))
+                .withBackgroundColour (juce::Colour (0xff0b0c0a)))
+           #endif
             .withNativeIntegrationEnabled()
             .withKeepPageLoadedWhenBrowserIsHidden()
             .withResourceProvider ([this] (const juce::String& url) { return proc.getResource (url); }, juce::URL (root).getOrigin())

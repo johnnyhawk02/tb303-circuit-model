@@ -122,7 +122,7 @@ function presetMenu(host) {
       if (v.startsWith('u:')) path = ['my'];
       else if (full.includes(' / ')) {
         const [grp, nm] = full.split(' / '); name = nm;
-        const m = /^ABL3 (.+)$/.exec(grp); path = m ? ['ABL3', m[1]] : [grp];
+        path = [grp];
       } else path = ['built'];
       name = name.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
       return { v, name, path, label: name };

@@ -7,7 +7,7 @@ const KNOBS = [
   { id: 'accent',    name: 'Accent',    ref: 'VR7 50K(B)', def: 0.75 },
   { id: 'volume',    name: 'Volume',    ref: 'VR8 50K(A)', def: 0.85 },
   // the drive slot (fx.rat switches it on): drvtype picks the pedal, drv says whose dial it is
-  { id: 'drvtype',   name: 'Pedal',     ref: 'RAT/DS-1/TS808', def: 0, fx: 'rat', hidden: true },
+  { id: 'drvtype',   name: 'Pedal',     ref: 'Rodent/Dist One/Green 808', def: 0, fx: 'rat', hidden: true },
   { id: 'dist',      name: 'Distortion',ref: '100k(A)',    def: 0.5,  fx: 'rat', drv: 'rat' },
   { id: 'filter',    name: 'Filter',    ref: '100k(B)',    def: 0.4,  fx: 'rat', drv: 'rat' },
   { id: 'ratvol',    name: 'Volume',    ref: '100k(A)',    def: 0.5,  fx: 'rat', drv: 'rat' },
@@ -178,6 +178,7 @@ const preview = new TB303Voice(44100); // main-thread copy for derived readouts
 let ctx = null, node = null, analyser = null, fallback = null;
 // the deploy stamps the version; a local build shows 'dev'
 { const v = document.getElementById('ver'); if (v.textContent.startsWith('__')) { v.textContent = 'dev'; v.title = 'Local build'; } }
+{ const a = document.querySelector('.about-ver'); if (a) a.textContent = document.getElementById('ver').textContent; } // About shows the version too
 const send = (m) => { if (tbPlugin) tbPlugin.send(m); else if (node) node.port.postMessage(m); else if (fallback) fallback.msg(m); };
 // de-click is a playback preference, kept apart from sounds and projects; its switch went with the Options Monitor tab, so a stored setting still holds and the default is on, 1.5 ms
 const declick = Object.assign({ on: true, ms: 1.5 }, store.get('declick', {}));

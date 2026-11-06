@@ -1,7 +1,7 @@
 {
   "name": "303 Circuit Model",
   "short_name": "303",
-  "description": "A component-level TB-303 voice with a step sequencer, RAT and 224 reverb.",
+  "description": "An acid bass synth modelled part by part from the original 1982 circuit, with a step sequencer and effects.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
