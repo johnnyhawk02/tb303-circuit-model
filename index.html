@@ -913,10 +913,8 @@ html.fit dialog#options .otabs button { flex: 0 0 96px; width: 96px; padding-lef
 /* A dial's own step sequencer (ctlseq.js): long-press or right-click a dial. A card of glass over the dimmed screen, 560 wide
    in the screen's own units (it scales with the screen, like Options). Head: name, On, the step being painted; then the four
    pages, the 16 steps in two rows of 8 (the bar runs up or down from the middle line), the four bars, Randomise / kind / Done.
-   A dial with a sequencer switched on gets a small ink square at its top right (dials stay ink, Johnny). */
+   A dial with a sequencer switched on shows only the ink pointer outside its ring (no tag: Johnny, "the triangle is enough"). */
 .knob { position: relative; }
-.knob.cseq::after { content: "seq"; position: absolute; top: -6px; right: -20px; padding: 0 3px; background: var(--ink); color: var(--glass); font: var(--fs-s)/1.05 var(--font-body);
-  letter-spacing: .04em; text-shadow: none; pointer-events: none; }
 .knob svg .hrd { fill: var(--ink); stroke: none; }
 dialog#cseq { box-sizing: border-box; width: 560px; max-width: none; max-height: none; padding: 16px; margin: 0; position: fixed; inset: auto; left: 50%; top: 50%;
   transform: translate(-50%, -50%) scale(var(--k, 1)); background: var(--glass); color: var(--ink); border: 2px solid var(--ink); border-radius: 6px;
@@ -959,7 +957,6 @@ dialog#cseq input[type=range]::-moz-range-thumb { width: 0; height: 0; border: 0
 dialog#cseq .cs-foot { display: flex; gap: 8px; padding-top: 12px; border-top: 2px solid var(--ink); }
 dialog#cseq .cs-foot #cseq-kind { min-width: 96px; text-transform: lowercase; letter-spacing: 0; }
 dialog#cseq .cs-foot #cseq-done { margin-left: auto; min-width: 80px; }
-.trim .knob.cseq::after { right: auto; left: -26px; top: -4px; }
 
 /* value readouts never move their neighbours (Johnny, "labels cause controls to shift about when the value shown is too
    wide"): readouts stay on one line (a wrap pushed the dial down a row, mostly while the fallback font shows before VT323
