@@ -7,8 +7,8 @@ const [out, version = 'dev', sha = 'local'] = process.argv.slice(2);
 if (!out) { console.error('usage: node plugin/tools/make-page.js <out-dir> [version] [sha]'); process.exit(2); }
 let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const swap = (re, to, what) => { const n = html; html = html.replace(re, to); if (n === html) throw new Error('make-page: could not find ' + what); };
-swap(/<link rel="manifest"[^>]*>\n/, '', 'the manifest link');
-html = html.replace(/<link rel="(icon|apple-touch-icon)"[^>]*>\n/g, '');
+swap(/<link rel="manifest"[^>]*>\r?\n/, '', 'the manifest link');
+html = html.replace(/<link rel="(icon|apple-touch-icon)"[^>]*>\r?\n/g, '');
 const date = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
 swap('__BUILD_VERSION__', version, 'the version slot');
 html = html.replace('__BUILD_SHA__', sha.slice(0, 7)).replace('__BUILD_DATE__', date);
