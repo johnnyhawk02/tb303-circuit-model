@@ -514,6 +514,7 @@ struct TB303Engine {
     TB303Voice v; ParamSlew slew; DeClick dc;
     bool playing = false; double bpm = 128; std::vector<Step> pattern; double shuffle = 0, gateLen = 0.5;
     int step = -1; long long ctr = 0, stepLen = 1, gateOffAt = -1;
+    int transpose = 0; // semitones the pattern plays up (the root note from MIDI)
 
     explicit TB303Engine(double fs_, std::function<void(int)> cb = {})
         : fs(fs_), onStep(std::move(cb)), v(fs_), slew(v, fs_), dc(v, fs_) { pattern.reserve(64); }
@@ -536,7 +537,7 @@ struct TB303Engine {
         const Step& s = pattern[step]; const Step& prev = pattern[(step - 1 + n) % n];
         const long long len = (long long) jsround(fs * 60 / bpm / 4 * (1 + (step & 1 ? -shuffle : shuffle)));
         if (s.gate) {
-            dc.noteOn(s.code, s.accent, prev.gate && prev.slide);
+            dc.noteOn(s.code + transpose, s.accent, prev.gate && prev.slide);
             gateOffAt = s.slide ? -1 : (long long) jmax(1, jsround(len * gateLen));
         } else { dc.noteOff(); gateOffAt = -1; }
         if (onStep) onStep(step);

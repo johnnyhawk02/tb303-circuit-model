@@ -94,6 +94,8 @@ private:
     std::atomic<Engine*> pendingEngine { nullptr }, retiredEngine { nullptr };
     std::mutex queueLock; std::vector<Msg> queue;
     std::atomic<int> stepForUi { -1 }; std::atomic<double> bpmForUi { 120 };
+    std::atomic<int> midiSlot { -1 };                   // a pattern a MIDI note picked, for the timer to load
+    int transposeNow = 0;                               // audio thread: the root note from MIDI, semitones above C1
     juce::AbstractFifo midiFifo { 256 }; std::array<std::array<int, 3>, 256> midiBuf {};
     // message thread (snapshotLock also guards it for prepareToPlay and state calls from other threads)
     mutable std::mutex snapshotLock;
