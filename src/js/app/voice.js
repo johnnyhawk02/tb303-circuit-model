@@ -3,7 +3,7 @@ panel.insertAdjacentHTML('afterbegin', `<div class="kn wave-kn" role="group" ari
   <div class="wave-row"><svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 L9 1 V11 L17 1 V11"/></svg>
   <button type="button" class="switch" id="wave-sw" role="switch" aria-checked="false" aria-label="Square wave"><span class="thumb"></span></button>
   <svg class="wglyph" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 11 V1 H10 V11 H19 V1"/></svg></div>
-  <span class="val" id="wave-val">Saw</span></div>`);
+  <span class="val" id="wave-val" aria-hidden="true" style="visibility: hidden">Saw</span></div>`);
 const waveSw = document.getElementById('wave-sw');
 // Key track: the KT part (a TD-3-MO / Devil Fish style mod), as a full front-panel dial after Reso
 document.getElementById('knob-resonance').parentElement.insertAdjacentHTML('afterend', `<div class="kn kt-kn" title="Key track: higher notes open the filter. About a third is exact 1 V/oct; full is about 300%, so low notes almost vanish. 0 is the stock 303. Double-click to reset.">
@@ -44,7 +44,8 @@ document.getElementById('parts-undo').onclick = () => {
   const u = partsUndo.pop(); if (!u) return;
   applySound({ ...soundSnap(), parts: u }); syncPartsUndo(); sqSay('Part values put back.');
 };
-function drawWave() { waveSw.setAttribute('aria-checked', state.wave === 'square'); document.getElementById('wave-val').textContent = state.wave === 'square' ? 'Square' : 'Saw'; }
+// no saw/square word under the switch (Johnny: the icons say it); the hidden val keeps the cell the same height as the dials
+function drawWave() { waveSw.setAttribute('aria-checked', state.wave === 'square'); }
 waveSw.onclick = () => {
   const w = state.wave === 'square' ? 'saw' : 'square';
   state.wave = w; preview.waveform = w; drawWave(); send({ type: 'wave', value: w }); saveSession();
