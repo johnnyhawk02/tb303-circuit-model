@@ -233,15 +233,15 @@ constexpr double B259_W[5] = {-12.0, -27.777, -21.428, 17.647, 36.363};
   X(accent, "Accent", 0.75) \
   X(volume, "Volume", 0.85) \
   X(drvtype, "Drive pedal", 0.0) \
-  X(dist, "RAT distortion", 0.5) \
-  X(filter, "RAT filter", 0.4) \
-  X(ratvol, "RAT volume", 0.5) \
-  X(dsdist, "DS-1 dist", 0.5) \
-  X(dstone, "DS-1 tone", 0.5) \
-  X(dslevel, "DS-1 level", 0.5) \
-  X(tsdrive, "TS808 drive", 0.5) \
-  X(tstone, "TS808 tone", 0.5) \
-  X(tslevel, "TS808 level", 0.5) \
+  X(dist, "Rodent distortion", 0.5) \
+  X(filter, "Rodent filter", 0.4) \
+  X(ratvol, "Rodent volume", 0.5) \
+  X(dsdist, "Dist One dist", 0.5) \
+  X(dstone, "Dist One tone", 0.5) \
+  X(dslevel, "Dist One level", 0.5) \
+  X(tsdrive, "Green 808 drive", 0.5) \
+  X(tstone, "Green 808 tone", 0.5) \
+  X(tslevel, "Green 808 level", 0.5) \
   X(fldtimbre, "Folder timbre", 0.5) \
   X(fldsym, "Folder symmetry", 0.5) \
   X(fldlevel, "Folder level", 0.5) \
@@ -286,8 +286,8 @@ constexpr double B259_W[5] = {-12.0, -27.777, -21.428, 17.647, 36.363};
   X(dlyhi, "Delay high cut", 0.55) \
   X(dlymix, "Delay return", 0.35) \
   X(dlypp, "Delay ping-pong", 1.0) \
-  X(cmpamt, "Compactor amount", 0.3) \
-  X(cmprel, "Compactor release", 0.5) \
+  X(cmpamt, "Ducker amount", 0.3) \
+  X(cmprel, "Ducker release", 0.5) \
   X(flgman, "Flanger manual", 0.5) \
   X(flgdep, "Flanger depth", 0.5) \
   X(flgrate, "Flanger rate", 0.3) \

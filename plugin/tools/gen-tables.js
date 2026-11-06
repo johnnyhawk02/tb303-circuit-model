@@ -18,8 +18,8 @@ out += 'constexpr double B259_W[5] = {' + M.PEDAL_PARTS.B259_W.map(num).join(', 
 // them with the unit in front, then the effect switches and the wave switch
 const stateJs = fs.readFileSync(path.join(root, 'src/js/app/state.js'), 'utf8');
 const KN = new Function(stateJs.match(/const KNOBS = \[[\s\S]*?\n\];/)[0] + '\nreturn KNOBS;')();
-const DRV = { rat: 'RAT', ds: 'DS-1', ts: 'TS808' }, REV = { plate: 'Plate', spring: 'Spring', conv: 'Conv' };
-const FXN = { rat: 'Drive', fold: 'Folder', lex: '224', dly: 'Delay', cmp: 'Compactor', flg: 'Flanger', route: 'Routing' };
+const DRV = { rat: 'Rodent', ds: 'Dist One', ts: 'Green 808' }, REV = { plate: 'Plate', spring: 'Spring', conv: 'Conv' };
+const FXN = { rat: 'Drive', fold: 'Folder', lex: '224', dly: 'Delay', cmp: 'Ducker', flg: 'Flanger', route: 'Routing' };
 const SPECIAL = { drvtype: 'Drive pedal', lexprog: '224 program', revtype: 'Reverb type', fxorder: 'Routing order', fxret: 'Routing returns',
   plateprog: 'Plate size', sprprog: 'Spring tank', cnvprog: 'Conv IR', dlypp: 'Delay ping-pong', flgmode: 'Flanger mode' };
 const pname = (k) => SPECIAL[k.id] || (!k.fx ? k.name : `${k.drv ? DRV[k.drv] : k.rev ? REV[k.rev] : FXN[k.fx]} ${k.name.toLowerCase()}`);
