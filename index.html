@@ -2916,12 +2916,13 @@ class DeClick {
 
 // The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
 // The AudioWorklet and the main-thread fallback both run this, so they sound the same.
-// Messages: knob, component, wave, tune, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
+// Messages: knob, component, wave, tune, fx, declick, pattern, transpose, bpm, groove (shuffle, gate length), play.
 class TB303Engine {
   constructor(fs, onStep = () => {}) {
     this.fs = fs; this.onStep = onStep;
     this.v = new TB303Voice(fs); this.slew = new ParamSlew(this.v, fs); this.dc = new DeClick(this.v, fs);
     this.playing = false; this.bpm = 128; this.pattern = []; this.shuffle = 0; this.gate = 0.5;
+    this.transpose = 0; // semitones the pattern plays up (the root note from MIDI)
     this.step = -1; this.ctr = 0; this.stepLen = 1; this.gateOffAt = -1;
   }
   message(m) {
@@ -2933,6 +2934,7 @@ class TB303Engine {
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
     else if (m.type === 'pattern') this.pattern = m.value;
+    else if (m.type === 'transpose') this.transpose = m.value | 0;
     else if (m.type === 'bpm') { this.bpm = m.value; v.bpm = m.value; v.dly.derive(v.knobs, m.value); }
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
     else if (m.type === 'ir') v.conv.setIR(m.id, m.L, m.R);
@@ -2945,7 +2947,7 @@ class TB303Engine {
     const s = P[this.step], prev = P[(this.step - 1 + n) % n];
     const len = Math.round(this.fs * 60 / this.bpm / 4 * (1 + (this.step & 1 ? -this.shuffle : this.shuffle)));
     if (s.gate) {
-      this.v.noteOn(s.code, s.accent, prev.gate && prev.slide);
+      this.v.noteOn(s.code + this.transpose, s.accent, prev.gate && prev.slide);
       this.gateOffAt = s.slide ? -1 : Math.max(1, Math.round(len * this.gate));
     } else { this.v.noteOff(); this.gateOffAt = -1; }
     this.onStep(this.step);
@@ -4883,7 +4885,7 @@ async function initAudio() {
   document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove();
+  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove(); sendTranspose();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   sendDeclick();
   if (revType(state.knobs) === 3) loadIRs();
@@ -5773,19 +5775,32 @@ const MIDI_MAP = [...KNOBS.filter(k => !k.fx).flatMap(k => k.id === 'resonance'
     ? [voiceCc(k), { name: 'Key track', set: (t) => setPartT('KT', t, true) }] : [voiceCc(k)]),
   { name: 'Filter trim', set: (t) => setPartT('I_REF', t) },
   ...FRONT_MODS.map(([k, name]) => ({ name, set: (t) => setPartT(k, t) }))];
-document.getElementById('midi-map').innerHTML = MIDI_MAP.map((m, i) => `<dt>CC ${i + 1}</dt><dd>${m.name}</dd>`).join('');
+// Notes (any channel, octaves named as in Logic and Ableton, C3 = middle C = note 60): C0-G0 (24-31) pick pattern 1-8,
+// C1-C3 (36-60) set the root note the pattern plays from, C1 as written, each semitone up shifts it up one. The root
+// note is a performance setting: it is not saved and comes back to C1 when the page loads.
+const NOTE_PAT = 24, NOTE_ROOT = 36, ROOT_MAX = 24;
+let midiTranspose = 0;
+function sendTranspose() { send({ type: 'transpose', value: midiTranspose }); }
+document.getElementById('midi-map').innerHTML = MIDI_MAP.map((m, i) => `<dt>CC ${i + 1}</dt><dd>${m.name}</dd>`).join('')
+  + '<dt>C0-G0</dt><dd>Pattern 1-8</dd><dt>C1-C3</dt><dd>Root note (C1 = as written)</dd>';
 const midiPending = new Map(); let midiFrame = 0;
+function onMidiNote(note) {
+  if (note >= NOTE_PAT && note < NOTE_PAT + 8) { const n = note - NOTE_PAT; if (n !== sel.n) loadSlot(sel.g, n); }
+  else if (note >= NOTE_ROOT && note <= NOTE_ROOT + ROOT_MAX && note - NOTE_ROOT !== midiTranspose) { midiTranspose = note - NOTE_ROOT; sendTranspose(); }
+}
 function onMidi(e) {
-  const [st, cc, val] = e.data; if ((st & 0xf0) !== 0xb0 || cc < 1 || cc > MIDI_MAP.length) return;
+  const [st, cc, val] = e.data;
+  if ((st & 0xf0) === 0x90 && val > 0) { onMidiNote(cc); return; }
+  if ((st & 0xf0) !== 0xb0 || cc < 1 || cc > MIDI_MAP.length) return;
   midiPending.set(cc, val / 127);
   if (!midiFrame) midiFrame = requestAnimationFrame(() => { midiFrame = 0; for (const [c, t] of midiPending) MIDI_MAP[c - 1].set(t); midiPending.clear(); });
 }
-if (tbPlugin) document.getElementById('midi-status').textContent = 'In the plug-in, MIDI CC comes from the DAW track, all channels.';
+if (tbPlugin) document.getElementById('midi-status').textContent = 'In the plug-in, MIDI comes from the DAW track, all channels. C3 = middle C.';
 else if (navigator.requestMIDIAccess) {
   const midiStatus = document.getElementById('midi-status');
   navigator.requestMIDIAccess().then((acc) => {
     const hook = () => { const ins = [...acc.inputs.values()]; for (const i of ins) i.onmidimessage = onMidi;
-      midiStatus.textContent = ins.length ? `Listening on ${ins.map(i => i.name).join(', ')}, all channels.` : 'No MIDI input connected. Plug one in and it is picked up straight away.'; };
+      midiStatus.textContent = ins.length ? `Listening on ${ins.map(i => i.name).join(', ')}, all channels. C3 = middle C.` : 'No MIDI input connected. Plug one in and it is picked up straight away.'; };
     hook(); acc.onstatechange = hook;
   }, () => { midiStatus.textContent = 'MIDI access was refused or is not available here.'; });
 } else document.getElementById('midi-status').textContent = 'This browser has no Web MIDI. Chrome and Edge have it.';

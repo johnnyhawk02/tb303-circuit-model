@@ -193,7 +193,14 @@ int TB303Processor::currentSlot() const {
 
 // with the window shut, the Pattern parameter loads the slot the way the page's loadSlot does
 void TB303Processor::timerCallback() {
-    if (pageOpen || !slotParam) return;
+    if (!slotParam) return;
+    // a MIDI note picked a pattern: it moves the Pattern parameter, which loads the slot (the page does it while it is open)
+    if (const int n = midiSlot.exchange (-1); n >= 0) {
+        const float v = slotParam->p->convertTo0to1 ((float) (n + 1));
+        if (v != slotParam->p->getValue()) { slotParam->p->beginChangeGesture(); slotParam->p->setValueNotifyingHost (v); slotParam->p->endChangeGesture(); }
+        else if (!pageOpen && n != currentSlot()) { slotApplied = v; loadSlotNatively (n); return; }
+    }
+    if (pageOpen) return;
     const float v = slotParam->p->getValue();
     if (v == slotApplied) return;
     slotApplied = v;
@@ -435,11 +442,18 @@ void TB303Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
     }
     for (const auto meta : midi) {
         const auto msg = meta.getMessage();
-        if (msg.isController()) {
+        // notes, octaves named as on the page (C3 = 60): C0-G0 pick pattern 1-8, C1-C3 set the root note (C1 = as written)
+        if (msg.isNoteOn()) {
+            const int nn = msg.getNoteNumber();
+            if (nn >= 24 && nn < 32) midiSlot.store (nn - 24);
+            else if (nn >= 36 && nn <= 60) transposeNow = nn - 36;
+        }
+        else if (msg.isController()) {
             int s1, n1, s2, n2; midiFifo.prepareToWrite (1, s1, n1, s2, n2);
             if (n1 + n2 > 0) { midiBuf[(size_t) (n1 ? s1 : s2)] = { 0xB0 | (msg.getChannel() - 1), msg.getControllerNumber(), msg.getControllerValue() }; midiFifo.finishedWrite (1); }
         }
     }
+    e.transpose = transposeNow;
     syncToHost (e, n);
     float* L = buffer.getWritePointer (0);
     float* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;

@@ -1713,12 +1713,13 @@ class DeClick {
 
 // The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
 // The AudioWorklet and the main-thread fallback both run this, so they sound the same.
-// Messages: knob, component, wave, tune, fx, declick, pattern, bpm, groove (shuffle, gate length), play.
+// Messages: knob, component, wave, tune, fx, declick, pattern, transpose, bpm, groove (shuffle, gate length), play.
 class TB303Engine {
   constructor(fs, onStep = () => {}) {
     this.fs = fs; this.onStep = onStep;
     this.v = new TB303Voice(fs); this.slew = new ParamSlew(this.v, fs); this.dc = new DeClick(this.v, fs);
     this.playing = false; this.bpm = 128; this.pattern = []; this.shuffle = 0; this.gate = 0.5;
+    this.transpose = 0; // semitones the pattern plays up (the root note from MIDI)
     this.step = -1; this.ctr = 0; this.stepLen = 1; this.gateOffAt = -1;
   }
   message(m) {
@@ -1730,6 +1731,7 @@ class TB303Engine {
     else if (m.type === 'fx') v.setFx(m.name, m.value);
     else if (m.type === 'declick') { this.dc.setOn(!!m.on); this.dc.setFade(m.ms); }
     else if (m.type === 'pattern') this.pattern = m.value;
+    else if (m.type === 'transpose') this.transpose = m.value | 0;
     else if (m.type === 'bpm') { this.bpm = m.value; v.bpm = m.value; v.dly.derive(v.knobs, m.value); }
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
     else if (m.type === 'ir') v.conv.setIR(m.id, m.L, m.R);
@@ -1742,7 +1744,7 @@ class TB303Engine {
     const s = P[this.step], prev = P[(this.step - 1 + n) % n];
     const len = Math.round(this.fs * 60 / this.bpm / 4 * (1 + (this.step & 1 ? -this.shuffle : this.shuffle)));
     if (s.gate) {
-      this.v.noteOn(s.code, s.accent, prev.gate && prev.slide);
+      this.v.noteOn(s.code + this.transpose, s.accent, prev.gate && prev.slide);
       this.gateOffAt = s.slide ? -1 : Math.max(1, Math.round(len * this.gate));
     } else { this.v.noteOff(); this.gateOffAt = -1; }
     this.onStep(this.step);

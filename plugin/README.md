@@ -12,7 +12,9 @@ The web app as a VST3 instrument for macOS, built only from the web app in this 
   built with `-ffp-contract=off` and without fast-math, so its arithmetic matches JavaScript's.
 - **Plays from the DAW:** play and stop follow the transport, the tempo follows the DAW's tempo, and the steps land on
   the DAW's 16th-note grid counted from the start of the song (so the pattern's step 1 falls on bar 1, and loops and
-  jumps stay in time). MIDI CC from the track drives the page's MIDI map (Options > MIDI) while the screen is open.
+  jumps stay in time). MIDI CC from the track drives the page's MIDI map (Options > MIDI) while the screen is open. Notes (C3 = 60)
+  pick the pattern, C0-G0 = slots 1-8, and C1-C3 set the root note the pattern plays from (C1 = as written), with the
+  window open or shut.
 - **Automation:** every knob (named as on the screen, with its unit in front), the effect On switches and the wave switch
   and a Pattern parameter (slots 1-8) are DAW parameters (generated into `engine/tables.h` from `src/js/app/state.js`). Automation moves the controls on
   the screen and plays with the window shut; moving a control on the screen records automation.
