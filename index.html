@@ -1039,7 +1039,7 @@ html[data-seqoff] .top #play { opacity: .35; }
           <button type="button" role="menuitem" data-rm="a-acc" title="Vary the accents: about a quarter of the notes gain or lose an accent; again for more">Accents</button>
           <button type="button" role="menuitem" data-rm="a-sld" title="Vary the slides: about a quarter of the notes gain or lose a slide; again for more">Slides</button>
           <button type="button" role="menuitem" data-rm="a-oct" title="Vary the octaves: about a quarter of the notes jump an octave up or down; again for more">Octaves</button>
-          <button type="button" role="menuitem" data-rm="alter" title="Vary the whole pattern: about a quarter of the steps change note, octave, accent, slide or rest">Whole pattern</button>
+          <button type="button" role="menuitem" data-rm="alter" title="Vary the whole pattern: about a quarter of the steps change note (staying in the pattern's key), octave, accent, slide or rest">Whole pattern</button>
           <span class="mh">pattern</span>
           <button type="button" role="menuitem" data-rm="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle steps</button>
           <button type="button" role="menuitem" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled; the length stays">Generate</button>
@@ -3916,24 +3916,45 @@ const FUNCTIONS = {
     else if (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)) installSay('In Safari on a Mac: File › Add to Dock.');
     else installSay('Use your browser menu: Install 303 Circuit Model, or Add to Home screen.');
   },
-  // a variation, not a new pattern: about a quarter of the steps change, notes stay among the pitches the pattern already uses
+  // a variation, not a new pattern: about a quarter of the steps change. It borrows Generate's AcidLab habits: new notes
+  // walk a scale step or two in the pattern's own key or snap back to its most used note (the repeat note), filled
+  // rests take the repeat note, rests land on off-beats and fills on the beat, and now and then every beat is made to play
   alter() {
     pushUndo();
-    const P = state.pattern, n = P.length, pitches = [...new Set(P.filter(st => st.gate).map(st => st.code))];
+    const P = state.pattern, n = P.length, r = Math.random, used = P.filter(st => st.gate).map(st => st.code);
+    const pitches = [...new Set(used)].sort((a, b) => a - b);
     if (!pitches.length) pitches.push(24);
-    const idx = [...Array(n).keys()].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(n / 4)));
-    const done = { note: 0, octave: 0, accent: 0, slide: 0, rest: 0, gate: 0 };
+    const count = {}; for (const c of used) count[c] = (count[c] || 0) + 1;
+    const hold = +Object.keys(count).sort((a, b) => count[b] - count[a])[0] || pitches[0];
+    // the key: the repeat note as root, with whichever of Generate's scales holds most of the notes the pattern uses
+    const pcs = used.map(c => (((c - hold) % 12) + 12) % 12);
+    const scale = Object.values(GEN_SCALES).map(sc => [sc, pcs.filter(pc => sc.includes(pc)).length]).sort((a, b) => b[1] - a[1])[0][0];
+    // a neighbouring note one or two scale steps up or down, so the line walks but stays in its key
+    const walk = (c) => { const inKey = []; for (let k = 0; k <= 59; k++) if (scale.includes((((k - hold) % 12) + 12) % 12)) inKey.push(k);
+      let i = inKey.findIndex(k => k >= c); if (i < 0) i = inKey.length - 1;
+      return inKey[Math.max(0, Math.min(inKey.length - 1, i + (r() < 0.5 ? -1 : 1) * (r() < 0.7 ? 1 : 2)))]; };
+    const idx = [...Array(n).keys()].sort(() => r() - 0.5).slice(0, Math.max(1, Math.round(n / 4)));
+    const done = { note: 0, octave: 0, accent: 0, slide: 0, rest: 0, gate: 0, beat: 0 };
     for (const i of idx) {
-      const st = P[i], r = Math.random();
-      if (r < 0.4 && pitches.length > 1) { const c = pitches.filter(c => c !== st.code); st.code = c[Math.floor(Math.random() * c.length)]; st.gate = true; done.note++; }
-      else if (r < 0.55) { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; done.octave++; }
-      else if (r < 0.7) { st.accent = !st.accent; done.accent++; }
-      else if (r < 0.85) { st.slide = !st.slide; done.slide++; }
-      else if (i > 0) { st.gate = !st.gate; st.gate ? done.gate++ : done.rest++; }
+      const st = P[i], x = r(), beat = i % 4 === 0, off = i % 2 === 1;
+      if (x < 0.4) {
+        const was = st.code; st.code = st.code !== hold && r() < 0.35 ? hold : walk(st.code);
+        if (st.code === was) st.code = walk(was);
+        st.gate = true; done.note++;
+      }
+      else if (x < 0.52) { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || r() < 0.5); st.code += up ? 12 : -12; done.octave++; }
+      else if (x < 0.66) { st.accent = !st.accent; done.accent++; }
+      else if (x < 0.8) { st.slide = !st.slide; done.slide++; }
+      else if (i > 0 && (st.gate ? !beat && (off || r() < 0.4) : !off || r() < 0.5)) {
+        st.gate = !st.gate;
+        if (st.gate) { st.code = hold; done.gate++; } else { st.accent = st.slide = false; done.rest++; }
+      }
       else { st.accent = !st.accent; done.accent++; }
     }
+    // AcidLab's Mutate sometimes puts a note on every beat: here one press in eight, with the repeat note
+    if (n >= 8 && r() < 0.125) for (let i = 0; i < n; i += 4) if (!P[i].gate) { P[i].gate = true; P[i].code = hold; done.beat++; }
     renderSeq(); pushPattern();
-    const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'] };
+    const words = { note: ['note', 'notes'], octave: ['octave jump', 'octave jumps'], accent: ['accent', 'accents'], slide: ['slide', 'slides'], rest: ['new rest', 'new rests'], gate: ['rest filled', 'rests filled'], beat: ['beat filled', 'beats filled'] };
     sqSay('Altered ' + Object.entries(done).filter(([, v]) => v).map(([k, v]) => `${v} ${words[k][v > 1 ? 1 : 0]}`).join(', ') + '. Undo puts it back.');
   },
   // New machine: like building a real unit, each part lands somewhere inside its tolerance (triangular, so most land near the middle).
