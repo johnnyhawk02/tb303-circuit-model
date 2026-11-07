@@ -2,6 +2,7 @@
 #pragma once
 #include "Processor.h"
 #include "KeyMonitor.h"
+#include "WindowState.h"
 
 class TB303Editor : public juce::AudioProcessorEditor, private juce::Timer {
 public:
@@ -26,9 +27,12 @@ private:
     std::unique_ptr<juce::FileChooser> chooser;
     int sentStep = -2; double sentBpm = -1; bool ready = false, typing = false;
     void* keyMonitor = nullptr; bool keyMonitorTried = false;
+    // keeping the page alive: whether the window was on screen at the last tick, and when the page last answered a ping
+    bool wasShown = false, everShown = false, modal = false; double lastPong = 0, lastPing = 0, lastRebuild = 0;
+    static double now() { return juce::Time::getMillisecondCounterHiRes(); }
 
     void makeBrowser() {
-        ready = false; sentStep = -2; sentBpm = -1;
+        ready = false; modal = false; sentStep = -2; sentBpm = -1; lastPong = lastRebuild = now();
         const auto root = juce::WebBrowserComponent::getResourceProviderRoot();
         auto opts = juce::WebBrowserComponent::Options {}
            #if JUCE_WINDOWS
@@ -46,6 +50,8 @@ private:
             .withInitialisationData ("tb303", proc.pageInitData())
             .withEventListener ("tb303", [this] (const juce::var& m) {
                 if (m["type"].toString() == "typing") { typing = (bool) m["on"]; return; }
+                if (m["type"].toString() == "pong") { lastPong = now(); return; }
+                if (m["type"].toString() == "modal") { modal = (bool) m["on"]; lastPong = now(); return; }
                 if (m["type"].toString() == "ready") { ready = true; sentStep = -2; sentBpm = -1; proc.uiOpened(); }
                 proc.handleUiMessage (m);
             });
@@ -74,8 +80,30 @@ private:
         });
     }
 
+    // A web view can come back white after the DAW window is minimised and restored (WebView2 stops drawing; macOS can
+    // also end a web view's page process while it's hidden). So: when the window comes back, hide and show the web view,
+    // which makes it draw again; and if the page stops answering pings while the window is up, load it again (its
+    // state is in the plug-in's store, so it comes back as it was, like closing and opening the window).
+    void keepPageAlive() {
+        auto* peer = getPeer();
+        const bool shown = browser != nullptr && isShowing() && peer != nullptr && ! tbWindowHidden (peer->getNativeHandle());
+        const double t = now();
+        if (shown && ! wasShown) {
+            if (everShown) { browser->setVisible (false); browser->setVisible (true); resized(); } // not on the first open
+            everShown = true;
+            lastPong = lastPing = t; // a fresh start for the ping check
+        }
+        wasShown = shown;
+        if (! shown) return;
+        if (ready && t - lastPing > 1000) { lastPing = t; browser->emitEventIfBrowserIsVisible ("tb303", obj ({ { "type", "ping" } })); }
+        // no answer for 6 s (or no page at all 10 s after loading it): load it again, at most every 15 s
+        const double limit = ready ? 6000 : 10000;
+        if (! modal && t - lastPong > limit && t - lastRebuild > 15000) { makeBrowser(); resized(); }
+    }
+
     void timerCallback() override {
         if (! keyMonitorTried) watchCmdKeys();
+        keepPageAlive();
         if (!ready) { int s, a, b; while (proc.popMidi (s, a, b)) {} return; }
         const int st = proc.uiStep();
         if (st != sentStep) { sentStep = st; emit (obj ({ { "type", "step" }, { "step", st } })); }

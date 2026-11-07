@@ -52,7 +52,9 @@ juce_generate_juce_header(TB303CircuitModel)
 target_sources(TB303CircuitModel PRIVATE source/Processor.cpp)
 if(APPLE)
   enable_language(OBJCXX)
-  target_sources(TB303CircuitModel PRIVATE source/KeyMonitor.mm)
+  target_sources(TB303CircuitModel PRIVATE source/KeyMonitor.mm source/WindowState_mac.mm)
+elseif(WIN32)
+  target_sources(TB303CircuitModel PRIVATE source/WindowState_win.cpp)
 endif()
 target_compile_definitions(TB303CircuitModel PUBLIC
   JUCE_WEB_BROWSER=1 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_USE_FLAC=1
