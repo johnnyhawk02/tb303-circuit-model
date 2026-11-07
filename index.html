@@ -5203,11 +5203,17 @@ if (tbPlugin) {
     } else return;
     clearTimeout(saveT); saveT = setTimeout(saveSession, 400);
   };
+  // a confirm/alert/prompt box stops the page's JavaScript, so the plug-in would think the page had died: tell it first
+  for (const f of ['confirm', 'alert', 'prompt']) {
+    const orig = window[f].bind(window);
+    window[f] = (...a) => { send({ type: 'modal', on: true }); try { return orig(...a); } finally { send({ type: 'modal', on: false }); } };
+  }
   // what the plug-in plays now wins over the session the page saved (automation may have moved it while the window was shut)
   for (const m of tbPlugin.info?.engine || []) applyParam(m);
   tbPlugin.on((m) => {
     if (!m) return;
-    if (m.type === 'step') markStep(m.step);
+    if (m.type === 'ping') send({ type: 'pong' }); // the plug-in checks the page is still alive
+    else if (m.type === 'step') markStep(m.step);
     else if (m.type === 'param') applyParam(m.m);
     else if (m.type === 'bpm') { if (typeof m.value === 'number' && isFinite(m.value)) { state.bpm = Math.round(m.value * 100) / 100; bpmVal.textContent = state.bpm; } }
     else if (m.type === 'midi' && Array.isArray(m.data)) onMidi({ data: m.data });
