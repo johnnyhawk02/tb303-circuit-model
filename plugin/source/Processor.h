@@ -54,7 +54,7 @@ private:
     using Engine = tb303::TB303Engine;
     // one engine message, parsed on the message thread and applied on the audio thread
     struct Msg {
-        enum Kind { Knob, Component, Wave, Tune, Fx, Declick, Pattern, Groove, IR } kind = Knob;
+        enum Kind { Knob, Component, Wave, Tune, Fx, Declick, Pattern, Groove, Seq, IR } kind = Knob;
         std::string name; double a = 0, b = 0; bool on = false;
         std::vector<double> vals; std::vector<tb303::Step> steps; std::shared_ptr<tb303::IRData> ir;
     };

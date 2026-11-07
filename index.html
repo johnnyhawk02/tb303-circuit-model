@@ -973,12 +973,21 @@ dialog#cseq .cs-foot #cseq-done { margin-left: auto; min-width: 80px; }
 .tmenu .tm-w { display: inline-grid; justify-items: start; }
 .tmenu .tm-w > span { grid-area: 1 / 1; white-space: nowrap; }
 .tmenu .tm-w > span + span { visibility: hidden; }
+
+/* Seq on/off: a small switch by Play (the plug-in shows it too). Off, the sequencer stops and MIDI notes play the synth,
+   so Play is dimmed; the Tempo dial stays for the tempo-synced delay. On is inked like the FX On buttons. */
+.top .seqbtn { height: 20px !important; padding: 0 6px; font: var(--fs-s)/1 var(--font-body); }
+html:not([data-plugin]) .top .seqbtn { margin-left: -6px; }
+.top .seqbtn[aria-pressed=true] { background: var(--ink); color: var(--glass); text-shadow: none; }
+[data-lcdmode=colour] .top .seqbtn[aria-pressed=true] { background: var(--accent); border-color: var(--accent); }
+html[data-seqoff] .top #play { opacity: .35; }
 </style>
 <div class="rotate" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><p>Turn sideways for a bigger view</p></div>
 <div class="main">
   <header class="top">
     <h1 class="status">303 circuit model</h1>
     <button class="icon play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M7 4.5 L19.5 12 L7 19.5 Z"/><rect class="sq" x="6" y="6" width="12" height="12"/></svg></button>
+    <button class="seqbtn" id="seq-on" type="button" aria-pressed="true" aria-label="Sequencer on">seq</button>
     <div class="bpm">
       <div class="knob" id="bpm" tabindex="0" role="slider" aria-label="Tempo" aria-valuemin="60" aria-valuemax="200"></div>
       <div class="bpm-read"><output id="bpm-val">128</output><span class="label">BPM</span></div>
@@ -2918,7 +2927,8 @@ class DeClick {
 
 // The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
 // The AudioWorklet and the main-thread fallback both run this, so they sound the same.
-// Messages: knob, component, wave, tune, fx, declick, pattern, transpose, bpm, groove (shuffle, gate length), play.
+// Messages: knob, component, wave, tune, fx, declick, pattern, transpose, bpm, groove (shuffle, gate length), play,
+// seq (the step sequencer on or off) and note (a MIDI note, played straight on the voice while the sequencer is off).
 class TB303Engine {
   constructor(fs, onStep = () => {}) {
     this.fs = fs; this.onStep = onStep;
@@ -2926,6 +2936,18 @@ class TB303Engine {
     this.playing = false; this.bpm = 128; this.pattern = []; this.shuffle = 0; this.gate = 0.5;
     this.transpose = 0; // semitones the pattern plays up (the root note from MIDI)
     this.step = -1; this.ctr = 0; this.stepLen = 1; this.gateOffAt = -1;
+    this.seqOn = true; this.held = []; // with the sequencer off: the MIDI notes held down, the last one sounding
+  }
+  // Seq off: a mono MIDI synth. The newest held note sounds; a note pressed while another is held slides to it without
+  // retriggering (as a slide step does), letting go falls back to the note still held. Velocity 100 and up is an accent.
+  // MIDI note 45 (A2) is code 33, 110 Hz, the pattern's A; notes outside the DAC's 64 codes are folded in by octaves.
+  _noteCode(n) { let c = (n | 0) - 12; while (c < 0) c += 12; while (c > 63) c -= 12; return c; }
+  _note(on, n, vel) {
+    const h = this.held, i = h.indexOf(n);
+    if (i >= 0) h.splice(i, 1);
+    if (on) { const legato = h.length > 0; h.push(n); this.v.noteOn(this._noteCode(n), vel >= 100, legato); }
+    else if (i === h.length && h.length) this.v.noteOn(this._noteCode(h[h.length - 1]), false, true); // the note let go was sounding
+    else if (!h.length && i >= 0) this.v.noteOff();
   }
   message(m) {
     const v = this.v;
@@ -2940,7 +2962,12 @@ class TB303Engine {
     else if (m.type === 'bpm') { this.bpm = m.value; v.bpm = m.value; v.dly.derive(v.knobs, m.value); }
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
     else if (m.type === 'ir') v.conv.setIR(m.id, m.L, m.R);
-    else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
+    else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value && this.seqOn) v.noteOff(); }
+    else if (m.type === 'seq') {
+      const on = !!m.value; if (on === this.seqOn) return;
+      this.seqOn = on; this.held = []; this.step = -1; this.ctr = 0; this.gateOffAt = -1; v.noteOff();
+    }
+    else if (m.type === 'note') { if (!this.seqOn) this._note(!!m.on, m.note | 0, m.vel | 0); }
   }
   // a 16th note; shuffle lengthens the even steps and shortens the odd ones. Returns its length in samples.
   _startStep() {
@@ -2957,19 +2984,19 @@ class TB303Engine {
   }
   // fills out[s..e) (and outR, if given), split into runs at step starts, gate-offs and every 32 samples while slewing
   render(out, outR, s = 0, e = out.length) {
-    let i = s;
+    let i = s; const seq = this.playing && this.seqOn;
     while (i < e) {
-      if (this.playing && this.ctr <= 0) { this.stepLen = this._startStep() || 1; this.ctr = this.stepLen; }
+      if (seq && this.ctr <= 0) { this.stepLen = this._startStep() || 1; this.ctr = this.stepLen; }
       let run = e - i;
       if (this.slew.active) { run = Math.min(run, 32); this.slew.tick(run); }
-      if (this.playing) {
+      if (seq) {
         run = Math.min(run, this.ctr);
         const elapsed = this.stepLen - this.ctr;
         if (this.gateOffAt > elapsed) run = Math.min(run, this.gateOffAt - elapsed);
         else if (this.gateOffAt === elapsed) { this.v.noteOff(); this.gateOffAt = -1; }
       }
       this.dc.process(out, i, i + run, outR);
-      i += run; if (this.playing) this.ctr -= run;
+      i += run; if (seq) this.ctr -= run;
     }
   }
 }
@@ -4238,7 +4265,7 @@ async function initAudio() {
   document.getElementById('rate').textContent = `2× of ${ctx.sampleRate / 1000} kHz`;
   for (const k of KNOBS) send({ type: 'knob', name: k.id, value: state.knobs[k.id] });
   for (const k in state.parts) if (state.parts[k] !== COMPONENTS[k].v) send({ type: 'component', name: k, value: state.parts[k] });
-  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove(); sendTranspose();
+  send({ type: 'wave', value: state.wave }); sendTune(); send({ type: 'bpm', value: state.bpm }); sendPattern(); sendGroove(); sendTranspose(); sendSeq();
   for (const n in state.fx) send({ type: 'fx', name: n, value: state.fx[n] });
   sendDeclick();
   if (revType(state.knobs) === 3) loadIRs();
@@ -5136,15 +5163,42 @@ const NOTE_PAT = 24, NOTE_ROOT = 36, ROOT_MAX = 24;
 let midiTranspose = 0;
 function sendTranspose() { send({ type: 'transpose', value: midiTranspose }); }
 document.getElementById('midi-map').innerHTML = MIDI_MAP.map((m, i) => `<dt>CC ${i + 1}</dt><dd>${m.name}</dd>`).join('')
-  + '<dt>C0-G0</dt><dd>Pattern 1-8</dd><dt>C1-C3</dt><dd>Root note (C1 = as written)</dd>';
+  + '<dt>C0-G0</dt><dd>Pattern 1-8</dd><dt>C1-C3</dt><dd>Root note (C1 = as written)</dd>'
+  + '<dt>Seq off</dt><dd>Notes play the synth (A2 = 110 Hz, velocity 100+ accents, overlapping notes slide)</dd>';
+// ---------- Seq on/off (the small button by Play) ----------
+// Off, the step sequencer stops and the synth is a mono MIDI synth: every note plays the voice (the engine's 'note'
+// message), and the pattern and root-note notes above are just notes. A setting, not part of a sound or preset; in the
+// plug-in it is saved with the instance (the engine's 'seq' message is in its state), in a browser in this browser.
+const seqBtn = document.getElementById('seq-on');
+let seqOn = tbPlugin ? !(tbPlugin.info?.engine || []).some(m => m && m.type === 'seq' && m.value === false) : store.get('seqOn', true) !== false;
+function sendSeq() { send({ type: 'seq', value: seqOn }); }
+function drawSeq() {
+  seqBtn.setAttribute('aria-pressed', seqOn); seqBtn.setAttribute('aria-label', seqOn ? 'Sequencer on' : 'Sequencer off, MIDI notes play the synth');
+  playBtn.disabled = !seqOn; document.documentElement.toggleAttribute('data-seqoff', !seqOn);
+}
+async function startAudioForMidi() { // a browser starts audio on a click or key, so Seq off needs one before MIDI can sound
+  if (tbPlugin || seqOn) return;
+  if (!ctx) { try { await initAudio(); } catch { return; } }
+  if (ctx.state === 'suspended') try { await ctx.resume(); } catch {}
+}
+seqBtn.onclick = () => {
+  seqOn = !seqOn; if (!tbPlugin) store.set('seqOn', seqOn);
+  if (!seqOn && playing) playBtn.click(); // stop the pattern first, so Play shows stopped
+  sendSeq(); drawSeq(); if (!seqOn) markStep(-1);
+  startAudioForMidi();
+};
+for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, startAudioForMidi, true);
+drawSeq(); if (tbPlugin) sendSeq();
 const midiPending = new Map(); let midiFrame = 0;
-function onMidiNote(note) {
+function onMidiNote(note, vel) {
+  if (!seqOn) { send({ type: 'note', on: true, note, vel }); return; }
   if (note >= NOTE_PAT && note < NOTE_PAT + 8) { const n = note - NOTE_PAT; if (n !== sel.n) loadSlot(sel.g, n); }
   else if (note >= NOTE_ROOT && note <= NOTE_ROOT + ROOT_MAX && note - NOTE_ROOT !== midiTranspose) { midiTranspose = note - NOTE_ROOT; sendTranspose(); }
 }
 function onMidi(e) {
   const [st, cc, val] = e.data;
-  if ((st & 0xf0) === 0x90 && val > 0) { onMidiNote(cc); return; }
+  if ((st & 0xf0) === 0x90 && val > 0) { onMidiNote(cc, val); return; }
+  if ((st & 0xf0) === 0x80 || (st & 0xf0) === 0x90) { if (!seqOn) send({ type: 'note', on: false, note: cc, vel: 0 }); return; }
   if ((st & 0xf0) !== 0xb0 || cc < 1 || cc > MIDI_MAP.length) return;
   midiPending.set(cc, val / 127);
   if (!midiFrame) midiFrame = requestAnimationFrame(() => { midiFrame = 0; for (const [c, t] of midiPending) MIDI_MAP[c - 1].set(t); midiPending.clear(); });

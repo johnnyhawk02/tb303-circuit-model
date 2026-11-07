@@ -1713,7 +1713,8 @@ class DeClick {
 
 // The player around the voice: parameter slew, de-click, and the step sequencer that walks a pattern.
 // The AudioWorklet and the main-thread fallback both run this, so they sound the same.
-// Messages: knob, component, wave, tune, fx, declick, pattern, transpose, bpm, groove (shuffle, gate length), play.
+// Messages: knob, component, wave, tune, fx, declick, pattern, transpose, bpm, groove (shuffle, gate length), play,
+// seq (the step sequencer on or off) and note (a MIDI note, played straight on the voice while the sequencer is off).
 class TB303Engine {
   constructor(fs, onStep = () => {}) {
     this.fs = fs; this.onStep = onStep;
@@ -1721,6 +1722,18 @@ class TB303Engine {
     this.playing = false; this.bpm = 128; this.pattern = []; this.shuffle = 0; this.gate = 0.5;
     this.transpose = 0; // semitones the pattern plays up (the root note from MIDI)
     this.step = -1; this.ctr = 0; this.stepLen = 1; this.gateOffAt = -1;
+    this.seqOn = true; this.held = []; // with the sequencer off: the MIDI notes held down, the last one sounding
+  }
+  // Seq off: a mono MIDI synth. The newest held note sounds; a note pressed while another is held slides to it without
+  // retriggering (as a slide step does), letting go falls back to the note still held. Velocity 100 and up is an accent.
+  // MIDI note 45 (A2) is code 33, 110 Hz, the pattern's A; notes outside the DAC's 64 codes are folded in by octaves.
+  _noteCode(n) { let c = (n | 0) - 12; while (c < 0) c += 12; while (c > 63) c -= 12; return c; }
+  _note(on, n, vel) {
+    const h = this.held, i = h.indexOf(n);
+    if (i >= 0) h.splice(i, 1);
+    if (on) { const legato = h.length > 0; h.push(n); this.v.noteOn(this._noteCode(n), vel >= 100, legato); }
+    else if (i === h.length && h.length) this.v.noteOn(this._noteCode(h[h.length - 1]), false, true); // the note let go was sounding
+    else if (!h.length && i >= 0) this.v.noteOff();
   }
   message(m) {
     const v = this.v;
@@ -1735,7 +1748,12 @@ class TB303Engine {
     else if (m.type === 'bpm') { this.bpm = m.value; v.bpm = m.value; v.dly.derive(v.knobs, m.value); }
     else if (m.type === 'groove') { this.shuffle = m.shuffle; this.gate = m.gate; }
     else if (m.type === 'ir') v.conv.setIR(m.id, m.L, m.R);
-    else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value) v.noteOff(); }
+    else if (m.type === 'play') { this.playing = m.value; this.step = -1; this.ctr = 0; if (!m.value && this.seqOn) v.noteOff(); }
+    else if (m.type === 'seq') {
+      const on = !!m.value; if (on === this.seqOn) return;
+      this.seqOn = on; this.held = []; this.step = -1; this.ctr = 0; this.gateOffAt = -1; v.noteOff();
+    }
+    else if (m.type === 'note') { if (!this.seqOn) this._note(!!m.on, m.note | 0, m.vel | 0); }
   }
   // a 16th note; shuffle lengthens the even steps and shortens the odd ones. Returns its length in samples.
   _startStep() {
@@ -1752,19 +1770,19 @@ class TB303Engine {
   }
   // fills out[s..e) (and outR, if given), split into runs at step starts, gate-offs and every 32 samples while slewing
   render(out, outR, s = 0, e = out.length) {
-    let i = s;
+    let i = s; const seq = this.playing && this.seqOn;
     while (i < e) {
-      if (this.playing && this.ctr <= 0) { this.stepLen = this._startStep() || 1; this.ctr = this.stepLen; }
+      if (seq && this.ctr <= 0) { this.stepLen = this._startStep() || 1; this.ctr = this.stepLen; }
       let run = e - i;
       if (this.slew.active) { run = Math.min(run, 32); this.slew.tick(run); }
-      if (this.playing) {
+      if (seq) {
         run = Math.min(run, this.ctr);
         const elapsed = this.stepLen - this.ctr;
         if (this.gateOffAt > elapsed) run = Math.min(run, this.gateOffAt - elapsed);
         else if (this.gateOffAt === elapsed) { this.v.noteOff(); this.gateOffAt = -1; }
       }
       this.dc.process(out, i, i + run, outR);
-      i += run; if (this.playing) this.ctr -= run;
+      i += run; if (seq) this.ctr -= run;
     }
   }
 }

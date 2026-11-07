@@ -14,6 +14,10 @@ It runs in your browser and as a plug-in, with the same sound and the same scree
 Works in Chrome, Edge and Safari on a computer or tablet; Firefox works too. Install it as an app from Options › About
 to use it offline. MIDI keyboards and controllers work in Chrome and Edge (Options › MIDI).
 
+The small **Seq** button next to Play turns the step sequencer on and off. With it off the synth is a mono MIDI synth:
+notes play it directly (A2 = 110 Hz), velocity 100 and up is an accent, and a note played while another is held slides
+to it, as on the 303. It works the same way in the plug-in, where the setting is saved with the project.
+
 ## The plug-in
 
 | | Formats | Install |
@@ -36,6 +40,7 @@ read it first if you like ([install.sh](install.sh), [install.ps1](install.ps1))
   button or Tempo dial in the plug-in.
 - **Automation:** every dial, the effect switches, the wave switch and the pattern slot are DAW parameters.
 - **MIDI notes** (C3 = middle C = 60): C0-G0 pick patterns 1-8; C1-C3 transpose the pattern (C1 = as written).
+  With **Seq** off, every note plays the synth instead and the DAW transport doesn't start the pattern.
 - **Saving:** the DAW project keeps the sound, the patterns and the chain. Your presets, favourites and colours are
   shared by every copy of the plug-in, in `~/Library/Application Support/303 Circuit Model` (Mac),
   `%APPDATA%\303 Circuit Model` (Windows) or `~/.config/303 Circuit Model` (Linux).

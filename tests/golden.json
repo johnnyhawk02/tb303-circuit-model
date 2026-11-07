@@ -6,5 +6,9 @@
   "tests/scenario-44k.json": {
     "sha256": "ecb5088fae2f012dd2ed63eab101f49369223495c0cc2013caa3ca93ece7033b",
     "rmsDb": -23.34
+  },
+  "tests/scenario-midi.json": {
+    "sha256": "701b7bfc8a3a84ece0b1b06990d9030177f9d5daaee2fbb225628101bf7ad678",
+    "rmsDb": -25.32
   }
 }

@@ -620,3 +620,11 @@ dialog#cseq .cs-foot #cseq-done { margin-left: auto; min-width: 80px; }
 .tmenu .tm-w { display: inline-grid; justify-items: start; }
 .tmenu .tm-w > span { grid-area: 1 / 1; white-space: nowrap; }
 .tmenu .tm-w > span + span { visibility: hidden; }
+
+/* Seq on/off: a small switch by Play (the plug-in shows it too). Off, the sequencer stops and MIDI notes play the synth,
+   so Play is dimmed; the Tempo dial stays for the tempo-synced delay. On is inked like the FX On buttons. */
+.top .seqbtn { height: 20px !important; padding: 0 6px; font: var(--fs-s)/1 var(--font-body); }
+html:not([data-plugin]) .top .seqbtn { margin-left: -6px; }
+.top .seqbtn[aria-pressed=true] { background: var(--ink); color: var(--glass); text-shadow: none; }
+[data-lcdmode=colour] .top .seqbtn[aria-pressed=true] { background: var(--accent); border-color: var(--accent); }
+html[data-seqoff] .top #play { opacity: .35; }
