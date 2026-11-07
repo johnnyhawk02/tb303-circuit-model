@@ -3975,7 +3975,8 @@ const FUNCTIONS = {
     for (let tries = 0; tries < (wild ? 24 : 8) && !set; tries++) {
       const cand = pick(), v = new TB303Voice(22050);
       for (const k in cand) v.setComponent(k, cand[k]);
-      for (const kn of KNOBS) v.setKnob(kn.id, state.knobs[kn.id]);
+      // the volume knob is left out of the test (Johnny: New unit did nothing with the volume turned down): it only scales the level
+      for (const kn of KNOBS) v.setKnob(kn.id, kn.id === 'volume' ? 0.85 : state.knobs[kn.id]);
       v.waveform = state.wave;
       const buf = new Float32Array(11025); let e = 0, ok = true;
       for (let n = 0; n < 4; n++) { v.noteOn(24 + 7 * (n & 1), n === 2, false); v.process(buf, n * 2756, n * 2756 + 1500); v.noteOff(); v.process(buf, n * 2756 + 1500, n * 2756 + 2756); }
