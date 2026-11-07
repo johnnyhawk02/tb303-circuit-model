@@ -261,16 +261,45 @@ document.querySelector('.dpad').addEventListener('click', (e) => {
 });
 
 // Alter accents, slides or octaves: a variation rather than a new roll. About a quarter of the notes (at least one) get
-// the change: an accent or slide flipped on or off, or an octave jump up or down within range. Undo puts it back.
+// the change, chosen the way Generate places them (AcidLab habits): accents are added on the beat and taken off the
+// off-beats; slides go where they can tie into the next played note, most of all across an octave jump, and dead ones
+// (into a rest) go first; octave jumps leave the repeat note (the most used one) alone and are often slid into. Undo puts it back.
 function alterLane(kind) {
-  const notes = state.pattern.filter(st => st.gate); if (!notes.length) { sqSay('No notes to vary: put some notes in first.'); return; }
+  const P = state.pattern, n = P.length, r = Math.random;
+  const on = [...P.keys()].filter(i => P[i].gate); if (!on.length) { sqSay('No notes to vary: put some notes in first.'); return; }
   pushUndo();
-  const pick = [...notes].sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.round(notes.length / 4)));
-  for (const st of pick) {
-    if (kind === 'octave') { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || Math.random() < 0.5); st.code += up ? 12 : -12; }
+  const tied = (i) => P[(i + 1) % n].gate; // a slide only does something when the very next step plays
+  const count = {}; for (const i of on) count[P[i].code] = (count[P[i].code] || 0) + 1;
+  const hold = +Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+  // how likely each note is to be picked: the change Generate would make there is the likely one
+  const weight = (i) => {
+    const st = P[i], beat = i % 4 === 0;
+    if (kind === 'accent') return st.accent ? (beat ? 0.4 : 1.6) : (beat ? 1.8 : i % 2 ? 0.8 : 1);
+    if (kind === 'slide') {
+      if (st.slide) return tied(i) ? 0.6 : 3;
+      if (!tied(i)) return 0.05;
+      const jump = Math.abs(P[(i + 1) % n].code - st.code);
+      return jump >= 12 ? 2.5 : jump === 0 ? 0.6 : 1;
+    }
+    return st.code === hold && Object.keys(count).length > 1 ? 0.25 : 1; // octave
+  };
+  const pool = on.map(i => ({ i, w: weight(i) })), pick = [];
+  for (let k = Math.max(1, Math.round(on.length / 4)); k > 0 && pool.length; k--) {
+    let x = r() * pool.reduce((s, p) => s + p.w, 0), j = 0;
+    while (j < pool.length - 1 && (x -= pool[j].w) > 0) j++;
+    pick.push(pool.splice(j, 1)[0].i);
+  }
+  for (const i of pick) {
+    const st = P[i];
+    if (kind === 'octave') {
+      const up = st.code + 12 <= 59 && (st.code - 12 < 0 || r() < 0.5); st.code += up ? 12 : -12;
+      // Generate slides across most octave jumps: tie the note before into this one now and then
+      const prev = [...on].reverse().find(k => k < i) ?? -1;
+      if (prev >= 0 && prev === i - 1 && r() < 0.35) P[prev].slide = true;
+    }
     else st[kind] = !st[kind];
   }
   renderSeq(); pushPattern();
-  const n = pick.length, w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
-  sqSay(`Altered ${n} ${w[n > 1 ? 1 : 0]}. Again for more; Undo puts it back.`);
+  const w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
+  sqSay(`Altered ${pick.length} ${w[pick.length > 1 ? 1 : 0]}. Again for more; Undo puts it back.`);
 }
