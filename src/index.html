@@ -86,16 +86,16 @@ const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage
         <div class="chain-read" id="chain-read" hidden><span class="label">Chain</span><span class="ch-list"></span><button type="button" id="chain-clear" aria-label="Clear chain">×</button></div>
         <div class="fn rmenu"><button type="button" id="rm-btn" aria-haspopup="menu" aria-expanded="false" title="Randomise, alter, shuffle and generate the pattern">Randomise</button><div class="fn-menu" id="rm-menu" role="menu" hidden>
           <span class="mh">randomise</span>
-          <button type="button" role="menuitem" data-rm="r-acc" title="New random accents on the notes; the notes, slides and octaves stay">Accents</button>
-          <button type="button" role="menuitem" data-rm="r-sld" title="New random slides on the notes; the notes, accents and octaves stay">Slides</button>
-          <button type="button" role="menuitem" data-rm="r-oct" title="New random octaves for the notes; the notes themselves, accents and slides stay">Octaves</button>
+          <button type="button" role="menuitem" data-rm="r-acc" title="New random accents on the notes, mostly on the beat; the notes, slides and octaves stay">Accents</button>
+          <button type="button" role="menuitem" data-rm="r-sld" title="New random slides into the next played note, most across octave jumps; the notes, accents and octaves stay">Slides</button>
+          <button type="button" role="menuitem" data-rm="r-oct" title="A new register for the riff with the odd octave jump; the notes themselves, accents and slides stay">Octaves</button>
           <span class="mh">alter</span>
           <button type="button" role="menuitem" data-rm="a-acc" title="Vary the accents: about a quarter of the notes gain or lose an accent; again for more">Accents</button>
           <button type="button" role="menuitem" data-rm="a-sld" title="Vary the slides: about a quarter of the notes gain or lose a slide; again for more">Slides</button>
           <button type="button" role="menuitem" data-rm="a-oct" title="Vary the octaves: about a quarter of the notes jump an octave up or down; again for more">Octaves</button>
           <button type="button" role="menuitem" data-rm="alter" title="Vary the whole pattern: about a quarter of the steps change note (staying in the pattern's key), octave, accent, slide or rest">Whole pattern</button>
           <span class="mh">pattern</span>
-          <button type="button" role="menuitem" data-rm="p-shuf" title="Move the steps around at random: notes keep their accents and slides, rests move too">Shuffle steps</button>
+          <button type="button" role="menuitem" data-rm="p-shuf" title="Deal the beats (groups of 4 steps) out in a new order, so each beat keeps its groove; short or odd-length patterns shuffle single steps">Shuffle steps</button>
           <button type="button" role="menuitem" id="rand" title="New pattern from a random factory one, looped, reversed, doubled or shuffled; the length stays">Generate</button>
           <button type="button" role="menuitem" id="p-refill" title="Give every slot you have not edited a new generated pattern">Refill slots</button>
         </div></div>
