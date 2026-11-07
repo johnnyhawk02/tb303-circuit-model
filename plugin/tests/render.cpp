@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         else if (cmd == "seed") { long long s; ss >> s; seed = (uint32_t) s; }
         else if (cmd == "bpm") ss >> bpm; else if (cmd == "groove") ss >> sh >> gate;
         else if (cmd == "step") { tb303::Step s; int a, sl, g; ss >> s.code >> a >> sl >> g; s.accent = a; s.slide = sl; s.gate = g; pat.push_back(s); }
-        else if (cmd == "ev") { Ev e; ss >> e.at >> e.kind; if (e.kind == "wave") ss >> e.str; else { if (e.kind != "tune") ss >> e.name; double x; while (ss >> x) e.vals.push_back(x); } evs.push_back(e); }
+        else if (cmd == "ev") { Ev e; ss >> e.at >> e.kind; if (e.kind == "wave") ss >> e.str; else { if (e.kind != "tune" && e.kind != "seq" && e.kind != "note") ss >> e.name; double x; while (ss >> x) e.vals.push_back(x); } evs.push_back(e); }
     }
     tb303::TB303Engine e(fs);
     e.v.rng = seed;
@@ -37,6 +37,8 @@ int main(int argc, char** argv) {
             else if (x.kind == "fx") e.setFx(x.name, x.vals[0] != 0);
             else if (x.kind == "tune") e.tune(x.vals.data(), (int) x.vals.size());
             else if (x.kind == "wave") e.setWave(x.str);
+            else if (x.kind == "seq") e.setSeq(x.vals[0] != 0);
+            else if (x.kind == "note") e.note(x.vals[1] > 0, (int) x.vals[0], (int) x.vals[1]);
         }
         if (!started) { e.play(true); started = true; }
         const int n = (int) std::min<long long>(block, N - i);

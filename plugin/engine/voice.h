@@ -515,6 +515,7 @@ struct TB303Engine {
     bool playing = false; double bpm = 128; std::vector<Step> pattern; double shuffle = 0, gateLen = 0.5;
     int step = -1; long long ctr = 0, stepLen = 1, gateOffAt = -1;
     int transpose = 0; // semitones the pattern plays up (the root note from MIDI)
+    bool seqOn = true; int held[32] = {}; int nHeld = 0; // with the sequencer off: the MIDI notes held down, the last one sounding
 
     explicit TB303Engine(double fs_, std::function<void(int)> cb = {})
         : fs(fs_), onStep(std::move(cb)), v(fs_), slew(v, fs_), dc(v, fs_) { pattern.reserve(64); }
@@ -529,7 +530,27 @@ struct TB303Engine {
     void setBpm(double b) { bpm = b; v.bpm = b; v.dly.derive(v.knobs, b); }
     void groove(double sh, double g) { shuffle = sh; gateLen = g; }
     void setIR(const std::string& id, std::shared_ptr<IRData> d) { v.conv.setIR(id, std::move(d)); }
-    void play(bool on) { playing = on; step = -1; ctr = 0; if (!on) dc.noteOff(); }
+    void play(bool on) { playing = on; step = -1; ctr = 0; if (!on && seqOn) dc.noteOff(); }
+    void setSeq(bool on) {
+        if (on == seqOn) return;
+        seqOn = on; nHeld = 0; step = -1; ctr = 0; gateOffAt = -1; dc.noteOff();
+    }
+    // Seq off: a mono MIDI synth, as TB303Engine._note in tb303-model.js. The newest held note sounds; a note pressed while
+    // another is held slides to it, letting go falls back to the note still held; velocity 100 and up is an accent.
+    static int noteCode(int n) { int c = n - 12; while (c < 0) c += 12; while (c > 63) c -= 12; return c; }
+    void note(bool on, int n, int vel) {
+        if (seqOn) return;
+        int i = 0; while (i < nHeld && held[i] != n) i++;
+        const bool found = i < nHeld;
+        if (found) { for (int j = i; j < nHeld - 1; j++) held[j] = held[j + 1]; nHeld--; }
+        if (on) {
+            const bool legato = nHeld > 0;
+            if (nHeld == 32) { for (int j = 0; j < 31; j++) held[j] = held[j + 1]; nHeld--; }
+            held[nHeld++] = n; dc.noteOn(noteCode(n), vel >= 100, legato);
+        }
+        else if (found && i == nHeld && nHeld) dc.noteOn(noteCode(held[nHeld - 1]), false, true);
+        else if (found && !nHeld) dc.noteOff();
+    }
 
     long long startStep() {
         const int n = (int) pattern.size(); if (!n) return 0;
@@ -545,19 +566,19 @@ struct TB303Engine {
     }
 
     void render(float* out, float* outR, int s, int e) {
-        int i = s;
+        int i = s; const bool seq = playing && seqOn;
         while (i < e) {
-            if (playing && ctr <= 0) { const long long l = startStep(); stepLen = l ? l : 1; ctr = stepLen; }
+            if (seq && ctr <= 0) { const long long l = startStep(); stepLen = l ? l : 1; ctr = stepLen; }
             int run = e - i;
             if (slew.active()) { run = run < 32 ? run : 32; slew.tick(run); }
-            if (playing) {
+            if (seq) {
                 if (ctr < run) run = (int) ctr;
                 const long long elapsed = stepLen - ctr;
                 if (gateOffAt > elapsed) { if (gateOffAt - elapsed < run) run = (int) (gateOffAt - elapsed); }
                 else if (gateOffAt == elapsed) { dc.noteOff(); gateOffAt = -1; }
             }
             dc.process(out, i, i + run, outR);
-            i += run; if (playing) ctr -= run;
+            i += run; if (seq) ctr -= run;
         }
     }
 };

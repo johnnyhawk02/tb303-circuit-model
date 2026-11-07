@@ -41,6 +41,7 @@ const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage
   <header class="top">
     <h1 class="status">303 circuit model</h1>
     <button class="icon play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M7 4.5 L19.5 12 L7 19.5 Z"/><rect class="sq" x="6" y="6" width="12" height="12"/></svg></button>
+    <button class="seqbtn" id="seq-on" type="button" aria-pressed="true" aria-label="Sequencer on">seq</button>
     <div class="bpm">
       <div class="knob" id="bpm" tabindex="0" role="slider" aria-label="Tempo" aria-valuemin="60" aria-valuemax="200"></div>
       <div class="bpm-read"><output id="bpm-val">128</output><span class="label">BPM</span></div>

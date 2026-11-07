@@ -17,6 +17,8 @@ for (let i = 0; i < N; i += S.block) {
     for (const k in x.fx || {}) e.message({ type: 'fx', name: k, value: x.fx[k] });
     if (x.tune) e.message({ type: 'tune', value: x.tune });
     if (x.wave) e.message({ type: 'wave', value: x.wave });
+    if ('seq' in x) e.message({ type: 'seq', value: !!x.seq });
+    for (const [note, vel] of x.notes || []) e.message({ type: 'note', on: vel > 0, note, vel });
   }
   if (!started) { e.message({ type: 'play', value: true }); started = true; }
   const n = Math.min(S.block, N - i);

@@ -69,6 +69,7 @@ bool TB303Processor::parse (const juce::var& m, Msg& out, std::string& key) {
         out.kind = Msg::Groove; if (!num (m["shuffle"], out.a)) out.a = 0; if (!num (m["gate"], out.b)) out.b = 0.5;
         key = "groove"; return true;
     }
+    if (type == "seq") { out.kind = Msg::Seq; out.on = (bool) m["value"]; key = "seq"; return true; }
     if (type == "pattern") {
         out.kind = Msg::Pattern; out.steps.clear();
         if (auto* a = m["value"].getArray())
@@ -92,6 +93,7 @@ void TB303Processor::apply (Engine& e, Msg& m, bool instant) {
         case Msg::Declick: e.declick (m.on, m.a); break;
         case Msg::Groove: e.groove (m.a, m.b); break;
         case Msg::Pattern: e.setPattern (std::move (m.steps)); break;
+        case Msg::Seq: e.setSeq (m.on); break;
         case Msg::IR: e.setIR (m.name, m.ir); break;
     }
 }
@@ -311,8 +313,8 @@ std::unique_ptr<TB303Processor::Engine> TB303Processor::makeEngine (double fs) {
     e->v.conv.alloc(); // up front, so choosing Conv later never allocates on the audio thread (same state as the lazy alloc)
     std::lock_guard<std::mutex> g (snapshotLock);
     overlayParams();
-    // the same order the page sends them in when audio starts: knobs, parts, wave, tuning, pattern, groove, fx, de-click
-    static const char* order[] = { "k:", "c:", "wave", "tune", "pattern", "groove", "fx:", "declick" };
+    // the same order the page sends them in when audio starts: knobs, parts, wave, tuning, pattern, groove, fx, de-click, seq
+    static const char* order[] = { "k:", "c:", "wave", "tune", "pattern", "groove", "fx:", "declick", "seq" };
     for (const char* pre : order)
         for (const auto& [key, m] : snapshot)
             if (key.rfind (pre, 0) == 0) { Msg msg; std::string k; if (parse (m, msg, k)) apply (*e, msg, true); }
@@ -440,13 +442,26 @@ void TB303Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
         else if (P.kind == Param::Fx) e.setFx (P.name, v >= 0.5f);
         else { static const std::string sq = "square", saw = "saw"; e.setWave (v >= 0.5f ? sq : saw); }
     }
+    syncToHost (e, n);
+    float* L = buffer.getWritePointer (0);
+    float* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
+    if (!R) { if ((int) scratchR.size() < n) { buffer.clear(); return; } R = scratchR.data(); }
+    // MIDI from the track. Seq on (as on the page, C3 = 60): C0-G0 pick pattern 1-8, C1-C3 set the root note (C1 = as
+    // written). Seq off: every note plays the voice, at its own sample in the block. CC goes to the page's MIDI map.
+    int at = 0;
     for (const auto meta : midi) {
         const auto msg = meta.getMessage();
-        // notes, octaves named as on the page (C3 = 60): C0-G0 pick pattern 1-8, C1-C3 set the root note (C1 = as written)
-        if (msg.isNoteOn()) {
+        if (msg.isNoteOnOrOff()) {
             const int nn = msg.getNoteNumber();
-            if (nn >= 24 && nn < 32) midiSlot.store (nn - 24);
-            else if (nn >= 36 && nn <= 60) transposeNow = nn - 36;
+            if (! e.seqOn) {
+                const int pos = juce::jlimit (at, n, meta.samplePosition);
+                if (pos > at) { e.render (L, R, at, pos); at = pos; }
+                e.note (msg.isNoteOn(), nn, msg.getVelocity());
+            }
+            else if (msg.isNoteOn()) {
+                if (nn >= 24 && nn < 32) midiSlot.store (nn - 24);
+                else if (nn >= 36 && nn <= 60) { transposeNow = nn - 36; e.transpose = transposeNow; }
+            }
         }
         else if (msg.isController()) {
             int s1, n1, s2, n2; midiFifo.prepareToWrite (1, s1, n1, s2, n2);
@@ -454,11 +469,7 @@ void TB303Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
         }
     }
     e.transpose = transposeNow;
-    syncToHost (e, n);
-    float* L = buffer.getWritePointer (0);
-    float* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
-    if (!R) { if ((int) scratchR.size() < n) { buffer.clear(); return; } R = scratchR.data(); }
-    e.render (L, R, 0, n);
+    if (at < n) e.render (L, R, at, n);
     for (int c = 2; c < buffer.getNumChannels(); c++) buffer.copyFrom (c, 0, buffer, 0, 0, n);
 }
 

@@ -6,7 +6,7 @@
 const fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const root = path.join(__dirname, '..'), file = path.join(__dirname, 'golden.json');
-const SCENARIOS = ['tests/scenario.json', 'tests/scenario-44k.json'];
+const SCENARIOS = ['tests/scenario.json', 'tests/scenario-44k.json', 'tests/scenario-midi.json'];
 const update = process.argv.includes('--update');
 const want = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 const got = {};

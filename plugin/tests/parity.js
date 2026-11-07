@@ -13,9 +13,9 @@ if (!bin) {
 }
 const read = (f) => { const b = fs.readFileSync(f); return new Float32Array(b.buffer, b.byteOffset, b.length / 4); };
 let bad = 0;
-for (const sc of ['tests/scenario.json', 'tests/scenario-44k.json']) {
+for (const sc of ['tests/scenario.json', 'tests/scenario-44k.json', 'tests/scenario-midi.json']) {
   const S = JSON.parse(fs.readFileSync(path.join(root, sc), 'utf8'));
-  // the same event order tests/render.js uses: at each block start, every due event's knobs, parts, fx, tune, wave
+  // the same event order tests/render.js uses: at each block start, every due event's knobs, parts, fx, tune, wave, seq, notes
   const lines = [`fs ${S.fs}`, `seconds ${S.seconds}`, `block ${S.block}`, `seed ${S.seed | 0 >>> 0}`, `bpm ${S.bpm}`, `groove ${S.groove.shuffle} ${S.groove.gate}`];
   for (const [code, accent, slide, gate] of S.pattern) lines.push(`step ${code} ${accent ? 1 : 0} ${slide ? 1 : 0} ${gate ? 1 : 0}`);
   for (const x of S.events) {
@@ -25,6 +25,8 @@ for (const sc of ['tests/scenario.json', 'tests/scenario-44k.json']) {
     for (const k in x.fx || {}) lines.push(`ev ${at} fx ${k} ${x.fx[k] ? 1 : 0}`);
     if (x.tune) lines.push(`ev ${at} tune ${x.tune.join(' ')}`);
     if (x.wave) lines.push(`ev ${at} wave ${x.wave}`);
+    if ('seq' in x) lines.push(`ev ${at} seq ${x.seq ? 1 : 0}`);
+    for (const [note, vel] of x.notes || []) lines.push(`ev ${at} note ${note} ${vel}`);
   }
   const txt = path.join(os.tmpdir(), `parity-${process.pid}.txt`), a = txt + '.js.f32', b = txt + '.cpp.f32';
   fs.writeFileSync(txt, lines.join('\n') + '\n');
