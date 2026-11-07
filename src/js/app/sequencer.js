@@ -193,17 +193,29 @@ document.querySelector('.sq-side').addEventListener('input', (e) => {
 document.getElementById('p-undo').onclick = () => FUNCTIONS.undo();
 // Randomise accents, slides or octaves: each rewrites only its own property on the notes (steps with the gate on) and
 // leaves the notes and the other properties alone; rests are untouched. Again for another roll; Undo puts it back.
+// The odds are Generate's: accents lean on the beat; slides only where the next step plays, most across octave jumps;
+// octaves pick one register for the riff, keep its most used note (the repeat note) there and jump the odd other note.
 const RND_OCT = [[-1, 3], [0, 5], [1, 2], [2, 0.4], [-2, 0.4]]; // octave lane, weight: mostly 0 and -1, some +1, a rare extreme
 const rndOct = () => { let r = Math.random() * RND_OCT.reduce((a, [, w]) => a + w, 0); for (const [o, w] of RND_OCT) if ((r -= w) < 0) return o; return 0; };
 function randomise(kind) {
-  const P = state.pattern; if (!P.some(st => st.gate)) { sqSay('No notes to change: put some notes in first.'); return; }
+  const P = state.pattern, n = P.length, r = Math.random; if (!P.some(st => st.gate)) { sqSay('No notes to change: put some notes in first.'); return; }
   pushUndo();
-  for (const st of P) {
-    if (!st.gate) continue;
-    if (kind === 'accent') st.accent = Math.random() < 0.3;
-    else if (kind === 'slide') st.slide = Math.random() < 0.25;
-    else { const { k } = splitCode(st.code); st.code = clampCode(24 + k + 12 * rndOct()); }
-  }
+  const count = {}; for (const st of P) if (st.gate) { const { k } = splitCode(st.code); count[k] = (count[k] || 0) + 1; }
+  const hold = +Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+  const base = Math.max(-1, Math.min(1, rndOct())), jump = 0.15 + r() * 0.2;
+  P.forEach((st, i) => {
+    if (!st.gate) return;
+    if (kind === 'accent') st.accent = r() < (i % 4 === 0 ? 0.42 : i % 2 ? 0.2 : 0.26);
+    else if (kind === 'slide') {
+      const nx = P[(i + 1) % n], d = Math.abs(nx.code - st.code);
+      st.slide = nx.gate && r() < (d >= 12 ? 0.5 : d === 0 ? 0.12 : 0.22);
+    }
+    else {
+      const { k } = splitCode(st.code); let o = base;
+      if (r() < (k === hold ? jump / 3 : jump)) o += r() < 0.7 ? 1 : -1;
+      st.code = clampCode(24 + k + 12 * Math.max(-2, Math.min(2, o)));
+    }
+  });
   renderSeq(); pushPattern();
   sqSay(`New random ${kind === 'accent' ? 'accents' : kind === 'slide' ? 'slides' : 'octaves'}. Again for another roll; Undo puts it back.`);
 }
@@ -216,15 +228,21 @@ document.getElementById('p-dup').onclick = () => {
   renderSeq(); pushPattern();
   sqSay(`Repeated ${n} step${n === 1 ? '' : 's'} out to ${to}. Undo puts it back.`);
 };
-// Shuffle notes: deal the steps out in a new random order (each note keeps its accent and slide); tap again for another
+// Shuffle: like Generate's shuffle move, whole beats (4 steps) are dealt out in a new order so the groove inside each
+// beat survives; patterns too short or not a whole number of beats shuffle single steps. Tap again for another order
 function shuffleSteps() {
-  const P = state.pattern; if (P.length < 2) return;
+  const P = state.pattern, n = P.length; if (n < 2) return;
   pushUndo();
-  const before = JSON.stringify(P);
-  for (let tries = 0; tries < 8 && JSON.stringify(P) === before; tries++)
-    for (let i = P.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [P[i], P[j]] = [P[j], P[i]]; }
+  const b = n >= 8 && n % 4 === 0 ? 4 : 1, before = JSON.stringify(P);
+  for (let tries = 0; tries < 8 && JSON.stringify(state.pattern) === before; tries++) {
+    const blocks = []; for (let i = 0; i < n; i += b) blocks.push(P.slice(i, i + b));
+    for (let i = blocks.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [blocks[i], blocks[j]] = [blocks[j], blocks[i]]; }
+    state.pattern = blocks.flat();
+  }
+  // a slide into a rest does nothing, so slides that now lead into one are dropped
+  const Q = state.pattern; Q.forEach((st, i) => { if (st.slide && !Q[(i + 1) % n].gate) st.slide = false; });
   tail = []; renderSeq(); pushPattern();
-  sqSay(`Shuffled ${P.length} steps. Again for another order; Undo puts it back.`);
+  sqSay(`Shuffled ${b > 1 ? n / b + ' beats' : n + ' steps'}. Again for another order; Undo puts it back.`);
 }
 document.getElementById('rand').onclick = () => {
   pushUndo();
