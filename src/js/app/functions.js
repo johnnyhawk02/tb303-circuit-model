@@ -62,7 +62,8 @@ const FUNCTIONS = {
       else if (x < 0.52) { const up = st.code + 12 <= 59 && (st.code - 12 < 0 || r() < 0.5); st.code += up ? 12 : -12; done.octave++; }
       else if (x < 0.66) { st.accent = !st.accent; done.accent++; }
       else if (x < 0.8) { st.slide = !st.slide; done.slide++; }
-      else if (i > 0 && (st.gate ? !beat && (off || r() < 0.4) : !off || r() < 0.5)) {
+      // rests and fills lean towards the density dial: over it, notes become rests; under it, rests get filled
+      else if (i > 0 && (P.filter(s => s.gate).length / n > genDens + 0.05 ? st.gate && !beat : P.filter(s => s.gate).length / n < genDens - 0.05 ? !st.gate : (st.gate ? !beat && (off || r() < 0.4) : !off || r() < 0.5))) {
         st.gate = !st.gate;
         if (st.gate) { st.code = hold; done.gate++; } else { st.accent = st.slide = false; done.rest++; }
       }

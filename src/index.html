@@ -124,6 +124,8 @@ const tbStore = tbPlugin ? tbPlugin.storage : (() => { try { return localStorage
       <div class="sq-row sq-side">
         <label class="sld len"><span>Length</span><input type="range" data-a="len" min="1" max="64" step="1" aria-label="Pattern length"><output id="o-len">16</output></label>
       </div></div>
+        <!-- Density (Johnny: "needs a density knob"): how many steps Generate and Refill fill with notes -->
+        <div class="sq-dens"><span class="dname">density</span><div class="knob" id="sq-dens" tabindex="0" role="slider" aria-label="Density" aria-valuemin="10" aria-valuemax="100" title="Density: how many steps Generate and Refill fill with notes (Alter leans towards it too); double-click for 60%"></div><output id="o-dens">60%</output></div>
         <!-- a cross of four (Johnny): up and down move every note a semitone (Shift for an octave), left and right shift the pattern a step -->
         <div class="nudge dpad" role="group" aria-label="Move the notes">
           <button type="button" class="dp-up" data-nudge="1" title="Every note up a semitone, Shift-click for an octave" aria-label="Notes up">▲</button>

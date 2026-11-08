@@ -20,7 +20,7 @@ function fillSlots(force) {
     const k = slotKey('A', i), x = banks[k];
     const empty = !x || !x.pattern?.some(st => st.gate);
     if (k === cur || !(empty || (force && x.auto))) continue;
-    const gp = generatePattern(16);
+    const gp = generatePattern(16, genDens);
     banks[k] = { shuffle: 0, gate: 0.5, pattern: gp.pattern, auto: true, name: gp.src }; n++;
   }
   store.set('banks', banks); return n;
