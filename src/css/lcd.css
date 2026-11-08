@@ -628,3 +628,10 @@ html:not([data-plugin]) .top .seqbtn { margin-left: -6px; }
 .top .seqbtn[aria-pressed=true] { background: var(--ink); color: var(--glass); text-shadow: none; }
 [data-lcdmode=colour] .top .seqbtn[aria-pressed=true] { background: var(--accent); border-color: var(--accent); }
 html[data-seqoff] .top #play { opacity: .35; }
+
+/* Density dial (Johnny: "needs a density knob"): name, small dial and value in the sequencer foot, left of the cross */
+.sq-dens { display: flex; align-items: center; gap: 8px; flex: none; }
+.sq-dens .knob { width: 34px; height: 34px; }
+.sq-dens .dname { text-transform: lowercase; }
+.sq-dens output { min-width: 4ch; text-align: right; }
+html.fit .sq-dens, html.fit .sq-dens output { font-size: var(--fs-m); }

@@ -2,6 +2,9 @@
 // AcidLab generator Johnny brought in: a walking scale degree shaped by the style, a held "repeat note" layer that keeps
 // pulling the line back to one pitch, odd octave jumps), then gets 303 slides and is varied bar by bar with the moves below.
 // a step is { code, gate, accent, slide }; code 0-59 is the 303's note number (33 = A)
+// Density (Johnny: "needs a density knob"): the share of steps Generate and Refill fill with notes, from the dial in the
+// sequencer foot; Alter leans its new rests and fills towards it too. Kept across reloads, not in presets
+let genDens = Math.min(1, Math.max(0.1, +store.get('genDens', 0.6) || 0.6));
 const GEN_SCALES = {
   minor: [0, 2, 3, 5, 7, 8, 10], phrygian: [0, 1, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10],
   'minor pentatonic': [0, 3, 5, 7, 10], blues: [0, 3, 5, 6, 7, 10], 'harmonic minor': [0, 2, 3, 5, 7, 8, 11],

@@ -247,8 +247,8 @@ function shuffleSteps() {
 document.getElementById('rand').onclick = () => {
   pushUndo();
   // Generate keeps the pattern's length (Johnny) but writes all 64 steps (a bar and three variations of it, at the
-  // source's own density), so lengthening the pattern afterwards brings in more of the generated riff instead of rests
-  const g = generatePattern(64), n = state.pattern.length;
+  // density dial's density), so lengthening the pattern afterwards brings in more of the generated riff instead of rests
+  const g = generatePattern(64, genDens), n = state.pattern.length;
   state.pattern = g.pattern.slice(0, n); tail = g.pattern.slice(n); renderSeq(); pushPattern();
   const d = g.did.length > 1 ? g.did.slice(0, -1).join(', ') + ' and ' + g.did.at(-1) : g.did[0];
   sqSay(`From ${g.src}: ${d}. Undo puts the old one back.`);
@@ -320,4 +320,13 @@ function alterLane(kind) {
   renderSeq(); pushPattern();
   const w = { accent: ['accent', 'accents'], slide: ['slide', 'slides'], octave: ['octave', 'octaves'] }[kind];
   sqSay(`Altered ${pick.length} ${w[pick.length > 1 ? 1 : 0]}. Again for more; Undo puts it back.`);
+}
+// the density dial in the sequencer foot (Johnny): 10-100% of the steps play when Generate or Refill writes a pattern
+{
+  const el = document.getElementById('sq-dens'), out = document.getElementById('o-dens'), lo = 0.1;
+  el.innerHTML = knobSVG();
+  const draw = () => { knobDraw(el, (genDens - lo) / (1 - lo)); out.textContent = Math.round(genDens * 100) + '%'; el.setAttribute('aria-valuenow', Math.round(genDens * 100)); };
+  const put = (p) => { genDens = Math.round((lo + (1 - lo) * Math.min(1, Math.max(0, p))) * 100) / 100; store.set('genDens', genDens); draw(); };
+  bindDial(el, { get: () => (genDens - lo) / (1 - lo), set: (_, p) => put(p), min: 0, max: 1, focus: true, reset: () => put((0.6 - lo) / (1 - lo)) });
+  draw();
 }
